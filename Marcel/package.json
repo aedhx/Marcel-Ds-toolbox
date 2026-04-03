@@ -1,0 +1,17 @@
+{
+  "name": "marcel-figma-plugin",
+  "version": "1.0.0",
+  "description": "DesignOps Figma plugin for the Marcel Design System",
+  "scripts": {
+    "build": "node esbuild.config.mjs",
+    "watch": "node esbuild.config.mjs --watch"
+  },
+  "devDependencies": {
+    "@figma/plugin-typings": "^1.123.0",
+    "esbuild": "^0.27.3",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "culori": "^4.0.2"
+  }
+}
