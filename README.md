@@ -311,6 +311,8 @@ npm install
 npm run build
 ```
 
+> **Build before loading.** `dist/` is not committed. Run `npm run build` from `Marcel/` at least once before importing the manifest, and re-run it (or `npm run watch`) after any `src/` change — Figma loads the compiled `dist/main.js` + `dist/ui.html`, not the TypeScript source.
+
 ### Load in Figma
 
 1. Open Figma Desktop
