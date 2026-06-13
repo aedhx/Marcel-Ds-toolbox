@@ -4,7 +4,9 @@
   "description": "DesignOps Figma plugin for the Marcel Design System",
   "scripts": {
     "build": "node esbuild.config.mjs",
-    "watch": "node esbuild.config.mjs --watch"
+    "watch": "node esbuild.config.mjs --watch",
+    "check:dist": "node -e \"require('fs').existsSync('dist/main.js')||(console.error('\\n[Marcel] dist/main.js missing — run: npm run build\\n'),process.exit(1))\"",
+    "postinstall": "node -e \"require('fs').existsSync('dist/main.js')||console.warn('[Marcel] No build yet — run: npm run build before loading the plugin in Figma.')\""
   },
   "devDependencies": {
     "@figma/plugin-typings": "^1.123.0",
