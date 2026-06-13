@@ -1,6 +1,7 @@
 import type { HCResult } from '../features/health-check/hc-types';
 import type { DeadStylesResult, DeadItemType, StyleCleanerResult } from '../features/dead-styles/dead-styles-types';
 import type { A11YResult } from '../features/accessibility/a11y-types';
+import type { QualityCheckResult } from './quality-check-types';
 
 // ── Messages from UI to Plugin Sandbox ──
 
@@ -17,6 +18,8 @@ export type UIMessage =
   | { type: "fix-by-category"; category: string; violations: { nodeId: string; suggestion?: string }[] }
   // Health Check (placeholder — Phase 3)
   | { type: "run-health-check"; scope: "page" | "selection" | "file" }
+  // Unified Quality Check (hidden/dev trigger — Phase 2 wiring, D-06)
+  | { type: "run-quality-check"; scope: "page" | "selection" | "file" }
   // Navigation
   | { type: "navigate-to-node"; nodeId: string }
   // Scan control
@@ -76,6 +79,10 @@ export type PluginMessage =
   | { type: "health-check-result"; result: HCResult }
   | { type: "health-check-error"; message: string }
   | { type: "health-check-progress"; category: string; processed: number; total: number }
+  // Unified Quality Check (hidden/dev trigger — Phase 2 wiring, D-06)
+  | { type: "quality-check-result"; result: QualityCheckResult }
+  | { type: "quality-check-error"; message: string }
+  | { type: "quality-check-progress"; phase: string; processed: number; total: number }
   // Scan progress
   | { type: "traversal-progress"; processed: number; total: number }
   | { type: "scan-cancelled" }
