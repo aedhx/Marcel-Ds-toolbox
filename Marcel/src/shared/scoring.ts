@@ -1,3 +1,5 @@
+import type { ViolationSeverity } from "./violation-types";
+
 export interface CategoryScore {
   category: string;       // e.g., "naming", "colors", "typography"
   score: number;          // 0-100
@@ -81,4 +83,31 @@ export function calculateCategoryScore(
     ? 100
     : Math.max(0, Math.round(100 - (violationCount / totalChecked) * 100));
   return { category, score, weight, violationCount, totalChecked };
+}
+
+// ── Severity-weighted category score (was duplicated in hc-engine & a11y-engine) ──
+
+export const DEFAULT_SEVERITY_WEIGHTS = { error: 1.0, warning: 0.5, info: 0.1 } as const;
+
+/**
+ * Severity-weighted category score. Body lifted verbatim from the previously
+ * duplicated calculateHCCategoryScore / calculateA11YCategoryScore — same rounding,
+ * same `?? 1.0` fallback, same `totalChecked === 0 → 100` short-circuit. Each family
+ * passes in its own severity-weights constant so output is provably unchanged.
+ */
+export function calculateWeightedCategoryScore(
+  category: string,
+  violations: { severity: ViolationSeverity }[],
+  totalChecked: number,
+  weight: number = 1.0,
+  weights: Record<string, number> = DEFAULT_SEVERITY_WEIGHTS
+): CategoryScore {
+  if (totalChecked === 0) {
+    return { category, score: 100, weight, violationCount: 0, totalChecked: 0 };
+  }
+  const weightedCount = violations.reduce((sum, v) => {
+    return sum + (weights[v.severity] ?? 1.0);
+  }, 0);
+  const score = Math.max(0, Math.round(100 - (weightedCount / totalChecked) * 100));
+  return { category, score, weight, violationCount: violations.length, totalChecked };
 }
