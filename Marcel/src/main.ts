@@ -6,6 +6,7 @@ import { LinterConfig, loadLinterConfig, saveLinterConfig, resetLinterConfig } f
 import { loadAllowlist, addToAllowlist, removeFromAllowlist, clearAllowlist, filterAllowlisted } from "./features/linter/linter-allowlist";
 import { runHealthCheck } from "./features/health-check/hc-engine";
 import { hcFixNode, hcFixAll } from "./features/health-check/hc-autofix";
+import { runQualityCheck } from "./shared/quality-check-engine";
 import type { ScanAbortToken } from "./shared/node-traversal";
 import { generateOrUpdateCover } from "./features/cover-updater/cover-updater";
 import { loadCoverConfig, saveCoverConfig } from "./features/cover-updater/cover-config";
@@ -576,6 +577,51 @@ figma.ui.onmessage = async (msg: {
       currentAbortToken = null;
       figma.ui.postMessage({
         type: "health-check-error",
+        message: error?.message || nt("hc.error"),
+      });
+    }
+  }
+
+  // ── Unified Quality Check handler (hidden/dev trigger — D-06/D-09) ──
+  // Wires runQualityCheck() into the dispatch so the unified engine is genuinely
+  // invocable end-to-end this phase. Mirrors the run-health-check handler above:
+  // single currentAbortToken supersede, unified progress post, discard-on-cancel.
+  // NOT bound to any tab/UI result view (that is Phase 4).
+
+  if (msg.type === "run-quality-check") {
+    try {
+      // Cancel any in-progress scan (single-token supersede, D-09)
+      if (currentAbortToken) currentAbortToken.cancelled = true;
+      currentAbortToken = { cancelled: false };
+
+      const scope = msg.scope || "page";
+      const result = await runQualityCheck(
+        scope as "page" | "selection" | "file",
+        currentAbortToken,
+        (phase, processed, total) => {
+          figma.ui.postMessage({
+            type: "quality-check-progress",
+            phase,
+            processed,
+            total,
+          });
+        }
+      );
+
+      currentAbortToken = null;
+
+      // Discard-on-cancel (D-09): runQualityCheck returns null on cancel —
+      // never post a partial score.
+      if (result) {
+        figma.ui.postMessage({ type: "quality-check-result", result });
+      } else {
+        figma.ui.postMessage({ type: "scan-cancelled" });
+      }
+    } catch (error: any) {
+      console.error("Quality Check error:", error);
+      currentAbortToken = null;
+      figma.ui.postMessage({
+        type: "quality-check-error",
         message: error?.message || nt("hc.error"),
       });
     }
