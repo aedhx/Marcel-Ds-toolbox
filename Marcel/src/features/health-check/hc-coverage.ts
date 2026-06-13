@@ -31,11 +31,21 @@ export async function classifyCoverageInstances(instanceIds: string[]): Promise<
   // Track custom component groups: componentName -> { count, nodeIds }
   const customGroups = new Map<string, { count: number; nodeIds: string[] }>();
 
-  for (const nodeId of instanceIds) {
-    const node = await figma.getNodeByIdAsync(nodeId);
-    if (!node || node.type !== 'INSTANCE') continue;
+  // Batch node resolution to fix the sequential getNodeByIdAsync O(n) bottleneck (D-13).
+  // Chunks are processed in array order and each chunk's resolved nodes are iterated in
+  // slice order, so customGroups insertion order — and thus violation IDs/ordering — is
+  // identical to the previous one-at-a-time loop. Behavior-preserving (D-05).
+  const CHUNK = 50;
+  for (let i = 0; i < instanceIds.length; i += CHUNK) {
+    const slice = instanceIds.slice(i, i + CHUNK);
+    const nodes = await Promise.all(slice.map((id) => figma.getNodeByIdAsync(id)));
 
-    const instance = node as InstanceNode;
+    for (let j = 0; j < nodes.length; j++) {
+      const node = nodes[j];
+      const nodeId = slice[j];
+      if (!node || node.type !== 'INSTANCE') continue;
+
+      const instance = node as InstanceNode;
     let main: ComponentNode | null = null;
     try {
       main = await instance.getMainComponentAsync();
@@ -93,6 +103,7 @@ export async function classifyCoverageInstances(instanceIds: string[]): Promise<
         group.nodeIds.push(nodeId);
       } else {
         customGroups.set(groupName, { count: 1, nodeIds: [nodeId] });
+      }
       }
     }
   }
