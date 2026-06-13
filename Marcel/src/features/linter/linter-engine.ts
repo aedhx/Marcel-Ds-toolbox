@@ -6,7 +6,7 @@ import { traverseNodes, ScanAbortToken, TraversalScope } from "../../shared/node
 import { Violation } from "../../shared/violation-types";
 import { buildScoreResult, calculateCategoryScore, ScoreResult } from "../../shared/scoring";
 import { LinterConfig } from "./linter-config";
-import { rgbToHex, DS_TOKENS } from "../../shared/tokens";
+import { checkNodeNaming, NamingCtx } from "./linter-rules";
 
 // ── Exported types ──
 
@@ -38,18 +38,10 @@ var BASE_VAGUE_NAMES = [
   "div", "section", "comp", "layer",
 ];
 
-var SPECIAL_CHARS_REGEX = /[^a-zA-Z0-9\s\-_\/\.àéèêëïîôùûüçÀÉÈÊËÏÎÔÙÛÜÇ]/;
-
-var NUMBERED_SUFFIX_REGEX = /\s+\d+$/;
-
-// ── DS color hex set for style rules (O(1) token color lookup) ──
-var DS_LINTER_COLOR_SET = new Set<string>();
-(function() {
-  var colorTokens = DS_TOKENS.filter(function(t) { return t.category === "color"; });
-  for (var i = 0; i < colorTokens.length; i++) {
-    DS_LINTER_COLOR_SET.add(colorTokens[i].value.toLowerCase());
-  }
-})();
+// Note: SPECIAL_CHARS_REGEX and NUMBERED_SUFFIX_REGEX moved to linter-rules.ts
+// (their consumers — special-chars / numbered-suffix rules — now live in the shared
+// checkNodeNaming module, D-11). DEFAULT_NAME_REGEX stays here: still used by the
+// async default-names rule (Rule 1) and suggestAutoFix.
 
 // ── Confidence levels for filtering ──
 
@@ -103,35 +95,6 @@ function isOnIgnoredPage(config: LinterConfig, pageName: string): boolean {
     if (pageName === config.ignoredPages[i]) return true;
   }
   return false;
-}
-
-// ── Style rule helpers ──
-
-function extractNodeColors(node: SceneNode): string[] {
-  var colors: string[] = [];
-  if ("fills" in node) {
-    var fills = (node as GeometryMixin).fills;
-    if (Array.isArray(fills)) {
-      for (var i = 0; i < fills.length; i++) {
-        if (fills[i].type === "SOLID" && fills[i].visible !== false) {
-          var c = fills[i].color;
-          colors.push(rgbToHex(c.r, c.g, c.b).toLowerCase());
-        }
-      }
-    }
-  }
-  if ("strokes" in node) {
-    var strokes = (node as GeometryMixin).strokes;
-    if (Array.isArray(strokes)) {
-      for (var j = 0; j < strokes.length; j++) {
-        if (strokes[j].type === "SOLID" && strokes[j].visible !== false) {
-          var sc = strokes[j].color;
-          colors.push(rgbToHex(sc.r, sc.g, sc.b).toLowerCase());
-        }
-      }
-    }
-  }
-  return colors;
 }
 
 // ── Auto-fix suggestion heuristics ──
@@ -327,24 +290,22 @@ async function runRulesOnNodes(
     }
   }
 
-  // ── Rule 2: VAGUE_NAME (warning) ──
-  if (config.enabledRules["vague-names"] !== false) {
-    for (var i2 = 0; i2 < collectedNodes.length; i2++) {
-      var node2 = collectedNodes[i2].node;
-      var nodePath2 = collectedNodes[i2].path;
-      if (vagueNames.has(node2.name.toLowerCase())) {
-        violations.push({
-          id: "lint-vague-names-" + node2.id,
-          nodeId: node2.id,
-          nodeName: node2.name,
-          nodePath: nodePath2,
-          rule: "vague-names",
-          severity: "warning",
-          category: "naming",
-          message: "\"" + node2.name + "\" est un nom trop g\u00e9n\u00e9rique.",
-          autoFixable: false,
-          metadata: { ruleName: "Noms vagues", nodeType: node2.type },
-        });
+  // ── Per-node naming rules (shared module, D-11) ──
+  // vague-names, component-naming, long-names, special-chars, numbered-suffix, text-mismatch
+  // come from the single source linter-rules.ts::checkNodeNaming. Per-rule enable toggles are
+  // preserved by filtering the shared output (behavior-preserving, D-05). The async
+  // default-names rule (Rule 1) and the cross-node duplicate-siblings rule (Rule 3) stay inline
+  // — they do not fit the pure-sync per-node checkNode mold (D-11 landmine).
+  var namingCtx: NamingCtx = {
+    vagueNames: vagueNames,
+    maxLen: maxLen,
+    usedComponentIds: usedComponentIds,
+  };
+  for (var nn = 0; nn < collectedNodes.length; nn++) {
+    var namingViolations = checkNodeNaming(collectedNodes[nn].node, collectedNodes[nn].path, namingCtx);
+    for (var nv = 0; nv < namingViolations.length; nv++) {
+      if (config.enabledRules[namingViolations[nv].rule] !== false) {
+        violations.push(namingViolations[nv]);
       }
     }
   }
@@ -386,137 +347,6 @@ async function runRulesOnNodes(
           }
         }
       }
-    }
-  }
-
-  // ── Rule 4: COMPONENT_CONVENTION (error) ──
-  if (config.enabledRules["component-naming"] !== false) {
-    for (var i4 = 0; i4 < collectedNodes.length; i4++) {
-      var node4 = collectedNodes[i4].node;
-      var nodePath4 = collectedNodes[i4].path;
-      if (node4.type === "COMPONENT" || node4.type === "COMPONENT_SET") {
-        if (!node4.name.includes("/")) {
-          violations.push({
-            id: "lint-component-naming-" + node4.id,
-            nodeId: node4.id,
-            nodeName: node4.name,
-            nodePath: nodePath4,
-            rule: "component-naming",
-            severity: "error",
-            category: "naming",
-            message: "Le composant \"" + node4.name + "\" n'est pas cat\u00e9goris\u00e9 (pas de \"/\").",
-            autoFixable: false,
-            metadata: { ruleName: "Nommage composant", nodeType: node4.type },
-          });
-        }
-      }
-    }
-  }
-
-  // ── Rule 5: LONG_NAME (info) ──
-  if (config.enabledRules["long-names"] !== false) {
-    for (var i5 = 0; i5 < collectedNodes.length; i5++) {
-      var node5 = collectedNodes[i5].node;
-      var nodePath5 = collectedNodes[i5].path;
-      if (node5.name.length > maxLen) {
-        violations.push({
-          id: "lint-long-names-" + node5.id,
-          nodeId: node5.id,
-          nodeName: node5.name,
-          nodePath: nodePath5,
-          rule: "long-names",
-          severity: "info",
-          category: "naming",
-          message: "Le nom fait " + node5.name.length + " caract\u00e8res (max recommand\u00e9 : " + maxLen + ").",
-          autoFixable: false,
-          metadata: { ruleName: "Noms trop longs", nodeType: node5.type },
-        });
-      }
-    }
-  }
-
-  // ── Rule 6: SPECIAL_CHARS (info) ──
-  if (config.enabledRules["special-chars"] !== false) {
-    for (var i6 = 0; i6 < collectedNodes.length; i6++) {
-      var node6 = collectedNodes[i6].node;
-      var nodePath6 = collectedNodes[i6].path;
-      if (SPECIAL_CHARS_REGEX.test(node6.name)) {
-        violations.push({
-          id: "lint-special-chars-" + node6.id,
-          nodeId: node6.id,
-          nodeName: node6.name,
-          nodePath: nodePath6,
-          rule: "special-chars",
-          severity: "info",
-          category: "naming",
-          message: "\"" + node6.name + "\" contient des caract\u00e8res non-standard.",
-          autoFixable: false,
-          metadata: { ruleName: "Caract\u00e8res sp\u00e9ciaux", nodeType: node6.type },
-        });
-      }
-    }
-  }
-
-  // ── Rule 7: NUMBERED_SUFFIX (warning) ──
-  if (config.enabledRules["numbered-suffix"] !== false) {
-    for (var i7 = 0; i7 < collectedNodes.length; i7++) {
-      var node7 = collectedNodes[i7].node;
-      var nodePath7 = collectedNodes[i7].path;
-      if (DEFAULT_NAME_REGEX.test(node7.name)) continue;
-      if (NUMBERED_SUFFIX_REGEX.test(node7.name)) {
-        var baseName = node7.name.replace(NUMBERED_SUFFIX_REGEX, "");
-        violations.push({
-          id: "lint-numbered-suffix-" + node7.id,
-          nodeId: node7.id,
-          nodeName: node7.name,
-          nodePath: nodePath7,
-          rule: "numbered-suffix",
-          severity: "warning",
-          category: "naming",
-          message: "\"" + node7.name + "\" se termine par un suffixe num\u00e9rique (copier-coller probable).",
-          suggestion: baseName,
-          confidence: "high",
-          autoFixable: true,            // confidence "high" !== "low" \u2014 matches byRule.fixableCount
-          metadata: { ruleName: "Suffixe num\u00e9rique", nodeType: node7.type },
-        });
-      }
-    }
-  }
-
-  // ── Rule 8: TEXT_MISMATCH (warning) ──
-  if (config.enabledRules["text-mismatch"] !== false) {
-    for (var i8 = 0; i8 < collectedNodes.length; i8++) {
-      var node8 = collectedNodes[i8].node;
-      var nodePath8 = collectedNodes[i8].path;
-      if (node8.type !== "TEXT") continue;
-      // Skip if already caught by default-names rule
-      if (DEFAULT_NAME_REGEX.test(node8.name)) continue;
-      var textContent = (node8 as TextNode).characters.trim();
-      if (textContent.length === 0) continue;
-      var textPreview = textContent.split(/\s+/).slice(0, 5).join(" ");
-      if (textPreview.length > 40) textPreview = textPreview.substring(0, 37) + "...";
-      var nameLower = node8.name.toLowerCase().trim();
-      var contentLower = textContent.toLowerCase();
-      if (contentLower.indexOf(nameLower) !== -1 || nameLower.indexOf(contentLower.substring(0, 20)) !== -1) continue;
-      var nameFirstWord = nameLower.split(/[\s\-_\/]/)[0];
-      var contentFirstWord = contentLower.split(/\s+/)[0];
-      if (nameFirstWord.length > 2 && contentFirstWord.indexOf(nameFirstWord) !== -1) continue;
-      var suggestedName = textContent.split(/\s+/).slice(0, 3).join(" ");
-      if (suggestedName.length > 30) suggestedName = suggestedName.substring(0, 27) + "...";
-      violations.push({
-        id: "lint-text-mismatch-" + node8.id,
-        nodeId: node8.id,
-        nodeName: node8.name,
-        nodePath: nodePath8,
-        rule: "text-mismatch",
-        severity: "warning",
-        category: "naming",
-        message: "Le nom \"" + node8.name + "\" ne correspond pas au contenu visible \"" + textPreview + "\".",
-        suggestion: suggestedName,
-        confidence: "high",
-        autoFixable: true,            // confidence "high" !== "low" \u2014 matches byRule.fixableCount
-        metadata: { ruleName: "Texte incoh\u00e9rent", nodeType: node8.type },
-      });
     }
   }
 
@@ -638,37 +468,6 @@ async function runRulesOnNodes(
           message: "Le composant \"" + node13.name + "\" n'a aucune instance dans ce scope.",
           autoFixable: false,
           metadata: { ruleName: "Composants inutilises", nodeType: node13.type },
-        });
-      }
-    }
-  }
-
-  // ── Rule 14: NON_TOKEN_COLORS (warning) ──
-  if (config.enabledRules["non-token-colors"] !== false) {
-    for (var i14 = 0; i14 < collectedNodes.length; i14++) {
-      var node14 = collectedNodes[i14].node;
-      var nodePath14 = collectedNodes[i14].path;
-      // Skip TEXT nodes (text color handled by typography rules in HC)
-      if (node14.type === "TEXT") continue;
-      var nodeColors = extractNodeColors(node14);
-      var offTokenColors: string[] = [];
-      for (var ci14 = 0; ci14 < nodeColors.length; ci14++) {
-        if (!DS_LINTER_COLOR_SET.has(nodeColors[ci14])) {
-          offTokenColors.push(nodeColors[ci14]);
-        }
-      }
-      if (offTokenColors.length > 0) {
-        violations.push({
-          id: "lint-non-token-colors-" + node14.id,
-          nodeId: node14.id,
-          nodeName: node14.name,
-          nodePath: nodePath14,
-          rule: "non-token-colors",
-          severity: "warning",
-          category: "style",
-          message: "\"" + node14.name + "\" utilise des couleurs hors tokens DS : " + offTokenColors.join(", ") + ".",
-          autoFixable: false,
-          metadata: { ruleName: "Couleurs hors tokens", nodeType: node14.type, offTokenColors: offTokenColors },
         });
       }
     }
