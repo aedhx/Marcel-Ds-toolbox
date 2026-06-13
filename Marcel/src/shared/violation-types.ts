@@ -19,6 +19,7 @@ export interface Violation {
   message: string;         // Human-readable description
   suggestion?: string;     // Auto-fix suggestion if available
   confidence?: "high" | "medium" | "low"; // Auto-fix confidence
+  autoFixable: boolean;    // QC-04 floor field: whether this violation can be auto-fixed (set explicitly per family)
   metadata?: Record<string, unknown>; // Rule-specific data (e.g., nearestToken for colors)
 }
 
