@@ -1,5 +1,5 @@
 import { traverseNodes, type TraversalScope, type ScanAbortToken } from '../../shared/node-traversal';
-import { buildScoreResult } from '../../shared/scoring';
+import { buildScoreResult, calculateWeightedCategoryScore } from '../../shared/scoring';
 import { groupViolationsByRule, type Violation } from '../../shared/violation-types';
 import { getNodeFills, getNodeStrokes } from '../../shared/figma-helpers';
 import { checkNodeColors, checkNodeStrokes } from './hc-colors';
@@ -38,21 +38,6 @@ function isAutoLayout(node: SceneNode): boolean {
     return false;
   }
   return (node as FrameNode).layoutMode !== 'NONE';
-}
-
-function calculateHCCategoryScore(
-  category: string,
-  violations: Violation[],
-  totalChecked: number
-): CategoryScore {
-  if (totalChecked === 0) {
-    return { category, score: 100, weight: 1.0, violationCount: 0, totalChecked: 0 };
-  }
-  const weightedCount = violations.reduce((sum, v) => {
-    return sum + (HC_SEVERITY_WEIGHTS[v.severity] ?? 1.0);
-  }, 0);
-  const score = Math.max(0, Math.round(100 - (weightedCount / totalChecked) * 100));
-  return { category, score, weight: 1.0, violationCount: violations.length, totalChecked };
 }
 
 function buildCategoryResult(violations: Violation[], totalChecked: number, score: number): HCCategoryResult {
@@ -171,10 +156,10 @@ export async function runHealthCheck(
   };
 
   const categoryScores = [
-    calculateHCCategoryScore('colors', colorViolations, colorNodesChecked),
-    calculateHCCategoryScore('typography', typographyViolations, textNodesChecked),
-    calculateHCCategoryScore('spacing', spacingViolations, layoutNodesChecked),
-    calculateHCCategoryScore('components', componentViolations, componentNodesChecked),
+    calculateWeightedCategoryScore('colors', colorViolations, colorNodesChecked, 1.0, HC_SEVERITY_WEIGHTS),
+    calculateWeightedCategoryScore('typography', typographyViolations, textNodesChecked, 1.0, HC_SEVERITY_WEIGHTS),
+    calculateWeightedCategoryScore('spacing', spacingViolations, layoutNodesChecked, 1.0, HC_SEVERITY_WEIGHTS),
+    calculateWeightedCategoryScore('components', componentViolations, componentNodesChecked, 1.0, HC_SEVERITY_WEIGHTS),
     coverageCatScore,
   ];
   const scoreResult = buildScoreResult(categoryScores);

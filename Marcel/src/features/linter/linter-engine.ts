@@ -933,6 +933,15 @@ export async function runLintAsync(
   return buildLintResult(violations, collectedNodes.length, startTime);
 }
 
+// ── Single traversal primitive ──
+// traverseNodes() (shared/node-traversal.ts) is the sole sanctioned traversal primitive;
+// every feature engine (linter selection/page scope above, hc-engine, a11y-engine,
+// dead-styles-engine) routes through it. runLintFile below is the ONE sanctioned
+// exception: it runs an inline per-page `while (queue.length > 0)` BFS so the
+// duplicate-siblings rule's parent map stays isolated per page (must be cleared between
+// pages). Do NOT migrate this BFS onto traverseNodes — there is no test net and the
+// per-page isolation is load-bearing.
+
 // ── runLintFile: multi-page scan with per-page isolation ──
 
 export async function runLintFile(

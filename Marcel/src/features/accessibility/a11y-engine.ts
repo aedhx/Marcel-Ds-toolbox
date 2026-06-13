@@ -1,5 +1,5 @@
 import { traverseNodes, type TraversalScope, type ScanAbortToken } from '../../shared/node-traversal';
-import { buildScoreResult } from '../../shared/scoring';
+import { buildScoreResult, calculateWeightedCategoryScore } from '../../shared/scoring';
 import { groupViolationsByRule, type Violation } from '../../shared/violation-types';
 import { checkAltText, getAltText } from './a11y-alt-text';
 import { checkContrast } from './a11y-contrast';
@@ -21,21 +21,6 @@ export interface ImageNodeInfo {
 }
 
 // ── Helpers ──
-
-function calculateA11YCategoryScore(
-  category: string,
-  violations: Violation[],
-  totalChecked: number
-): CategoryScore {
-  if (totalChecked === 0) {
-    return { category, score: 100, weight: 1.0, violationCount: 0, totalChecked: 0 };
-  }
-  const weightedCount = violations.reduce((sum, v) => {
-    return sum + (A11Y_SEVERITY_WEIGHTS[v.severity as keyof typeof A11Y_SEVERITY_WEIGHTS] ?? 1.0);
-  }, 0);
-  const score = Math.max(0, Math.round(100 - (weightedCount / totalChecked) * 100));
-  return { category, score, weight: 1.0, violationCount: violations.length, totalChecked };
-}
 
 function buildCategoryResult(violations: Violation[], totalChecked: number, score: number): A11YCategoryResult {
   return {
@@ -113,9 +98,9 @@ export async function runAccessibilityAudit(
 
   // ── Severity-weighted scoring (equal 1.0 weight per category) ──
   const categoryScores = [
-    calculateA11YCategoryScore('alt-text', altTextViolations, imageNodesChecked),
-    calculateA11YCategoryScore('contrast', contrastViolations, textNodesChecked),
-    calculateA11YCategoryScore('touch-targets', touchTargetViolations, interactiveNodesChecked),
+    calculateWeightedCategoryScore('alt-text', altTextViolations, imageNodesChecked, 1.0, A11Y_SEVERITY_WEIGHTS),
+    calculateWeightedCategoryScore('contrast', contrastViolations, textNodesChecked, 1.0, A11Y_SEVERITY_WEIGHTS),
+    calculateWeightedCategoryScore('touch-targets', touchTargetViolations, interactiveNodesChecked, 1.0, A11Y_SEVERITY_WEIGHTS),
   ];
   const scoreResult = buildScoreResult(categoryScores);
 
