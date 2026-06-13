@@ -1,4 +1,4 @@
-import type { ScanAbortToken } from "../../shared/node-traversal";
+import type { ScanAbortToken, TraversalScope } from "../../shared/node-traversal";
 import { traverseNodes } from "../../shared/node-traversal";
 import { rgbToHex } from "../../shared/tokens";
 import { findNearestColorToken } from "../health-check/hc-colors";
@@ -34,8 +34,10 @@ let variableCache = new Map<string, CachedVariable | null>();
 let styleCache = new Map<string, CachedStyle | null>();
 
 // ── Raw binding collected during sync traversal (pass 1) ──
+// Exported (D-07) so the unified runQualityCheck() pass can declare these accumulators and
+// feed them to finalizeDeadStyles() after the single traversal.
 
-interface RawVarBinding {
+export interface RawVarBinding {
   varId: string;
   nodeId: string;
   nodeName: string;
@@ -43,7 +45,7 @@ interface RawVarBinding {
   paintIndex?: number;
 }
 
-interface RawStyleBinding {
+export interface RawStyleBinding {
   styleId: string;
   nodeId: string;
   nodeName: string;
@@ -53,7 +55,7 @@ interface RawStyleBinding {
 
 // ── Helper: Collect variable IDs from boundVariables recursively ──
 
-function collectVariableIds(
+export function collectVariableIds(
   bv: Record<string, any>,
   usedIds: Set<string>
 ): void {
@@ -81,7 +83,7 @@ function collectVariableIds(
 
 // ── Helper: Collect variable IDs from paint/stroke/effect arrays on a node ──
 
-function collectPaintVariableIds(node: SceneNode, usedIds: Set<string>): void {
+export function collectPaintVariableIds(node: SceneNode, usedIds: Set<string>): void {
   // Check fills
   if ("fills" in node && (node as any).fills !== figma.mixed && Array.isArray((node as any).fills)) {
     for (const paint of (node as any).fills) {
@@ -117,7 +119,7 @@ function collectPaintVariableIds(node: SceneNode, usedIds: Set<string>): void {
 
 // ── Helper: Collect raw variable bindings from a node (sync — for pass 1) ──
 
-function collectRawVarBindings(node: SceneNode, bindings: RawVarBinding[], seenKeys: Set<string>): void {
+export function collectRawVarBindings(node: SceneNode, bindings: RawVarBinding[], seenKeys: Set<string>): void {
   // Check top-level boundVariables
   if (node.boundVariables) {
     const bv = node.boundVariables as Record<string, any>;
@@ -185,7 +187,7 @@ function collectRawVarBindings(node: SceneNode, bindings: RawVarBinding[], seenK
 
 // ── Helper: Collect raw style bindings from a node (sync — for pass 1) ──
 
-function collectRawStyleBindings(node: SceneNode, bindings: RawStyleBinding[], seenKeys: Set<string>): void {
+export function collectRawStyleBindings(node: SceneNode, bindings: RawStyleBinding[], seenKeys: Set<string>): void {
   const styleFields: Array<{ prop: string; itemType: "PAINT" | "TEXT" | "EFFECT" }> = [
     { prop: "fillStyleId", itemType: "PAINT" },
     { prop: "strokeStyleId", itemType: "PAINT" },
@@ -748,6 +750,174 @@ export async function scanStyleCleaner(
     totalForeignVariables,
     totalForeignStyles,
     scanDurationMs: Date.now() - startTime,
+  };
+}
+
+// ── Scope-aware finalize for the unified runQualityCheck() pass (D-07) ──
+//
+// Splits dead-styles per D-07 so the FOREIGN-BINDING half can ride the single unified
+// per-node pass while the UNUSED-LOCAL half stays whole-file:
+//
+//   • Foreign half — `processForeign*` over the rawVarBindings / rawStyleBindings that the
+//     unified visitor collected via the exported sync collectors. Those bindings were
+//     gathered at the pass's scope, so this half naturally honors page/selection/file scope.
+//
+//   • Unused-local half — style-consumer "dead local style" detection
+//     (getStyleConsumersAsync, inherently file-wide) and dead-variable detection. The latter
+//     needs a file-wide `usedVarIds` set: forcing it under a narrow scope produces false
+//     positives (D-07 — explicitly rejected), so this function ALWAYS computes usedVarIds
+//     file-wide via its own `scope: "file"` traversal + local-style bookkeeping, regardless
+//     of the `scope` the unified scan ran at. The result is labeled `unusedScope: "file"` so
+//     the consumer knows these findings are not scope-bounded.
+//
+// Returns a StyleCleanerResult (route via styleCleanerToViolations → unified violations[],
+// D-08) plus the file-level label. Caches are reset here just like scanStyleCleaner.
+
+export interface FinalizedDeadStyles {
+  result: StyleCleanerResult;
+  unusedScope: TraversalScope; // always "file" — unused-local is never scope-bounded (D-07)
+}
+
+export async function finalizeDeadStyles(
+  rawVarBindings: RawVarBinding[],
+  rawStyleBindings: RawStyleBinding[],
+  scope: TraversalScope,
+  abortToken: ScanAbortToken,
+  onProgress?: (phase: string, current: number, total: number) => void
+): Promise<FinalizedDeadStyles> {
+  const startTime = Date.now();
+
+  // Reset classification caches (mirrors scanStyleCleaner) and build the DS key map so
+  // color suggestions resolve identically to the standalone Style Cleaner scan.
+  variableCache = new Map();
+  styleCache = new Map();
+  await buildDSVariableKeyMap();
+
+  // ── Unused-local half (ALWAYS file-wide, D-07) ──
+  const paintStyles = await figma.getLocalPaintStylesAsync();
+  const textStyles = await figma.getLocalTextStylesAsync();
+  const effectStyles = await figma.getLocalEffectStylesAsync();
+  const allStyles = [...paintStyles, ...textStyles, ...effectStyles];
+  const totalLocalStyles = allStyles.length;
+
+  const deadStyles: DeadStyleInfo[] = [];
+
+  // Phase 2 verbatim: dead local styles = styles with zero consumers.
+  for (let i = 0; i < allStyles.length; i++) {
+    if (abortToken.cancelled) {
+      return { result: emptyResult(totalLocalStyles, 0, startTime), unusedScope: "file" };
+    }
+    const style = allStyles[i];
+    const consumers = await style.getStyleConsumersAsync();
+    if (consumers.length === 0) {
+      const itemType = style.type as "PAINT" | "TEXT" | "EFFECT";
+      deadStyles.push({ id: style.id, name: style.name, itemType, preview: extractStylePreview(style) });
+    }
+    if (onProgress) onProgress("styles", i + 1, totalLocalStyles);
+  }
+
+  if (abortToken.cancelled) {
+    return { result: emptyResult(totalLocalStyles, 0, startTime), unusedScope: "file" };
+  }
+
+  // Phase 3 verbatim: dead variables = local vars whose IDs are not used anywhere file-wide.
+  // usedVarIds MUST be file-wide (not the unified scan's scope) to avoid false positives.
+  const localVars = await figma.variables.getLocalVariablesAsync();
+  const totalLocalVariables = localVars.length;
+
+  const usedVarIds = new Set<string>();
+  await traverseNodes(
+    (node) => {
+      if (node.boundVariables) {
+        collectVariableIds(node.boundVariables as Record<string, any>, usedVarIds);
+      }
+      collectPaintVariableIds(node, usedVarIds);
+    },
+    {
+      scope: "file",
+      chunkSize: 150,
+      abortToken,
+      onProgress: (current, total) => {
+        if (onProgress) onProgress("variables", current, total);
+      },
+    }
+  );
+
+  if (abortToken.cancelled) {
+    return { result: emptyResult(totalLocalStyles, totalLocalVariables, startTime), unusedScope: "file" };
+  }
+
+  // Phase 3b verbatim: local styles' own variable bindings count as usage.
+  for (const ps of paintStyles) {
+    if ((ps as any).boundVariables) collectVariableIds((ps as any).boundVariables, usedVarIds);
+    for (const paint of ps.paints) {
+      if ("boundVariables" in paint && (paint as any).boundVariables) {
+        collectVariableIds((paint as any).boundVariables, usedVarIds);
+      }
+    }
+  }
+  for (const es of effectStyles) {
+    if ((es as any).boundVariables) collectVariableIds((es as any).boundVariables, usedVarIds);
+    for (const effect of es.effects) {
+      if ("boundVariables" in effect && (effect as any).boundVariables) {
+        collectVariableIds((effect as any).boundVariables, usedVarIds);
+      }
+    }
+  }
+  for (const ts of textStyles) {
+    if ((ts as any).boundVariables) collectVariableIds((ts as any).boundVariables, usedVarIds);
+  }
+
+  // Phase 3c verbatim: filter dead variables.
+  for (const v of localVars) {
+    if (!usedVarIds.has(v.id)) {
+      deadStyles.push({
+        id: v.id,
+        name: v.name,
+        itemType: "VARIABLE",
+        preview: { type: "variable", resolvedType: v.resolvedType, description: v.name },
+      });
+    }
+  }
+
+  if (abortToken.cancelled) {
+    return { result: emptyResult(totalLocalStyles, totalLocalVariables, startTime), unusedScope: "file" };
+  }
+
+  // ── Foreign half (scope-aware — bindings already collected at the unified scan's scope) ──
+  const foreignItems: ForeignItemInfo[] = [];
+
+  if (onProgress) onProgress("foreign-variables", 0, rawVarBindings.length);
+  await processForeignVariableBindings(rawVarBindings, foreignItems);
+  if (onProgress) onProgress("foreign-variables", rawVarBindings.length, rawVarBindings.length);
+
+  if (abortToken.cancelled) {
+    return { result: emptyResult(totalLocalStyles, totalLocalVariables, startTime), unusedScope: "file" };
+  }
+
+  if (onProgress) onProgress("foreign-styles", 0, rawStyleBindings.length);
+  await processForeignStyleBindings(rawStyleBindings, foreignItems);
+  if (onProgress) onProgress("foreign-styles", rawStyleBindings.length, rawStyleBindings.length);
+
+  const totalForeignVariables = foreignItems.filter((f) => f.id.startsWith("foreign-var-")).length;
+  const totalForeignStyles = foreignItems.filter((f) => f.id.startsWith("foreign-style-")).length;
+
+  // `scope` is accepted for symmetry with the unified pass / future scope-aware tuning; the
+  // foreign half already honors scope through the collected bindings, the unused half is
+  // pinned file-wide (hence unusedScope: "file").
+  void scope;
+
+  return {
+    result: {
+      foreignItems,
+      deadStyles,
+      totalLocalStyles,
+      totalLocalVariables,
+      totalForeignVariables,
+      totalForeignStyles,
+      scanDurationMs: Date.now() - startTime,
+    },
+    unusedScope: "file",
   };
 }
 
