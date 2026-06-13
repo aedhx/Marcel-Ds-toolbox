@@ -100,6 +100,7 @@ export function checkAltText(
       category: 'alt-text',
       message: `Image "${node.name}" is missing alt-text`,
       suggestion: 'Add descriptive alt-text for this image',
+      autoFixable: false,            // no autofix module for a11y; requires user-supplied alt-text
       metadata: { hasAltText: false },
     },
   };

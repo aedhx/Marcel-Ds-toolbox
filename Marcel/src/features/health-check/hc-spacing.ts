@@ -1,5 +1,6 @@
 import { DS_TOKENS } from '../../shared/tokens';
 import type { Violation } from '../../shared/violation-types';
+import { HC_FIXABLE_RULES } from './hc-types';
 
 // ── Pre-build DS spacing set at module level ──
 
@@ -90,6 +91,7 @@ export function checkNodeSpacing(node: SceneNode, nodePath: string): Violation[]
           category: 'spacing',
           message: `${label}: ${value}px is not bound to a DS variable`,
           suggestion: tokenName,
+          autoFixable: HC_FIXABLE_RULES.has('missing-spacing-var'), // category 'spacing' is never 'component'
           metadata: {
             property: label,
             currentValue: value,
@@ -111,6 +113,7 @@ export function checkNodeSpacing(node: SceneNode, nodePath: string): Violation[]
       category: 'spacing',
       message: `${label}: ${value}px is not on the DS spacing scale`,
       suggestion: nearestSpacing.label,
+      autoFixable: HC_FIXABLE_RULES.has('off-token-spacing'), // category 'spacing' is never 'component'
       metadata: {
         property: label,
         currentValue: value,

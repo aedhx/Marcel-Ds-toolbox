@@ -138,6 +138,7 @@ export function checkContrast(node: TextNode, path: string): Violation[] {
       severity: 'info',
       category: 'contrast',
       message: `"${node.name}" has a gradient or image background — manual contrast check needed`,
+      autoFixable: false,            // no autofix module for a11y
       metadata: { fgColor },
     });
     return violations;
@@ -174,6 +175,7 @@ export function checkContrast(node: TextNode, path: string): Violation[] {
       severity: 'error',
       category: 'contrast',
       message: `Contrast ratio ${ratioText} fails WCAG AA (minimum ${aaThreshold}:1${largeText ? ' for large text' : ''})`,
+      autoFixable: false,            // no autofix module for a11y
       metadata: { ...contrastMeta, fgColor, bgColor: bg.color },
     });
   } else if (!aaa) {
@@ -187,6 +189,7 @@ export function checkContrast(node: TextNode, path: string): Violation[] {
       severity: 'warning',
       category: 'contrast',
       message: `Contrast ratio ${ratioText} passes AA but fails AAA (minimum ${aaaThreshold}:1${largeText ? ' for large text' : ''})`,
+      autoFixable: false,            // no autofix module for a11y
       metadata: { ...contrastMeta, fgColor, bgColor: bg.color },
     });
   }

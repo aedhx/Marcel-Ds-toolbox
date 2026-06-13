@@ -1,4 +1,5 @@
 import type { Violation } from '../../shared/violation-types';
+import { HC_FIXABLE_RULES } from './hc-types';
 
 // ── Coverage result ──
 
@@ -75,6 +76,7 @@ export async function classifyCoverageInstances(instanceIds: string[]): Promise<
           severity: 'warning',
           category: 'coverage',
           message: `Deprecated DS component: ${main.name}`,
+          autoFixable: HC_FIXABLE_RULES.has('deprecated-ds-component'), // category 'coverage' is never 'component'
           metadata: {
             componentName: main.name,
             componentDescription: main.description || '',
@@ -106,6 +108,7 @@ export async function classifyCoverageInstances(instanceIds: string[]): Promise<
       severity: 'info',
       category: 'coverage',
       message: `${name} (${group.count} instance(s))`,
+      autoFixable: HC_FIXABLE_RULES.has('custom-component'), // category 'coverage' is never 'component'
       metadata: {
         instanceCount: group.count,
         nodeIds: group.nodeIds,

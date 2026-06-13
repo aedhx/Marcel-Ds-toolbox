@@ -36,6 +36,7 @@ export function checkDetachedInstances(node: SceneNode, nodePath: string): Viola
       severity: 'error',
       category: 'component',
       message: 'Detached instance (was previously a component instance)',
+      autoFixable: false, // component-category violations are never auto-fixable (hcFixAll skips category 'component')
     });
   }
 
@@ -73,6 +74,7 @@ export async function resolveComponentViolations(instanceIds: string[]): Promise
         severity: 'error',
         category: 'component',
         message: 'Component reference is broken (source component missing or deleted)',
+        autoFixable: false, // component-category violations are never auto-fixable (hcFixAll skips category 'component')
       });
     }
 
@@ -87,6 +89,7 @@ export async function resolveComponentViolations(instanceIds: string[]): Promise
         severity: 'info',
         category: 'component',
         message: `Instance has ${instance.overrides.length} overrides (threshold: ${EXCESSIVE_OVERRIDES_THRESHOLD}) — consider if a new component variant is needed`,
+        autoFixable: false, // component-category violations are never auto-fixable (hcFixAll skips category 'component')
         metadata: {
           overrideCount: instance.overrides.length,
           threshold: EXCESSIVE_OVERRIDES_THRESHOLD,

@@ -320,6 +320,7 @@ async function runRulesOnNodes(
           message: "\"" + node.name + "\" est un nom par d\u00e9faut Figma.",
           suggestion: fix ? fix.name : undefined,
           confidence: fix ? fix.confidence : undefined,
+          autoFixable: !!(fix && fix.confidence !== "low"),
           metadata: { ruleName: "Noms par d\u00e9faut", nodeType: node.type },
         });
       }
@@ -341,6 +342,7 @@ async function runRulesOnNodes(
           severity: "warning",
           category: "naming",
           message: "\"" + node2.name + "\" est un nom trop g\u00e9n\u00e9rique.",
+          autoFixable: false,
           metadata: { ruleName: "Noms vagues", nodeType: node2.type },
         });
       }
@@ -377,6 +379,7 @@ async function runRulesOnNodes(
                 severity: "warning",
                 category: "naming",
                 message: "\"" + dupName + "\" appara\u00eet " + nameCount[dupName] + " fois au m\u00eame niveau.",
+                autoFixable: false,
                 metadata: { ruleName: "Doublons fr\u00e8res", nodeType: siblings[s2].node.type },
               });
             }
@@ -402,6 +405,7 @@ async function runRulesOnNodes(
             severity: "error",
             category: "naming",
             message: "Le composant \"" + node4.name + "\" n'est pas cat\u00e9goris\u00e9 (pas de \"/\").",
+            autoFixable: false,
             metadata: { ruleName: "Nommage composant", nodeType: node4.type },
           });
         }
@@ -424,6 +428,7 @@ async function runRulesOnNodes(
           severity: "info",
           category: "naming",
           message: "Le nom fait " + node5.name.length + " caract\u00e8res (max recommand\u00e9 : " + maxLen + ").",
+          autoFixable: false,
           metadata: { ruleName: "Noms trop longs", nodeType: node5.type },
         });
       }
@@ -445,6 +450,7 @@ async function runRulesOnNodes(
           severity: "info",
           category: "naming",
           message: "\"" + node6.name + "\" contient des caract\u00e8res non-standard.",
+          autoFixable: false,
           metadata: { ruleName: "Caract\u00e8res sp\u00e9ciaux", nodeType: node6.type },
         });
       }
@@ -470,6 +476,7 @@ async function runRulesOnNodes(
           message: "\"" + node7.name + "\" se termine par un suffixe num\u00e9rique (copier-coller probable).",
           suggestion: baseName,
           confidence: "high",
+          autoFixable: true,            // confidence "high" !== "low" \u2014 matches byRule.fixableCount
           metadata: { ruleName: "Suffixe num\u00e9rique", nodeType: node7.type },
         });
       }
@@ -507,6 +514,7 @@ async function runRulesOnNodes(
         message: "Le nom \"" + node8.name + "\" ne correspond pas au contenu visible \"" + textPreview + "\".",
         suggestion: suggestedName,
         confidence: "high",
+        autoFixable: true,            // confidence "high" !== "low" \u2014 matches byRule.fixableCount
         metadata: { ruleName: "Texte incoh\u00e9rent", nodeType: node8.type },
       });
     }
@@ -530,6 +538,7 @@ async function runRulesOnNodes(
           severity: "warning",
           category: "structure",
           message: "\"" + node9.name + "\" est un frame/groupe vide sans contenu.",
+          autoFixable: false,
           metadata: { ruleName: "Frames vides", nodeType: node9.type },
         });
       }
@@ -553,6 +562,7 @@ async function runRulesOnNodes(
           severity: "warning",
           category: "structure",
           message: "\"" + node10.name + "\" est imbrique a " + depth + " niveaux (max recommande : " + maxNesting + ").",
+          autoFixable: false,
           metadata: { ruleName: "Imbrication excessive", nodeType: node10.type, depth: depth },
         });
       }
@@ -579,6 +589,7 @@ async function runRulesOnNodes(
           message: "\"" + node11.name + "\" est un groupe/frame avec un seul enfant (wrapper inutile potentiel).",
           suggestion: childName,
           confidence: "low",
+          autoFixable: false,           // confidence "low" — excluded from byRule.fixableCount
           metadata: { ruleName: "Groupes a enfant unique", nodeType: node11.type },
         });
       }
@@ -603,6 +614,7 @@ async function runRulesOnNodes(
           severity: "info",
           category: "structure",
           message: "\"" + node12.name + "\" est directement sur la page, en dehors de tout frame.",
+          autoFixable: false,
           metadata: { ruleName: "Layers orphelins", nodeType: node12.type },
         });
       }
@@ -624,6 +636,7 @@ async function runRulesOnNodes(
           severity: "info",
           category: "structure",
           message: "Le composant \"" + node13.name + "\" n'a aucune instance dans ce scope.",
+          autoFixable: false,
           metadata: { ruleName: "Composants inutilises", nodeType: node13.type },
         });
       }
@@ -654,6 +667,7 @@ async function runRulesOnNodes(
           severity: "warning",
           category: "style",
           message: "\"" + node14.name + "\" utilise des couleurs hors tokens DS : " + offTokenColors.join(", ") + ".",
+          autoFixable: false,
           metadata: { ruleName: "Couleurs hors tokens", nodeType: node14.type, offTokenColors: offTokenColors },
         });
       }
@@ -692,6 +706,7 @@ async function runRulesOnNodes(
             severity: "warning",
             category: "style",
             message: "\"" + prEntry.cn.node.name + "\" a un border-radius de " + prEntry.radius + "px, different de ses voisins.",
+            autoFixable: false,
             metadata: { ruleName: "Border-radius incoherent", nodeType: prEntry.cn.node.type, radius: prEntry.radius, siblingRadii: siblingRadii },
           });
         }
@@ -724,6 +739,7 @@ async function runRulesOnNodes(
               severity: "info",
               category: "style",
               message: "\"" + node16.name + "\" combine des types de remplissage differents (" + uniqueTypes.join(", ") + ").",
+              autoFixable: false,
               metadata: { ruleName: "Fills mixtes", nodeType: node16.type, fillTypes: uniqueTypes },
             });
           }
@@ -750,6 +766,7 @@ async function runRulesOnNodes(
             severity: "warning",
             category: "style",
             message: "\"" + node17.name + "\" a des styles de remplissage partiellement detaches (mixed).",
+            autoFixable: false,
             metadata: { ruleName: "Styles detaches", nodeType: node17.type, detachedProperty: "fillStyleId" },
           });
         }
@@ -767,6 +784,7 @@ async function runRulesOnNodes(
             severity: "warning",
             category: "style",
             message: "\"" + node17.name + "\" a des styles de texte partiellement detaches (mixed).",
+            autoFixable: false,
             metadata: { ruleName: "Styles detaches", nodeType: node17.type, detachedProperty: "textStyleId" },
           });
         }

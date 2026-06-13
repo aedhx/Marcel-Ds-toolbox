@@ -1,5 +1,6 @@
 import { fonts } from '../../shared/tokens';
 import type { Violation } from '../../shared/violation-types';
+import { HC_FIXABLE_RULES } from './hc-types';
 
 /**
  * Check a text node for typography violations:
@@ -27,6 +28,7 @@ export function checkNodeTypography(node: SceneNode, nodePath: string): Violatio
       severity: 'info',
       category: 'typography',
       message: 'Text has mixed styles across ranges',
+      autoFixable: HC_FIXABLE_RULES.has('mixed-text-styles'), // category 'typography' is never 'component'
     });
   } else if (textStyleId === '' || textStyleId === null || textStyleId === undefined) {
     violations.push({
@@ -39,6 +41,7 @@ export function checkNodeTypography(node: SceneNode, nodePath: string): Violatio
       category: 'typography',
       message: 'Text node has no linked text style',
       suggestion: 'Link to a DS text style',
+      autoFixable: HC_FIXABLE_RULES.has('missing-text-style'), // category 'typography' is never 'component'
     });
   }
 
@@ -56,6 +59,7 @@ export function checkNodeTypography(node: SceneNode, nodePath: string): Violatio
       severity: 'info',
       category: 'typography',
       message: 'Text has mixed font families — check each segment manually',
+      autoFixable: HC_FIXABLE_RULES.has('mixed-fonts'), // category 'typography' is never 'component'
     });
   } else {
     if (fontName.family !== fonts.family) {
@@ -69,6 +73,7 @@ export function checkNodeTypography(node: SceneNode, nodePath: string): Violatio
         category: 'typography',
         message: `Font '${fontName.family}' is not the DS font (${fonts.family})`,
         suggestion: fonts.family,
+        autoFixable: HC_FIXABLE_RULES.has('off-ds-font'), // category 'typography' is never 'component'
         metadata: {
           currentFont: fontName.family,
           dsFont: fonts.family,

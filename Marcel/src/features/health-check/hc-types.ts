@@ -24,6 +24,21 @@ export interface HCResult {
   scope: 'page' | 'selection' | 'file';
 }
 
+// ── Auto-fixable rule set ──
+// Mirrors the hcFixNode switch cases in hc-autofix.ts (the rules a node-level autofix exists for).
+// A violation is auto-fixable when its rule is in this set AND its category is not "component"
+// (hcFixAll skips category === "component"). Defined here (a leaf module) to avoid a circular
+// import between hc-engine and the sub-checkers that construct Violation literals.
+
+export const HC_FIXABLE_RULES = new Set([
+  'off-token-fill',
+  'off-token-stroke',
+  'off-token-spacing',
+  'missing-spacing-var',
+  'off-ds-font',
+  'missing-text-style',
+]);
+
 // ── Severity weights ──
 // errors = 1.0 weight, warnings = 0.5, info = 0.1
 // Used to compute weighted violation count for scoring

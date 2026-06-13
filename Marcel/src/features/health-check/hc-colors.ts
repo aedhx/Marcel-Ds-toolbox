@@ -2,7 +2,7 @@ import { nearest, differenceCiede2000, parse } from 'culori';
 import { DS_TOKENS, rgbToHex } from '../../shared/tokens';
 import { getNodeFills, getNodeStrokes } from '../../shared/figma-helpers';
 import type { Violation } from '../../shared/violation-types';
-import { DELTA_E_THRESHOLDS } from './hc-types';
+import { DELTA_E_THRESHOLDS, HC_FIXABLE_RULES } from './hc-types';
 
 // ── Pre-build DS color lookup structures at module level ──
 
@@ -105,6 +105,7 @@ export function checkNodeColors(node: SceneNode, nodePath: string): Violation[] 
       category: 'color',
       message: `Fill color ${hex} is not a DS token`,
       suggestion,
+      autoFixable: HC_FIXABLE_RULES.has('off-token-fill'), // category 'color' is never 'component'
       metadata: {
         currentValue: hex,
         nearestToken: nearest?.name,
@@ -160,6 +161,7 @@ export function checkNodeStrokes(node: SceneNode, nodePath: string): Violation[]
       category: 'color',
       message: `Stroke color ${hex} is not a DS token`,
       suggestion,
+      autoFixable: HC_FIXABLE_RULES.has('off-token-stroke'), // category 'color' is never 'component'
       metadata: {
         currentValue: hex,
         nearestToken: nearestColor?.name,

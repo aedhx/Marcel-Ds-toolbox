@@ -67,6 +67,7 @@ export function checkTouchTarget(
     severity: 'error',
     category: 'touch-targets',
     message: `Touch target is ${Math.round(width)}x${Math.round(height)}px (minimum 44x44px)`,
+    autoFixable: false,            // no autofix module for a11y
     metadata: { width, height, minSize: 44 },
   };
 }

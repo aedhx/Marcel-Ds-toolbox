@@ -7,8 +7,12 @@ import { checkNodeTypography } from './hc-typography';
 import { checkNodeSpacing } from './hc-spacing';
 import { collectInstanceIds, checkDetachedInstances, resolveComponentViolations } from './hc-components';
 import { classifyCoverageInstances } from './hc-coverage';
-import { type HCResult, type HCCategoryResult, HC_SEVERITY_WEIGHTS } from './hc-types';
+import { type HCResult, type HCCategoryResult, HC_SEVERITY_WEIGHTS, HC_FIXABLE_RULES } from './hc-types';
 import type { CategoryScore } from '../../shared/scoring';
+
+// Re-export the auto-fixable rule set (canonical definition lives in hc-types.ts, a leaf
+// module, to avoid a circular import with the sub-checkers that build Violation literals).
+export { HC_FIXABLE_RULES };
 
 // ── Helpers ──
 
