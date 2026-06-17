@@ -162,7 +162,7 @@ async function getLinterConfig(): Promise<LinterConfig> {
   return linterConfig;
 }
 
-figma.ui.onmessage = async (msg: {
+type UiMsg = {
   type: string;
   lang?: string;
   template?: string;
@@ -186,17 +186,20 @@ figma.ui.onmessage = async (msg: {
   status?: string;
   altText?: string;
   placement?: "new-page" | "same-page";
-}) => {
+};
+
+type Handler = (msg: UiMsg) => void | Promise<void>;
+
+// ── Message handlers (dispatch table) ──
+const handlers: Record<string, Handler> = {
   // ── UI ready: send init-context for tab selection ──
-
-
-  if (msg.type === "ui-ready") {
+  "ui-ready": (msg) => {
     figma.ui.postMessage({ type: "init-context" });
-  }
+  },
 
   // ── Starter Kit handlers ──
 
-  if (msg.type === "create-starter-kit") {
+  "create-starter-kit": async (msg) => {
     try {
       var template = (msg.template === "ds-library") ? "ds-library" : "prd";
       await createStarterKit(template);
@@ -213,9 +216,9 @@ figma.ui.onmessage = async (msg: {
         error: true,
       });
     }
-  }
+  },
 
-  if (msg.type === "check-template-exists") {
+  "check-template-exists": (msg) => {
     var tpl = (msg.template === "ds-library") ? "ds-library" : "prd";
     var result = checkTemplateExists(tpl);
     figma.ui.postMessage({
@@ -223,9 +226,9 @@ figma.ui.onmessage = async (msg: {
       exists: result.exists,
       matchCount: result.matchCount,
     });
-  }
+  },
 
-  if (msg.type === "reset-all-pages") {
+  "reset-all-pages": async (msg) => {
     try {
       await resetAllPages();
       figma.ui.postMessage({ type: "pages-reset" });
@@ -237,11 +240,11 @@ figma.ui.onmessage = async (msg: {
         message: error?.message || "Error",
       });
     }
-  }
+  },
 
   // ── DS Component Import handler ──
 
-  if (msg.type === "import-ds-component") {
+  "import-ds-component": async (msg) => {
     try {
       const componentKey = msg.componentKey || "";
       const component = await figma.importComponentByKeyAsync(componentKey);
@@ -281,11 +284,11 @@ figma.ui.onmessage = async (msg: {
       });
       figma.notify(userMessage, { timeout: 4000, error: true });
     }
-  }
+  },
 
   // ── Linter handlers (PRD V2) ──
 
-  if (msg.type === "run-linter") {
+  "run-linter": async (msg) => {
     try {
       // Cancel any in-progress scan
       if (currentAbortToken) currentAbortToken.cancelled = true;
@@ -353,9 +356,9 @@ figma.ui.onmessage = async (msg: {
         message: error?.message || "Error",
       });
     }
-  }
+  },
 
-  if (msg.type === "fix-violation") {
+  "fix-violation": async (msg) => {
     try {
       var nodeId = msg.nodeId || "";
       var suggestion = msg.suggestion;
@@ -376,9 +379,9 @@ figma.ui.onmessage = async (msg: {
         result: { success: false, newName: "" },
       });
     }
-  }
+  },
 
-  if (msg.type === "fix-all-violations") {
+  "fix-all-violations": async (msg) => {
     try {
       var allViolations = msg.violations || [];
       var fixAllResult = await autoFixAll(allViolations);
@@ -402,9 +405,9 @@ figma.ui.onmessage = async (msg: {
         updatedLintResult: null,
       });
     }
-  }
+  },
 
-  if (msg.type === "fix-by-category") {
+  "fix-by-category": async (msg) => {
     try {
       var categoryViolations = msg.violations || [];
       var fixCatResult = await autoFixAll(categoryViolations);
@@ -428,11 +431,11 @@ figma.ui.onmessage = async (msg: {
         updatedLintResult: null,
       });
     }
-  }
+  },
 
   // ── Health Check fix handlers ──
 
-  if (msg.type === "fix-hc-violation") {
+  "fix-hc-violation": async (msg) => {
     try {
       var hcNodeId = msg.nodeId || "";
       var hcFixResult = await hcFixNode(hcNodeId, {
@@ -459,9 +462,9 @@ figma.ui.onmessage = async (msg: {
         violationId: msg.violationId || "",
       });
     }
-  }
+  },
 
-  if (msg.type === "fix-all-hc-violations") {
+  "fix-all-hc-violations": async (msg) => {
     try {
       var hcAllViolations = msg.violations || [];
       var hcFixAllResult = await hcFixAll(hcAllViolations);
@@ -483,9 +486,9 @@ figma.ui.onmessage = async (msg: {
         result: { fixed: 0, failed: 0, fixedNodeIds: [], fixedViolationIds: [] },
       });
     }
-  }
+  },
 
-  if (msg.type === "fix-hc-by-category") {
+  "fix-hc-by-category": async (msg) => {
     try {
       var hcCatViolations = msg.violations || [];
       var hcFixCatResult = await hcFixAll(hcCatViolations);
@@ -507,47 +510,47 @@ figma.ui.onmessage = async (msg: {
         result: { fixed: 0, failed: 0, fixedNodeIds: [], fixedViolationIds: [] },
       });
     }
-  }
+  },
 
-  if (msg.type === "ignore-violation") {
+  "ignore-violation": async (msg) => {
     try {
       var updatedList = await addToAllowlist(msg.nodeId || "", msg.ruleId || "");
       figma.ui.postMessage({ type: "allowlist-updated", allowlist: Array.from(updatedList) });
     } catch (error: any) {
       console.error("Ignore violation error:", error);
     }
-  }
+  },
 
-  if (msg.type === "unignore-violation") {
+  "unignore-violation": async (msg) => {
     try {
       var updatedList2 = await removeFromAllowlist(msg.nodeId || "", msg.ruleId || "");
       figma.ui.postMessage({ type: "allowlist-updated", allowlist: Array.from(updatedList2) });
     } catch (error: any) {
       console.error("Unignore violation error:", error);
     }
-  }
+  },
 
-  if (msg.type === "load-allowlist") {
+  "load-allowlist": async (msg) => {
     try {
       var list = await loadAllowlist();
       figma.ui.postMessage({ type: "allowlist-loaded", allowlist: Array.from(list) });
     } catch (error: any) {
       console.error("Load allowlist error:", error);
     }
-  }
+  },
 
-  if (msg.type === "clear-allowlist") {
+  "clear-allowlist": async (msg) => {
     try {
       await clearAllowlist();
       figma.ui.postMessage({ type: "allowlist-updated", allowlist: [] });
     } catch (error: any) {
       console.error("Clear allowlist error:", error);
     }
-  }
+  },
 
   // ── Health Check handler ──
 
-  if (msg.type === "run-health-check") {
+  "run-health-check": async (msg) => {
     try {
       // Cancel any in-progress scan
       if (currentAbortToken) currentAbortToken.cancelled = true;
@@ -580,7 +583,7 @@ figma.ui.onmessage = async (msg: {
         message: error?.message || nt("hc.error"),
       });
     }
-  }
+  },
 
   // ── Unified Quality Check handler (hidden/dev trigger — D-06/D-09) ──
   // Wires runQualityCheck() into the dispatch so the unified engine is genuinely
@@ -588,7 +591,7 @@ figma.ui.onmessage = async (msg: {
   // single currentAbortToken supersede, unified progress post, discard-on-cancel.
   // NOT bound to any tab/UI result view (that is Phase 4).
 
-  if (msg.type === "run-quality-check") {
+  "run-quality-check": async (msg) => {
     try {
       // Cancel any in-progress scan (single-token supersede, D-09)
       if (currentAbortToken) currentAbortToken.cancelled = true;
@@ -625,11 +628,11 @@ figma.ui.onmessage = async (msg: {
         message: error?.message || nt("hc.error"),
       });
     }
-  }
+  },
 
   // ── Cover Updater handlers ──
 
-  if (msg.type === "generate-cover") {
+  "generate-cover": async (msg) => {
     try {
       const config: CoverConfig = { projectStatus: msg.status || "In Progress" };
       await saveCoverConfig(config);
@@ -640,20 +643,20 @@ figma.ui.onmessage = async (msg: {
       console.error("Cover error:", error);
       figma.ui.postMessage({ type: "cover-error", message: error?.message || nt("cover.error") });
     }
-  }
+  },
 
-  if (msg.type === "load-cover-config") {
+  "load-cover-config": async (msg) => {
     try {
       const coverCfg = await loadCoverConfig();
       figma.ui.postMessage({ type: "cover-config-loaded", config: coverCfg });
     } catch (error: any) {
       console.error("Load cover config error:", error);
     }
-  }
+  },
 
   // ── Dead Styles handlers ──
 
-  if (msg.type === "scan-dead-styles") {
+  "scan-dead-styles": async (msg) => {
     try {
       if (currentAbortToken) currentAbortToken.cancelled = true;
       currentAbortToken = { cancelled: false };
@@ -677,9 +680,9 @@ figma.ui.onmessage = async (msg: {
         message: error?.message || "Error",
       });
     }
-  }
+  },
 
-  if (msg.type === "remove-dead-style") {
+  "remove-dead-style": async (msg) => {
     try {
       const result = await removeDeadStyle(
         msg.styleId || "",
@@ -703,9 +706,9 @@ figma.ui.onmessage = async (msg: {
         error: error?.message || "Erreur lors de la suppression.",
       });
     }
-  }
+  },
 
-  if (msg.type === "remove-all-dead-styles") {
+  "remove-all-dead-styles": async (msg) => {
     try {
       const result = await removeAllDeadStyles(msg.items || []);
       figma.ui.postMessage({ type: "dead-styles-batch-removed", result });
@@ -719,11 +722,11 @@ figma.ui.onmessage = async (msg: {
         result: { removed: 0, failed: 0 },
       });
     }
-  }
+  },
 
   // ── Style Cleaner handlers (extended Dead Styles) ──
 
-  if (msg.type === "scan-style-cleaner") {
+  "scan-style-cleaner": async (msg) => {
     try {
       if (currentAbortToken) currentAbortToken.cancelled = true;
       currentAbortToken = { cancelled: false };
@@ -747,9 +750,9 @@ figma.ui.onmessage = async (msg: {
         message: error?.message || "Error",
       });
     }
-  }
+  },
 
-  if (msg.type === "detach-foreign-item") {
+  "detach-foreign-item": async (msg) => {
     try {
       var detachNodeId = msg.nodeId || "";
       var detachField = msg.field || "";
@@ -787,9 +790,9 @@ figma.ui.onmessage = async (msg: {
         error: error?.message || "Detach failed",
       });
     }
-  }
+  },
 
-  if (msg.type === "replace-foreign-item") {
+  "replace-foreign-item": async (msg) => {
     try {
       var replaceNodeId = msg.nodeId || "";
       var replaceField = msg.field || "";
@@ -881,9 +884,9 @@ figma.ui.onmessage = async (msg: {
         error: error?.message || "Replace failed",
       });
     }
-  }
+  },
 
-  if (msg.type === "batch-detach-foreign") {
+  "batch-detach-foreign": async (msg) => {
     try {
       var batchDetachItems = msg.items || [];
       var batchDetachResult = await batchDetachForeign(batchDetachItems);
@@ -903,9 +906,9 @@ figma.ui.onmessage = async (msg: {
         result: { count: 0, failed: 0 },
       });
     }
-  }
+  },
 
-  if (msg.type === "batch-replace-foreign") {
+  "batch-replace-foreign": async (msg) => {
     try {
       var batchReplaceItems = msg.items || [];
       var batchReplaceResult = await batchReplaceForeign(batchReplaceItems);
@@ -925,11 +928,11 @@ figma.ui.onmessage = async (msg: {
         result: { count: 0, failed: 0 },
       });
     }
-  }
+  },
 
   // ── Accessibility Audit handlers ──
 
-  if (msg.type === "run-a11y-audit") {
+  "run-a11y-audit": async (msg) => {
     try {
       // Cancel any in-progress scan
       if (currentAbortToken) currentAbortToken.cancelled = true;
@@ -967,9 +970,9 @@ figma.ui.onmessage = async (msg: {
         message: error?.message || String(error),
       });
     }
-  }
+  },
 
-  if (msg.type === "save-alt-text") {
+  "save-alt-text": async (msg) => {
     try {
       const nodeId = msg.nodeId || "";
       const node = await figma.getNodeByIdAsync(nodeId);
@@ -982,9 +985,9 @@ figma.ui.onmessage = async (msg: {
     } catch (error: any) {
       console.error("Save alt-text error:", error);
     }
-  }
+  },
 
-  if (msg.type === "get-alt-text") {
+  "get-alt-text": async (msg) => {
     try {
       const nodeId = msg.nodeId || "";
       const node = await figma.getNodeByIdAsync(nodeId);
@@ -995,9 +998,9 @@ figma.ui.onmessage = async (msg: {
     } catch (error: any) {
       console.error("Get alt-text error:", error);
     }
-  }
+  },
 
-  if (msg.type === "create-a11y-badges") {
+  "create-a11y-badges": async (msg) => {
     try {
       console.log("[a11y-badges] Step 1: running audit...");
       const auditResult = await runAccessibilityAudit("page");
@@ -1012,18 +1015,18 @@ figma.ui.onmessage = async (msg: {
         message: error?.message || String(error),
       });
     }
-  }
+  },
 
-  if (msg.type === "cleanup-a11y-badges") {
+  "cleanup-a11y-badges": (msg) => {
     try {
       cleanupBadges(figma.currentPage);
       figma.ui.postMessage({ type: "a11y-badges-cleaned" });
     } catch (error: any) {
       console.error("Cleanup A11Y badges error:", error);
     }
-  }
+  },
 
-  if (msg.type === "simulate-color-blindness") {
+  "simulate-color-blindness": async (msg) => {
     try {
       const cbScope = (msg.scope || "page") as "page" | "selection";
       const cbPlacement = (msg.placement || "new-page") as "new-page" | "same-page";
@@ -1036,17 +1039,17 @@ figma.ui.onmessage = async (msg: {
         message: error?.message || String(error),
       });
     }
-  }
+  },
 
-  if (msg.type === "cancel-scan") {
+  "cancel-scan": (msg) => {
     if (currentAbortToken) {
       currentAbortToken.cancelled = true;
       currentAbortToken = null;
     }
     figma.ui.postMessage({ type: "scan-cancelled" });
-  }
+  },
 
-  if (msg.type === "navigate-to-node") {
+  "navigate-to-node": async (msg) => {
     try {
       var navNodeId = msg.nodeId || "";
       var navNode = await figma.getNodeByIdAsync(navNodeId);
@@ -1057,16 +1060,16 @@ figma.ui.onmessage = async (msg: {
     } catch (error: any) {
       console.error("Navigate error:", error);
     }
-  }
+  },
 
   // ── Linter settings handlers ──
 
-  if (msg.type === "load-linter-config") {
+  "load-linter-config": async (msg) => {
     var loadedConfig = await getLinterConfig();
     figma.ui.postMessage({ type: "linter-config-loaded", config: loadedConfig });
-  }
+  },
 
-  if (msg.type === "save-linter-config") {
+  "save-linter-config": async (msg) => {
     try {
       if (msg.config) {
         linterConfig = msg.config;
@@ -1077,9 +1080,9 @@ figma.ui.onmessage = async (msg: {
     } catch (error: any) {
       console.error("Save config error:", error);
     }
-  }
+  },
 
-  if (msg.type === "reset-linter-config") {
+  "reset-linter-config": async (msg) => {
     try {
       linterConfig = await resetLinterConfig();
       figma.ui.postMessage({ type: "linter-config-loaded", config: linterConfig });
@@ -1087,5 +1090,10 @@ figma.ui.onmessage = async (msg: {
     } catch (error: any) {
       console.error("Reset config error:", error);
     }
-  }
+  },
+};
+
+figma.ui.onmessage = async (msg: UiMsg) => {
+  const handler = handlers[msg.type];
+  if (handler) await handler(msg);
 };
