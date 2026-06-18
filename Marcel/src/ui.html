@@ -1179,6 +1179,50 @@
       .moment-shell.active {
         display: flex;
       }
+      /* ── Global shell header + language picker (neutral, non-brand — D-08) ── */
+      .shell-header {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: var(--spacing-s);
+        height: 32px;
+        padding: 0 var(--spacing-l);
+        background: var(--bg-default);
+        border-bottom: 1px solid var(--border-default);
+      }
+      .shell-lang-label {
+        font-family: "Ubuntu", sans-serif;
+        font-size: 12px;
+        font-weight: 400;
+        color: var(--content-subtler);
+      }
+      .lang-picker {
+        display: inline-flex;
+        gap: 2px;
+        padding: 2px;
+        background: var(--bg-subtle);
+        border-radius: var(--radius-s);
+      }
+      .lang-opt {
+        border: none;
+        background: none;
+        cursor: pointer;
+        font-family: "Ubuntu", sans-serif;
+        font-size: 12px;
+        font-weight: 400;
+        color: var(--content-subtler);
+        padding: 2px 6px;
+        border-radius: var(--radius-s);
+        transition: background 0.15s, color 0.15s;
+      }
+      .lang-opt:hover {
+        color: var(--content-default);
+      }
+      .lang-opt.active {
+        background: var(--bg-default);
+        color: var(--content-default);
+        font-weight: 700;
+      }
       .moment-nav {
         display: flex;
         align-items: stretch;
@@ -3334,6 +3378,15 @@
     <!-- Legacy .app-shell stays in the DOM (Phase 7 removes it).      -->
     <!-- ═══════════════════════════════════════════════════════════ -->
     <div class="moment-shell active" id="moment-shell">
+      <!-- ── Global shell header: unobtrusive language picker (D-08), across all moments ── -->
+      <div class="shell-header">
+        <span class="shell-lang-label" data-i18n="settings.language">Langue</span>
+        <div class="lang-picker" id="lang-picker" role="group" aria-label="Langue">
+          <button type="button" class="lang-opt" data-lang="fr" onclick="selectLanguage('fr')">FR</button>
+          <button type="button" class="lang-opt" data-lang="en" onclick="selectLanguage('en')">EN</button>
+          <button type="button" class="lang-opt" data-lang="pt-BR" onclick="selectLanguage('pt-BR')">PT</button>
+        </div>
+      </div>
       <nav class="moment-nav" role="tablist" aria-label="Moments">
         <button
           class="moment-nav-btn"
@@ -5394,11 +5447,82 @@
           "dialog.template.warning": "The template <strong>{name}</strong> has already been generated in this file ({count} pages detected).<br><br>Do you want to recreate it? New pages will be added alongside existing ones.",
           "dialog.pages.deleted": "All pages have been deleted.",
           "dialog.reset.error": "Error during reset."
+        },
+        // ── French (FR) — product default locale (marcel:global:language) ──
+        // Branded moment names « Je démarre / Je construis / Je livre » stay FR across ALL locales.
+        // New Phase-4 moment/QC keys are authored here from 04-UI-SPEC §Copywriting Contract;
+        // broadly-used shell/common keys are translated; any gap falls back to EN→key via t().
+        fr: {
+          "nav.start": "Je démarre", "nav.build": "Je construis", "nav.deliver": "Je livre",
+          "nav.start.title": "Je démarre", "nav.build.title": "Je construis", "nav.deliver.title": "Je livre",
+          "nav.start.body": "Démarrez un nouveau fichier avec la bonne structure.",
+          "nav.deliver.body": "Préparez votre fichier pour la livraison.",
+          "nav.start.cta": "Ouvrir le Starter Kit", "nav.build.import": "Importer la Toolkit", "nav.build.cover": "Mettre à jour la Cover",
+          "nav.deliver.cta": "Préparer la livraison", "nav.a11y.link": "Accessibilité (plugin externe) ↗",
+          "qc.run": "Lancer le Quality Check", "qc.rescan": "Relancer l'analyse", "qc.cancel": "Annuler",
+          "qc.scope.page": "Page", "qc.scope.selection": "Sélection", "qc.scope.file": "Fichier entier",
+          "qc.scanning": "Analyse en cours…",
+          "qc.empty.title": "Vérifiez la qualité de votre fichier",
+          "qc.empty.body": "Choisissez une portée et lancez une analyse pour obtenir un score et une liste d'actions.",
+          "qc.clean": "Aucune violation — beau travail !",
+          "qc.error": "L'analyse a échoué. Vérifiez votre sélection et relancez.",
+          "qc.cancelled": "Analyse annulée — aucun résultat enregistré.",
+          "qc.threshold.label": "Seuil de confiance",
+          "qc.fix.category": "Corriger cette catégorie", "qc.fix.all": "Tout corriger", "qc.ignore": "Ignorer",
+          "qc.cat.naming": "Nommage", "qc.cat.colors": "Couleurs", "qc.cat.typography": "Typographie",
+          "qc.cat.spacing": "Espacement", "qc.cat.coverage": "Couverture",
+          "qc.deadstyles.note": "Informatif — n'affecte pas le score",
+          "qc.back": "← Retour",
+          "settings.language": "Langue",
+          "hub.title": "Marcel Toolbox", "hub.badge": "Bêta",
+          "hub.desc": "Bienvenue dans le Marcel Toolbox. Votre compagnon design ops tout-en-un pour Figma.",
+          "hub.doc": "Documentation", "hub.support": "Support", "hub.features": "Fonctionnalités", "hub.coming-soon": "Bientôt disponible",
+          "sidebar.settings": "Paramètres"
+        },
+        // ── Brazilian Portuguese (PT-BR) ──
+        // Branded moment names stay FR across all locales (« Je démarre / Je construis / Je livre »).
+        "pt-BR": {
+          "nav.start": "Je démarre", "nav.build": "Je construis", "nav.deliver": "Je livre",
+          "nav.start.title": "Je démarre", "nav.build.title": "Je construis", "nav.deliver.title": "Je livre",
+          "nav.start.body": "Comece um novo arquivo com a estrutura certa.",
+          "nav.deliver.body": "Prepare seu arquivo para a entrega.",
+          "nav.start.cta": "Abrir o Starter Kit", "nav.build.import": "Importar a Toolkit", "nav.build.cover": "Atualizar a Cover",
+          "nav.deliver.cta": "Preparar a entrega", "nav.a11y.link": "Acessibilidade (plugin externo) ↗",
+          "qc.run": "Executar o Quality Check", "qc.rescan": "Refazer a análise", "qc.cancel": "Cancelar",
+          "qc.scope.page": "Página", "qc.scope.selection": "Seleção", "qc.scope.file": "Arquivo inteiro",
+          "qc.scanning": "Analisando…",
+          "qc.empty.title": "Verifique a qualidade do seu arquivo",
+          "qc.empty.body": "Escolha um escopo e execute uma análise para obter uma pontuação e uma lista de ações.",
+          "qc.clean": "Nenhuma violação — bom trabalho!",
+          "qc.error": "A análise falhou. Verifique sua seleção e tente novamente.",
+          "qc.cancelled": "Análise cancelada — nenhum resultado salvo.",
+          "qc.threshold.label": "Limite de confiança",
+          "qc.fix.category": "Corrigir esta categoria", "qc.fix.all": "Corrigir tudo", "qc.ignore": "Ignorar",
+          "qc.cat.naming": "Nomenclatura", "qc.cat.colors": "Cores", "qc.cat.typography": "Tipografia",
+          "qc.cat.spacing": "Espaçamento", "qc.cat.coverage": "Cobertura",
+          "qc.deadstyles.note": "Informativo — não afeta a pontuação",
+          "qc.back": "← Voltar",
+          "settings.language": "Idioma",
+          "hub.title": "Marcel Toolbox", "hub.badge": "Beta",
+          "hub.desc": "Bem-vindo ao Marcel Toolbox. Seu companheiro de design ops tudo-em-um para o Figma.",
+          "hub.doc": "Documentação", "hub.support": "Suporte", "hub.features": "Funcionalidades", "hub.coming-soon": "Em breve",
+          "sidebar.settings": "Configurações"
         }
       };
 
+      // Active UI locale — FR is the product default (mirrors marcel:global:language).
+      // Hydrated on init from the persisted main-thread value via get-language → "language".
+      var currentLocale = "fr";
+
+      // Locale-aware lookup with a French double-fallback (mirrors main-thread nt() at main.ts:120):
+      // active locale → "fr" → "en" → the key itself.
       function t(key, params) {
-        var str = TRANSLATIONS["en"][key] || key;
+        var active = TRANSLATIONS[currentLocale];
+        var str =
+          (active && active[key]) ||
+          (TRANSLATIONS["fr"] && TRANSLATIONS["fr"][key]) ||
+          (TRANSLATIONS["en"] && TRANSLATIONS["en"][key]) ||
+          key;
         if (params) {
           Object.keys(params).forEach(function(k) {
             str = str.replace(new RegExp("\\{" + k + "\\}", "g"), params[k]);
@@ -5407,10 +5531,37 @@
         return str;
       }
 
-      // Stub — no-op since multi-lang removed
-      function applyTranslations() {}
-      function setLanguage() {}
-      function selectLanguage() {}
+      // Re-apply every translatable node from the active locale.
+      // [data-i18n] → textContent; [data-i18n-title] → title attribute (icon/link controls).
+      function applyTranslations() {
+        document.querySelectorAll("[data-i18n]").forEach(function (el) {
+          el.textContent = t(el.getAttribute("data-i18n"));
+        });
+        document.querySelectorAll("[data-i18n-title]").forEach(function (el) {
+          el.setAttribute("title", t(el.getAttribute("data-i18n-title")));
+        });
+        // Reflect the active locale in the header picker (if present).
+        var picker = document.getElementById("lang-picker");
+        if (picker) {
+          picker.querySelectorAll(".lang-opt").forEach(function (opt) {
+            var on = opt.getAttribute("data-lang") === currentLocale;
+            opt.classList.toggle("active", on);
+            opt.setAttribute("aria-pressed", on ? "true" : "false");
+          });
+        }
+      }
+
+      // Switch locale: apply immediately, then persist via the main thread (set-language).
+      function setLanguage(lang) {
+        currentLocale = lang;
+        applyTranslations();
+        parent.postMessage({ pluginMessage: { type: "set-language", language: lang } }, "*");
+      }
+
+      // Picker click/change handler — delegates to setLanguage.
+      function selectLanguage(lang) {
+        setLanguage(lang);
+      }
       function toggleLangDropdown() {}
 
       // ══════════════════════════════════════════════
@@ -6582,6 +6733,12 @@
         if (msg.type === "init-context") {
           switchMoment("build");
           parent.postMessage({ pluginMessage: { type: "get-language" } }, "*");
+        }
+
+        // ── i18n: apply the locale the main thread reports (init hydrate + after set-language) ──
+        if (msg.type === "language") {
+          currentLocale = msg.language;
+          applyTranslations();
         }
 
         // ── Quality Check (Phase 4 — QC-01/06/07/08/09) ──
