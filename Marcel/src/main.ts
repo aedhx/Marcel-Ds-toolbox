@@ -117,7 +117,7 @@ const NOTIF: Record<string, Record<string, string>> = {
 };
 
 function nt(key: string, params?: Record<string, string | number>): string {
-  let str = NOTIF["fr"][key] || key;
+  let str = (NOTIF[activeLocale] || NOTIF["fr"])[key] || key;
   if (params) {
     for (const k of Object.keys(params)) {
       str = str.replace(new RegExp("\\{" + k + "\\}", "g"), String(params[k]));
@@ -149,6 +149,9 @@ function hasProjectPages(): boolean {
   return true;
 }
 
+// ── Active locale (i18n) ──
+var activeLocale: string = "fr";
+
 // ── Cached linter config ──
 var linterConfig: LinterConfig | null = null;
 
@@ -165,6 +168,7 @@ async function getLinterConfig(): Promise<LinterConfig> {
 type UiMsg = {
   type: string;
   lang?: string;
+  language?: "fr" | "en" | "pt-BR";
   template?: string;
   scope?: "page" | "selection" | "file";
   nodeId?: string;
@@ -193,7 +197,8 @@ type Handler = (msg: UiMsg) => void | Promise<void>;
 // ── Message handlers (dispatch table) ──
 const handlers: Record<string, Handler> = {
   // ── UI ready: send init-context for tab selection ──
-  "ui-ready": (msg) => {
+  "ui-ready": async (msg) => {
+    activeLocale = await globalStorage.getOrDefault("language", "fr");
     figma.ui.postMessage({ type: "init-context" });
   },
 
@@ -1089,6 +1094,23 @@ const handlers: Record<string, Handler> = {
       figma.notify(nt("config.reset"), { timeout: 2000 });
     } catch (error: any) {
       console.error("Reset config error:", error);
+    }
+  },
+
+  // ── i18n language handlers (MIGR-05) ──
+
+  "get-language": (msg) => {
+    figma.ui.postMessage({ type: "language", language: activeLocale });
+  },
+
+  "set-language": async (msg) => {
+    try {
+      var lang = (msg.language === "en" || msg.language === "pt-BR") ? msg.language : "fr";
+      activeLocale = lang;
+      await globalStorage.set("language", lang);
+      figma.ui.postMessage({ type: "language", language: lang });
+    } catch (error: any) {
+      console.error("Set language error:", error);
     }
   },
 };
