@@ -517,6 +517,110 @@ const handlers: Record<string, Handler> = {
     }
   },
 
+  // ── Unified Quality Check fix-routing (Phase 4 — QC-08) ──
+  // Pure routing over the proven per-family fixers; dispatch on Violation.category.
+  // naming → linter autoFix*; color/colors/typography/spacing → hc Fix*.
+  // component/coverage/dead-styles are non-value-fixable this phase (Pitfall 2 / RESEARCH A1).
+
+  "fix-qc-violation": async (msg) => {
+    try {
+      var qcNodeId = msg.nodeId || "";
+      var cat = msg.category || "";
+      var qcSuccess = false;
+      if (cat === "naming") {
+        var qcNameRes = await autoFixNode(qcNodeId, msg.suggestion);
+        qcSuccess = qcNameRes.success;
+      } else if (cat === "color" || cat === "colors" || cat === "typography" || cat === "spacing") {
+        var qcHcRes = await hcFixNode(qcNodeId, { rule: msg.rule || "", metadata: msg.metadata });
+        qcSuccess = qcHcRes.success;
+      } else {
+        // component / coverage / dead-styles / unknown → non-value-fixable
+        qcSuccess = false;
+      }
+      figma.ui.postMessage({
+        type: "fix-qc-violation-result",
+        result: { success: qcSuccess },
+        violationId: msg.violationId,
+      });
+      if (qcSuccess) {
+        var qcFixedNode = await figma.getNodeByIdAsync(qcNodeId);
+        if (qcFixedNode && "type" in qcFixedNode && qcFixedNode.type !== "DOCUMENT" && qcFixedNode.type !== "PAGE") {
+          await selectAndZoom(qcFixedNode as SceneNode);
+        }
+        figma.notify(nt("hc.fix.ok"), { timeout: 2000 });
+      }
+    } catch (error: any) {
+      console.error("QC fix node error:", error);
+      figma.ui.postMessage({
+        type: "fix-qc-violation-result",
+        result: { success: false },
+        violationId: msg.violationId || "",
+      });
+    }
+  },
+
+  "fix-qc-all": async (msg) => {
+    try {
+      var qcAllVs = msg.violations || [];
+      var qcAllNaming = qcAllVs.filter((v) => v.category === "naming");
+      var qcAllHc = qcAllVs.filter((v) => v.category === "color" || v.category === "colors" || v.category === "typography" || v.category === "spacing");
+      var qcAllNameRes = await autoFixAll(qcAllNaming);
+      var qcAllHcRes = await hcFixAll(qcAllHc);
+      var qcAllFixed = qcAllNameRes.fixed + qcAllHcRes.fixed;
+
+      if (qcAllFixed > 0) {
+        figma.notify(nt("hc.fix.count", { fixed: qcAllFixed, s: qcAllFixed > 1 ? "s" : "" }), { timeout: 4000 });
+      } else {
+        figma.notify(nt("hc.fix.none"), { timeout: 3000 });
+      }
+
+      figma.ui.postMessage({
+        type: "fix-qc-bulk-result",
+        result: {
+          fixed: qcAllFixed,
+          failed: qcAllNameRes.failed + qcAllHcRes.failed,
+          fixedNodeIds: qcAllNameRes.fixedNodeIds.concat(qcAllHcRes.fixedNodeIds),
+        },
+      });
+    } catch (error: any) {
+      console.error("QC fix all error:", error);
+      figma.ui.postMessage({
+        type: "fix-qc-bulk-result",
+        result: { fixed: 0, failed: 0, fixedNodeIds: [] },
+      });
+    }
+  },
+
+  "fix-qc-by-category": async (msg) => {
+    try {
+      var qcCatVs = msg.violations || [];
+      var qcCatNaming = qcCatVs.filter((v) => v.category === "naming");
+      var qcCatHc = qcCatVs.filter((v) => v.category === "color" || v.category === "colors" || v.category === "typography" || v.category === "spacing");
+      var qcCatNameRes = await autoFixAll(qcCatNaming);
+      var qcCatHcRes = await hcFixAll(qcCatHc);
+      var qcCatFixed = qcCatNameRes.fixed + qcCatHcRes.fixed;
+
+      if (qcCatFixed > 0) {
+        figma.notify(nt("hc.fix.count", { fixed: qcCatFixed, s: qcCatFixed > 1 ? "s" : "" }), { timeout: 3000 });
+      }
+
+      figma.ui.postMessage({
+        type: "fix-qc-bulk-result",
+        result: {
+          fixed: qcCatFixed,
+          failed: qcCatNameRes.failed + qcCatHcRes.failed,
+          fixedNodeIds: qcCatNameRes.fixedNodeIds.concat(qcCatHcRes.fixedNodeIds),
+        },
+      });
+    } catch (error: any) {
+      console.error("QC fix by category error:", error);
+      figma.ui.postMessage({
+        type: "fix-qc-bulk-result",
+        result: { fixed: 0, failed: 0, fixedNodeIds: [] },
+      });
+    }
+  },
+
   "ignore-violation": async (msg) => {
     try {
       var updatedList = await addToAllowlist(msg.nodeId || "", msg.ruleId || "");
@@ -621,6 +725,10 @@ const handlers: Record<string, Handler> = {
       // Discard-on-cancel (D-09): runQualityCheck returns null on cancel —
       // never post a partial score.
       if (result) {
+        // QC-09: filter ignored violations so they stay hidden on rescan
+        // (mirror run-linter main.ts:351 — shared family-agnostic nodeId::rule allowlist)
+        var qcAllowlist = await loadAllowlist();
+        result.violations = filterAllowlisted(result.violations, qcAllowlist);
         figma.ui.postMessage({ type: "quality-check-result", result });
       } else {
         figma.ui.postMessage({ type: "scan-cancelled" });
