@@ -20,6 +20,9 @@ export type UIMessage =
   | { type: "run-health-check"; scope: "page" | "selection" | "file" }
   // Unified Quality Check (hidden/dev trigger — Phase 2 wiring, D-06)
   | { type: "run-quality-check"; scope: "page" | "selection" | "file" }
+  // i18n (Phase 3 — MIGR-05)
+  | { type: "get-language" }
+  | { type: "set-language"; language: "fr" | "en" | "pt-BR" }
   // Navigation
   | { type: "navigate-to-node"; nodeId: string }
   // Scan control
@@ -83,6 +86,8 @@ export type PluginMessage =
   | { type: "quality-check-result"; result: QualityCheckResult }
   | { type: "quality-check-error"; message: string }
   | { type: "quality-check-progress"; phase: string; processed: number; total: number }
+  // i18n (Phase 3 — MIGR-05)
+  | { type: "language"; language: "fr" | "en" | "pt-BR" }
   // Scan progress
   | { type: "traversal-progress"; processed: number; total: number }
   | { type: "scan-cancelled" }
