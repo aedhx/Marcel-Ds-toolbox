@@ -6584,6 +6584,38 @@
           parent.postMessage({ pluginMessage: { type: "get-language" } }, "*");
         }
 
+        // ── Quality Check (Phase 4 — QC-01/06/07/08/09) ──
+        if (msg.type === "quality-check-progress") {
+          // Indeterminate scanning state — NO determinate % (D-10).
+          if (qcView !== "scanning") qcShowView("scanning");
+        }
+        if (msg.type === "quality-check-result") {
+          qcResult = msg.result;
+          var hasViolations = qcResult.violations && qcResult.violations.length > 0;
+          if (!hasViolations && qcResult.overall >= 100) {
+            qcShowView("clean");
+          } else {
+            renderQCDashboard();
+            qcShowView("dashboard");
+          }
+        }
+        if (msg.type === "quality-check-error") {
+          var errEl = document.getElementById("qc-error-msg");
+          if (errEl && msg.message) errEl.textContent = msg.message;
+          qcShowView("error");
+        }
+        if (msg.type === "scan-cancelled") {
+          // Only react if a QC scan was in flight (D-09 discard — no partial result).
+          if (qcView === "scanning") qcShowView("cancelled");
+        }
+        if (msg.type === "fix-qc-violation-result") {
+          // Re-run the scan so the score + list reflect the applied fix.
+          if (msg.result && msg.result.success) runQualityCheck();
+        }
+        if (msg.type === "fix-qc-bulk-result") {
+          if (msg.result && (msg.result.fixed > 0 || msg.result.failed >= 0)) runQualityCheck();
+        }
+
         // ── Starter Kit messages ──
         if (msg.type === "starter-kit-created") {
           // Permanently disable Create button after success to prevent duplicate creation
@@ -8334,6 +8366,424 @@
           updateCleanerBatchBar();
         });
       });
+
+      // ══════════════════════════════════════════════
+      //  Quality Check view — state machine (Phase 4)
+      //  QC-01/06/07/08/09 + NAV-03. Reuses createDonutSVG/
+      //  groupByRule via a UI-side QC→HC shape transform; the
+      //  live renderHCDashboard/Drilldown are left untouched
+      //  (they still serve the legacy HC tab until Phase 7).
+      // ══════════════════════════════════════════════
+
+      // ── Session state held in JS memory (NAV-03 / D-07) ──
+      var qcResult = null;          // raw QualityCheckResult
+      var qcView = "empty";         // empty|scanning|dashboard|drilldown|error|cancelled|clean
+      var qcDrillCategory = null;   // currently drilled category key
+      var qcThreshold = "high";     // confidence threshold (high|medium|low)
+      var qcTransformed = null;     // cached QC→HC-shaped object
+
+      // The 5 scored category cards (engine scores "colors"; coverage may be N/A).
+      var QC_CATEGORY_ORDER = ["naming", "colors", "typography", "spacing", "coverage"];
+      var QC_CATEGORY_LABELS = {
+        naming: "qc.cat.naming", colors: "qc.cat.colors", typography: "qc.cat.typography",
+        spacing: "qc.cat.spacing", coverage: "qc.cat.coverage",
+      };
+      var QC_THRESHOLD_ORDER = { high: 3, medium: 2, low: 1 };
+
+      // ── DS-corrected colors (net-new QC markup only; Pitfall 4) ──
+      function qcScoreColor(score) {
+        if (score >= 90) return "#2c815e";   // DS Success
+        if (score >= 75) return "#bd8400";   // DS Warning (border)
+        if (score >= 50) return "#8a5f00";   // DS Warning (content)
+        return "#df1116";                     // DS Error
+      }
+      function qcScoreLabel(score) {
+        if (score >= 90) return t("score.excellent");
+        if (score >= 75) return t("score.good");
+        if (score >= 50) return t("score.improve");
+        return t("score.critical");
+      }
+      function qcSeverityColor(severity) {
+        if (severity === "error") return "#df1116";
+        if (severity === "warning") return "#bd8400";
+        return "#173eb4";                     // info — DS Info
+      }
+
+      // ── Categories that have NO Fix button (informational only; A1/A3) ──
+      function qcIsFixableCategory(cat) {
+        return cat === "naming" || cat === "colors" || cat === "color" ||
+          cat === "typography" || cat === "spacing";
+      }
+      // Threshold predicate (maps to Violation.confidence; bulk fixers also guard low).
+      function qcAtOrAboveThreshold(v, threshold) {
+        if (!v.autoFixable) return false;
+        if (!qcIsFixableCategory(v.category)) return false;
+        var conf = v.confidence || "high";
+        return QC_THRESHOLD_ORDER[conf] >= QC_THRESHOLD_ORDER[threshold];
+      }
+
+      // ── QC→HC shape transform (Pattern 3 / Pitfall 1/6) ──
+      // Reshapes the flat QualityCheckResult into the keyed object map shape the
+      // reused render helpers expect, normalizing the "color"→"colors" key drift.
+      function qcCanonCategory(cat) {
+        return cat === "color" ? "colors" : cat;
+      }
+      function transformQCToHCShape(qc) {
+        var byCat = {};
+        for (var i = 0; i < qc.violations.length; i++) {
+          var v = qc.violations[i];
+          var key = qcCanonCategory(v.category);
+          (byCat[key] = byCat[key] || []).push(v);
+        }
+        var categories = {};
+        for (var c = 0; c < qc.categories.length; c++) {
+          var cs = qc.categories[c];
+          var bucket = byCat[cs.category] || [];
+          categories[cs.category] = {
+            score: cs.score,
+            totalChecked: cs.totalChecked,
+            totalViolations: cs.violationCount,
+            violations: bucket,
+            violationGroups: groupByRule(bucket),
+          };
+        }
+        // Dead-styles: present in violations[] but NOT scored (D-02). Kept as an
+        // informational bucket; never folded into the headline score.
+        var deadStyles = byCat["dead-styles"] || [];
+        return {
+          scoreResult: {
+            overall: qc.overall, label: qc.label, color: qc.color,
+            categories: qc.categories,
+          },
+          categories: categories,
+          deadStyles: deadStyles,
+          totalNodesScanned: qc.totalChecked,
+        };
+      }
+
+      // ── View switcher ──
+      function qcShowView(view) {
+        qcView = view;
+        var ids = {
+          empty: "qc-empty", scanning: "qc-scanning", dashboard: "qc-dashboard",
+          drilldown: "qc-drilldown", error: "qc-error", cancelled: "qc-cancelled",
+          clean: "qc-clean",
+        };
+        Object.keys(ids).forEach(function (k) {
+          var el = document.getElementById(ids[k]);
+          if (el) el.classList.toggle("hidden", k !== view);
+        });
+      }
+
+      function getQcScope() {
+        var radios = document.querySelectorAll('input[name="qc-scope"]');
+        for (var i = 0; i < radios.length; i++) {
+          if (radios[i].checked) return radios[i].value;
+        }
+        return "page";
+      }
+
+      function runQualityCheck() {
+        var scope = getQcScope();
+        qcShowView("scanning");
+        parent.postMessage(
+          { pluginMessage: { type: "run-quality-check", scope: scope } },
+          "*",
+        );
+      }
+
+      // ── Render: dashboard (ring + 5 cards) ──
+      function renderQCDashboard() {
+        if (!qcResult) return;
+        qcTransformed = transformQCToHCShape(qcResult);
+        var overall = qcResult.overall;
+
+        var globalEl = document.getElementById("qc-global-score");
+        if (globalEl) {
+          globalEl.innerHTML =
+            qcDonut(overall, "large") +
+            '<div class="qc-score-global-label" style="color:' +
+            qcScoreColor(overall) + ';">' +
+            escapeHtml(qcScoreLabel(overall)) + "</div>" +
+            '<div class="qc-score-global-sublabel">Score : ' +
+            overall + "/100</div>";
+        }
+
+        var gridEl = document.getElementById("qc-categories-grid");
+        if (gridEl) {
+          var html = "";
+          for (var i = 0; i < QC_CATEGORY_ORDER.length; i++) {
+            var cat = QC_CATEGORY_ORDER[i];
+            var catLabel = t(QC_CATEGORY_LABELS[cat]) || cat;
+            var catResult = qcTransformed.categories[cat];
+            var catScore = catResult ? catResult.score : 100;
+            var catViolations = catResult ? catResult.totalViolations : 0;
+            var violText = catViolations === 0
+              ? t("linter.no.violations")
+              : catViolations + " violation" + (catViolations > 1 ? "s" : "");
+            html +=
+              '<div class="qc-category-card" onclick="qcDrillInto(\'' + cat + "')\">" +
+              qcDonut(catScore, "small") +
+              '<div class="qc-category-name">' + escapeHtml(catLabel) + "</div>" +
+              '<div class="qc-category-violations">' + escapeHtml(violText) + "</div>" +
+              "</div>";
+          }
+          gridEl.innerHTML = html;
+        }
+
+        // Dead-styles informational note (never affects the score).
+        var noteEl = document.getElementById("qc-deadstyles-note");
+        if (noteEl)
+          noteEl.classList.toggle("hidden", qcTransformed.deadStyles.length === 0);
+
+        // Fix-all bulk count (excludes non-fixable families).
+        qcUpdateDashboardBulk();
+      }
+
+      // QC-local donut with DS-corrected color (does not edit createDonutSVG).
+      function qcDonut(score, size) {
+        var svg = createDonutSVG(score, size);
+        // Recolor the progress stroke + label to the DS ramp for net-new markup.
+        return svg
+          .replace('stroke="' + hcScoreColorRaw(score) + '"', 'stroke="' + qcScoreColor(score) + '"');
+      }
+      // Mirror of hcScoreColor's return so the replace target matches exactly.
+      function hcScoreColorRaw(score) {
+        if (score >= 90) return "var(--success)";
+        if (score >= 75) return "#f59e0b";
+        if (score >= 50) return "#f97316";
+        return "var(--error)";
+      }
+
+      function qcUpdateDashboardBulk() {
+        if (!qcResult) return;
+        var count = 0;
+        for (var i = 0; i < qcResult.violations.length; i++) {
+          if (qcAtOrAboveThreshold(qcResult.violations[i], qcThreshold)) count++;
+        }
+        var btn = document.getElementById("qc-fix-all-btn");
+        if (btn) {
+          btn.textContent = t("qc.fix.all") + " (" + count + ")";
+          btn.disabled = count === 0;
+        }
+      }
+
+      function qcDrillInto(category) {
+        qcDrillCategory = category;
+        renderQCDrilldown(category);
+        qcShowView("drilldown");
+      }
+      function qcBackToDashboard() {
+        qcShowView("dashboard");
+      }
+
+      // ── Render: drilldown (single category's violation list) ──
+      function renderQCDrilldown(category) {
+        if (!qcTransformed) return;
+        var catResult = qcTransformed.categories[category];
+        var catLabel = t(QC_CATEGORY_LABELS[category]) || category;
+        var groups = catResult ? catResult.violationGroups : [];
+
+        var titleEl = document.getElementById("qc-drilldown-title");
+        if (titleEl) titleEl.textContent = catLabel;
+        var gaugeEl = document.getElementById("qc-drilldown-gauge");
+        if (gaugeEl)
+          gaugeEl.innerHTML = qcDonut(catResult ? catResult.score : 100, "small");
+
+        var groupsEl = document.getElementById("qc-drilldown-groups");
+        if (groupsEl) {
+          if (!groups || groups.length === 0) {
+            groupsEl.innerHTML =
+              '<div class="qc-state-msg">' + escapeHtml(t("linter.no.violations")) + "</div>";
+          } else {
+            var html = "";
+            for (var g = 0; g < groups.length; g++) {
+              var group = groups[g];
+              html += '<div class="qc-violation-group">';
+              html += '<div class="qc-violation-group-rule">' +
+                escapeHtml(qcRuleLabel(group.rule)) +
+                " (" + group.violations.length + ")</div>";
+              for (var r = 0; r < group.violations.length; r++) {
+                html += renderQCViolationRow(group.violations[r]);
+              }
+              html += "</div>";
+            }
+            groupsEl.innerHTML = html;
+            qcBindDrilldownEvents(groupsEl);
+          }
+        }
+
+        qcUpdateDrilldownBulk();
+      }
+
+      function qcRuleLabel(ruleId) {
+        return (ruleId || "")
+          .replace(/-/g, " ").replace(/_/g, " ")
+          .replace(/\b\w/g, function (c) { return c.toUpperCase(); });
+      }
+
+      // ── Render: single QC violation row (DS severity; XSS-escaped) ──
+      function renderQCViolationRow(v) {
+        var nodeId = escapeAttr(v.nodeId);
+        var nodeName = v.nodeName || "";
+        var path = v.nodePath || "";
+        var sevColor = qcSeverityColor(v.severity || "info");
+
+        // Fix button only for fixable families (component/coverage/dead-styles excluded).
+        var fixHtml = "";
+        if (qcIsFixableCategory(v.category) && v.autoFixable) {
+          fixHtml =
+            '<button class="qc-fix-btn" data-action="fix" data-node-id="' + nodeId +
+            '" data-category="' + escapeAttr(v.category) +
+            '" data-rule="' + escapeAttr(v.rule) +
+            '" data-suggestion="' + escapeAttr(v.suggestion || "") +
+            '" data-meta="' + escapeAttr(JSON.stringify(v.metadata || {})) +
+            '" data-vid="' + escapeAttr(v.id || "") + '">' +
+            escapeHtml(t("linter.fix.apply") || "Apply") + "</button>";
+        }
+        var ignoreHtml =
+          '<button class="qc-ignore-btn" data-action="ignore" data-node-id="' + nodeId +
+          '" data-rule="' + escapeAttr(v.rule) +
+          '" title="' + escapeAttr(t("qc.ignore")) +
+          '" aria-label="' + escapeAttr(t("qc.ignore")) + '">' +
+          '<svg width="12" height="12" viewBox="0 0 12 12" fill="none">' +
+          '<path d="M3 3l6 6M9 3l-6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>' +
+          "</button>";
+
+        return (
+          '<div class="qc-violation-row" data-action="navigate" data-node-id="' + nodeId +
+          '" title="' + escapeAttr(t("hc.navigate") || "") + '">' +
+          '<span class="qc-sev-dot" style="background:' + sevColor + '"></span>' +
+          '<div class="qc-violation-info">' +
+          '<div class="qc-violation-name">' + escapeHtml(nodeName) + "</div>" +
+          (path ? '<div class="qc-violation-path">' + escapeHtml(path) + "</div>" : "") +
+          "</div>" +
+          '<div class="qc-violation-actions">' + fixHtml + ignoreHtml + "</div>" +
+          "</div>"
+        );
+      }
+
+      // ── Event delegation for the drilldown list ──
+      function qcBindDrilldownEvents(root) {
+        root.querySelectorAll('[data-action="fix"]').forEach(function (btn) {
+          btn.addEventListener("click", function (e) {
+            e.stopPropagation();
+            var meta = {};
+            try { meta = JSON.parse(btn.getAttribute("data-meta") || "{}"); } catch (err) { meta = {}; }
+            btn.disabled = true;
+            parent.postMessage(
+              { pluginMessage: {
+                type: "fix-qc-violation",
+                nodeId: btn.getAttribute("data-node-id"),
+                category: btn.getAttribute("data-category"),
+                rule: btn.getAttribute("data-rule"),
+                suggestion: btn.getAttribute("data-suggestion") || undefined,
+                metadata: meta,
+                violationId: btn.getAttribute("data-vid"),
+              } }, "*",
+            );
+          });
+        });
+        root.querySelectorAll('[data-action="ignore"]').forEach(function (btn) {
+          btn.addEventListener("click", function (e) {
+            e.stopPropagation();
+            parent.postMessage(
+              { pluginMessage: {
+                type: "ignore-violation",
+                nodeId: btn.getAttribute("data-node-id"),
+                ruleId: btn.getAttribute("data-rule"),
+              } }, "*",
+            );
+          });
+        });
+        root.querySelectorAll('.qc-violation-row[data-action="navigate"]').forEach(function (row) {
+          row.addEventListener("click", function (e) {
+            if (e.target.closest("[data-action=fix]") || e.target.closest("[data-action=ignore]")) return;
+            navigateToNode(row.getAttribute("data-node-id"));
+          });
+        });
+      }
+
+      function qcUpdateDrilldownBulk() {
+        if (!qcDrillCategory || !qcTransformed) return;
+        var catResult = qcTransformed.categories[qcDrillCategory];
+        var vs = catResult ? catResult.violations : [];
+        var count = 0;
+        for (var i = 0; i < vs.length; i++) {
+          if (qcAtOrAboveThreshold(vs[i], qcThreshold)) count++;
+        }
+        var btn = document.getElementById("qc-fix-category-btn");
+        if (btn) {
+          btn.textContent = t("qc.fix.category") + " (" + count + ")";
+          btn.disabled = count === 0;
+        }
+      }
+
+      // ── Bulk fix: collect at/above-threshold autoFixable, confirm, post ──
+      function qcCollectFixable(violations) {
+        var out = [];
+        for (var i = 0; i < violations.length; i++) {
+          if (qcAtOrAboveThreshold(violations[i], qcThreshold)) out.push(violations[i]);
+        }
+        return out;
+      }
+      function qcFixAll() {
+        if (!qcResult) return;
+        var fixable = qcCollectFixable(qcResult.violations);
+        if (fixable.length === 0) return;
+        if (!window.confirm(t("qc.fix.all") + " — " + fixable.length + " ?")) return;
+        parent.postMessage(
+          { pluginMessage: { type: "fix-qc-all", violations: fixable } }, "*",
+        );
+      }
+      function qcFixCategory() {
+        if (!qcDrillCategory || !qcTransformed) return;
+        var catResult = qcTransformed.categories[qcDrillCategory];
+        var vs = catResult ? catResult.violations : [];
+        var fixable = qcCollectFixable(vs);
+        if (fixable.length === 0) return;
+        if (!window.confirm(t("qc.fix.category") + " — " + fixable.length + " ?")) return;
+        parent.postMessage(
+          { pluginMessage: { type: "fix-qc-by-category", category: qcDrillCategory, violations: fixable } }, "*",
+        );
+      }
+
+      // ── Static control bindings ──
+      (function bindQCControls() {
+        var runBtn = document.getElementById("qc-run-btn");
+        if (runBtn) runBtn.addEventListener("click", runQualityCheck);
+        ["qc-rescan-btn", "qc-error-rescan-btn", "qc-cancelled-rescan-btn", "qc-clean-rescan-btn"]
+          .forEach(function (id) {
+            var b = document.getElementById(id);
+            if (b) b.addEventListener("click", runQualityCheck);
+          });
+        var cancelBtn = document.getElementById("qc-cancel-btn");
+        if (cancelBtn) cancelBtn.addEventListener("click", function () {
+          parent.postMessage({ pluginMessage: { type: "cancel-scan" } }, "*");
+        });
+        var backBtn = document.getElementById("qc-back-btn");
+        if (backBtn) backBtn.addEventListener("click", qcBackToDashboard);
+        var fixAllBtn = document.getElementById("qc-fix-all-btn");
+        if (fixAllBtn) fixAllBtn.addEventListener("click", qcFixAll);
+        var fixCatBtn = document.getElementById("qc-fix-category-btn");
+        if (fixCatBtn) fixCatBtn.addEventListener("click", qcFixCategory);
+        var threshDash = document.getElementById("qc-threshold-dash");
+        if (threshDash) threshDash.addEventListener("change", function () {
+          qcThreshold = this.value;
+          var td = document.getElementById("qc-threshold-drill");
+          if (td) td.value = this.value;
+          qcUpdateDashboardBulk();
+          qcUpdateDrilldownBulk();
+        });
+        var threshDrill = document.getElementById("qc-threshold-drill");
+        if (threshDrill) threshDrill.addEventListener("change", function () {
+          qcThreshold = this.value;
+          var tD = document.getElementById("qc-threshold-dash");
+          if (tD) tD.value = this.value;
+          qcUpdateDashboardBulk();
+          qcUpdateDrilldownBulk();
+        });
+      })();
 
       // ══════════════════════════════════════════════
       //  Accessibility Audit logic
