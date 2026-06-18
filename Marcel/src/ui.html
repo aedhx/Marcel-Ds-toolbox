@@ -1165,6 +1165,316 @@
       }
 
       /* ─────────────────────────────────────────── */
+      /* 3-Moment shell + Quality Check (Phase 4)     */
+      /* DS-corrected values: spacing 8/16, radius 4/8,*/
+      /* body 14px / meta 12px, weights 400/700.       */
+      /* ─────────────────────────────────────────── */
+      .moment-shell {
+        display: none;
+        flex-direction: column;
+        height: 100vh;
+        overflow: hidden;
+        background: var(--bg-default);
+      }
+      .moment-shell.active {
+        display: flex;
+      }
+      .moment-nav {
+        display: flex;
+        align-items: stretch;
+        border-bottom: 1px solid var(--border-default);
+        background: var(--bg-default);
+      }
+      .moment-nav-btn {
+        flex: 1;
+        height: 44px;
+        border: none;
+        background: none;
+        cursor: pointer;
+        font-family: "Ubuntu", sans-serif;
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--content-subtler);
+        border-bottom: 2px solid transparent;
+        transition: color 0.15s, border-color 0.15s;
+      }
+      .moment-nav-btn:hover {
+        color: var(--content-default);
+      }
+      .moment-nav-btn.active {
+        color: var(--brand);
+        border-bottom-color: var(--brand);
+      }
+      .moment-panels {
+        flex: 1;
+        overflow-y: auto;
+      }
+      .moment-panel {
+        display: none;
+        flex-direction: column;
+        padding: var(--spacing-l);
+        gap: var(--spacing-l);
+      }
+      .moment-panel.active {
+        display: flex;
+      }
+      .moment-heading {
+        font-size: 16px;
+        font-weight: 700;
+        color: var(--content-default);
+        line-height: 1.3;
+      }
+      .moment-body {
+        font-size: 14px;
+        font-weight: 400;
+        line-height: 1.5;
+        color: var(--content-subtle);
+      }
+      .moment-meta {
+        font-size: 12px;
+        font-weight: 400;
+        color: var(--content-subtler);
+      }
+      .moment-secondary-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        height: 36px;
+        padding: 0 var(--spacing-l);
+        background: var(--bg-subtle);
+        color: var(--content-default);
+        border: 1px solid var(--border-default);
+        border-radius: var(--radius-s);
+        font-family: "Ubuntu", sans-serif;
+        font-size: 14px;
+        font-weight: 700;
+        cursor: pointer;
+        text-decoration: none;
+        transition: background 0.15s;
+      }
+      .moment-secondary-btn:hover {
+        background: var(--bg-subtler);
+      }
+      .qc-card {
+        background: var(--bg-subtle);
+        border: 1px solid var(--border-default);
+        border-radius: var(--radius-m);
+        padding: var(--spacing-l);
+        display: flex;
+        flex-direction: column;
+        gap: var(--spacing-s);
+      }
+      /* QC dashboard */
+      .qc-score-global {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: var(--spacing-s);
+        padding: var(--spacing-l) 0;
+      }
+      .qc-score-global-label {
+        font-size: 16px;
+        font-weight: 700;
+      }
+      .qc-score-global-sublabel {
+        font-size: 12px;
+        font-weight: 400;
+        color: var(--content-subtler);
+      }
+      .qc-categories-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: var(--spacing-s);
+      }
+      .qc-category-card {
+        background: var(--bg-subtle);
+        border: 1px solid var(--border-default);
+        border-radius: var(--radius-m);
+        padding: var(--spacing-l);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: var(--spacing-xs);
+        cursor: pointer;
+        transition: background 0.15s;
+      }
+      .qc-category-card:hover {
+        background: var(--bg-subtler);
+      }
+      .qc-category-name {
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--content-default);
+      }
+      .qc-category-violations {
+        font-size: 12px;
+        font-weight: 400;
+        color: var(--content-subtler);
+      }
+      /* QC drilldown */
+      .qc-drilldown-header {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-s);
+      }
+      .qc-back-btn {
+        border: none;
+        background: none;
+        cursor: pointer;
+        font-family: "Ubuntu", sans-serif;
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--brand);
+        padding: 0;
+      }
+      .qc-drilldown-title {
+        flex: 1;
+        font-size: 16px;
+        font-weight: 700;
+        color: var(--content-default);
+      }
+      /* QC bulk-action bar */
+      .qc-bulk-bar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: var(--spacing-s);
+        background: var(--bg-subtle);
+        border: 1px solid var(--border-default);
+        border-radius: var(--radius-m);
+        padding: var(--spacing-s);
+      }
+      .qc-bulk-bar label {
+        font-size: 12px;
+        font-weight: 400;
+        color: var(--content-subtle);
+      }
+      .qc-threshold-select {
+        font-family: "Ubuntu", sans-serif;
+        font-size: 12px;
+        border: 1px solid var(--border-default);
+        border-radius: var(--radius-s);
+        padding: 4px var(--spacing-s);
+        background: var(--bg-default);
+        color: var(--content-default);
+      }
+      .qc-bulk-btn {
+        font-family: "Ubuntu", sans-serif;
+        font-size: 12px;
+        font-weight: 700;
+        border: 1px solid var(--border-default);
+        border-radius: var(--radius-s);
+        padding: 6px var(--spacing-s);
+        background: var(--bg-default);
+        color: var(--content-default);
+        cursor: pointer;
+      }
+      .qc-bulk-btn:hover {
+        background: var(--bg-subtler);
+      }
+      .qc-bulk-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      /* QC violation rows */
+      .qc-violation-group {
+        margin-bottom: var(--spacing-s);
+      }
+      .qc-violation-group-rule {
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--content-subtle);
+        padding: var(--spacing-xs) 0;
+      }
+      .qc-violation-row {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-s);
+        padding: var(--spacing-s);
+        border: 1px solid var(--border-default);
+        border-radius: var(--radius-s);
+        margin-bottom: var(--spacing-xs);
+        cursor: pointer;
+        background: var(--bg-default);
+      }
+      .qc-violation-row:hover {
+        background: var(--bg-subtle);
+      }
+      .qc-sev-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        flex-shrink: 0;
+      }
+      .qc-violation-info {
+        flex: 1;
+        min-width: 0;
+      }
+      .qc-violation-name {
+        font-size: 14px;
+        font-weight: 400;
+        color: var(--content-default);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .qc-violation-path {
+        font-size: 12px;
+        font-weight: 400;
+        color: var(--content-subtler);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .qc-violation-actions {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-xs);
+        flex-shrink: 0;
+      }
+      .qc-fix-btn {
+        font-family: "Ubuntu", sans-serif;
+        font-size: 12px;
+        font-weight: 700;
+        border: 1px solid var(--brand);
+        border-radius: var(--radius-s);
+        padding: 4px var(--spacing-s);
+        background: var(--bg-default);
+        color: var(--brand);
+        cursor: pointer;
+      }
+      .qc-fix-btn:hover {
+        background: var(--bg-subtler);
+      }
+      .qc-ignore-btn {
+        border: none;
+        background: none;
+        cursor: pointer;
+        color: var(--content-subtler);
+        padding: 4px;
+        display: inline-flex;
+        align-items: center;
+      }
+      .qc-ignore-btn:hover {
+        color: var(--content-default);
+      }
+      .qc-deadstyles-note {
+        font-size: 12px;
+        font-weight: 400;
+        color: var(--content-subtler);
+        font-style: italic;
+        padding: var(--spacing-xs) 0;
+      }
+      .qc-state-msg {
+        font-size: 14px;
+        font-weight: 400;
+        color: var(--content-subtle);
+        text-align: center;
+        padding: var(--spacing-2xl) var(--spacing-l);
+      }
+
+      /* ─────────────────────────────────────────── */
       /* Health Check styles                          */
       /* ─────────────────────────────────────────── */
 
@@ -3018,7 +3328,153 @@
     </style>
   </head>
   <body>
-    <div class="app-shell hub-mode">
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!-- 3-MOMENT SHELL (Phase 4 — NAV-01/02/03) — top-level nav.     -->
+    <!-- Replaces the legacy 8-tab sidebar as the default entry view.  -->
+    <!-- Legacy .app-shell stays in the DOM (Phase 7 removes it).      -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <div class="moment-shell active" id="moment-shell">
+      <nav class="moment-nav" role="tablist" aria-label="Moments">
+        <button
+          class="moment-nav-btn"
+          data-moment="start"
+          role="tab"
+          aria-selected="false"
+          data-i18n="nav.start"
+        >Je démarre</button>
+        <button
+          class="moment-nav-btn active"
+          data-moment="build"
+          role="tab"
+          aria-selected="true"
+          data-i18n="nav.build"
+        >Je construis</button>
+        <button
+          class="moment-nav-btn"
+          data-moment="deliver"
+          role="tab"
+          aria-selected="false"
+          data-i18n="nav.deliver"
+        >Je livre</button>
+      </nav>
+
+      <div class="moment-panels">
+        <!-- ── Je démarre ── -->
+        <div id="panel-start" class="moment-panel" role="tabpanel">
+          <div class="moment-heading" data-i18n="nav.start.title">Je démarre</div>
+          <div class="moment-body" data-i18n="nav.start.body">Start a new file with the right structure.</div>
+          <button class="btn-primary" id="moment-start-cta" data-i18n="nav.start.cta">Open Starter Kit</button>
+        </div>
+
+        <!-- ── Je construis (QC home) ── -->
+        <div id="panel-build" class="moment-panel active" role="tabpanel">
+          <div class="moment-heading" data-i18n="nav.build.title">Je construis</div>
+
+          <!-- QC view container — state regions toggled by qcShowView() -->
+          <div id="qc-view">
+            <!-- State: empty / pre-scan -->
+            <div id="qc-empty">
+              <div class="qc-card">
+                <div class="moment-heading" data-i18n="qc.empty.title">Check your file's quality</div>
+                <div class="moment-body" data-i18n="qc.empty.body">Pick a scope and run a scan to get a score and an actionable list.</div>
+                <div class="hc-scope-select" id="qc-scope-select">
+                  <label>
+                    <input type="radio" name="qc-scope" value="page" checked />
+                    <span data-i18n="qc.scope.page">Page</span></label>
+                  <label>
+                    <input type="radio" name="qc-scope" value="selection" />
+                    <span data-i18n="qc.scope.selection">Selection</span></label>
+                  <label>
+                    <input type="radio" name="qc-scope" value="file" />
+                    <span data-i18n="qc.scope.file">Entire file</span></label>
+                </div>
+                <button class="btn-primary" id="qc-run-btn" data-i18n="qc.run">Run Quality Check</button>
+              </div>
+
+              <!-- Secondary stub-launchers in Je construis (D-02) -->
+              <div class="qc-card" style="margin-top: var(--spacing-l);">
+                <button class="moment-secondary-btn" id="moment-import-cta" data-i18n="nav.build.import">Import Toolkit</button>
+                <button class="moment-secondary-btn" id="moment-cover-cta" data-i18n="nav.build.cover">Update Cover</button>
+                <a class="moment-secondary-btn" id="moment-a11y-link"
+                   href="https://www.figma.com/community/plugin/733159460536249875"
+                   target="_blank" rel="noopener" data-i18n="nav.a11y.link">Accessibility — external plugin ↗</a>
+              </div>
+            </div>
+
+            <!-- State: scanning (indeterminate, NO %) -->
+            <div id="qc-scanning" class="hidden">
+              <div class="qc-card">
+                <div class="moment-body" id="qc-scanning-label" data-i18n="qc.scanning">Scanning…</div>
+                <button class="btn-danger" id="qc-cancel-btn" data-i18n="qc.cancel">Cancel</button>
+              </div>
+            </div>
+
+            <!-- State: dashboard -->
+            <div id="qc-dashboard" class="hidden">
+              <button class="btn-primary" id="qc-rescan-btn" data-i18n="qc.rescan" style="margin-bottom: var(--spacing-l);">Rescan</button>
+              <div class="qc-score-global" id="qc-global-score"><!-- ring injected --></div>
+              <div class="qc-categories-grid" id="qc-categories-grid"><!-- cards injected --></div>
+              <div class="qc-bulk-bar" id="qc-dashboard-bulk">
+                <label data-i18n="qc.threshold.label">Confidence threshold</label>
+                <select class="qc-threshold-select" id="qc-threshold-dash">
+                  <option value="high">high</option>
+                  <option value="medium">medium</option>
+                  <option value="low">low</option>
+                </select>
+                <button class="qc-bulk-btn" id="qc-fix-all-btn" data-i18n="qc.fix.all">Fix all</button>
+              </div>
+              <div class="qc-deadstyles-note hidden" id="qc-deadstyles-note" data-i18n="qc.deadstyles.note">Informational — does not affect the score</div>
+            </div>
+
+            <!-- State: drilldown -->
+            <div id="qc-drilldown" class="hidden">
+              <div class="qc-drilldown-header">
+                <button class="qc-back-btn" id="qc-back-btn" data-i18n="qc.back">← Back</button>
+                <div class="qc-drilldown-title" id="qc-drilldown-title"></div>
+                <div id="qc-drilldown-gauge"><!-- small gauge --></div>
+              </div>
+              <div class="qc-bulk-bar" id="qc-drilldown-bulk">
+                <label data-i18n="qc.threshold.label">Confidence threshold</label>
+                <select class="qc-threshold-select" id="qc-threshold-drill">
+                  <option value="high">high</option>
+                  <option value="medium">medium</option>
+                  <option value="low">low</option>
+                </select>
+                <button class="qc-bulk-btn" id="qc-fix-category-btn" data-i18n="qc.fix.category">Fix this category</button>
+              </div>
+              <div id="qc-drilldown-groups"><!-- violation groups injected --></div>
+            </div>
+
+            <!-- State: error -->
+            <div id="qc-error" class="hidden">
+              <div class="qc-state-msg" id="qc-error-msg" data-i18n="qc.error">The scan failed. Check your selection and try again.</div>
+              <button class="btn-primary" id="qc-error-rescan-btn" data-i18n="qc.rescan">Rescan</button>
+            </div>
+
+            <!-- State: cancelled -->
+            <div id="qc-cancelled" class="hidden">
+              <div class="qc-state-msg" data-i18n="qc.cancelled">Scan cancelled — no result kept.</div>
+              <button class="btn-primary" id="qc-cancelled-rescan-btn" data-i18n="qc.rescan">Rescan</button>
+            </div>
+
+            <!-- State: clean -->
+            <div id="qc-clean" class="hidden">
+              <div class="qc-state-msg" data-i18n="qc.clean">No violations — nice work!</div>
+              <button class="btn-primary" id="qc-clean-rescan-btn" data-i18n="qc.rescan">Rescan</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── Je livre ── -->
+        <div id="panel-deliver" class="moment-panel" role="tabpanel">
+          <div class="moment-heading" data-i18n="nav.deliver.title">Je livre</div>
+          <div class="moment-body" data-i18n="nav.deliver.body">Prepare your file for handoff.</div>
+          <button class="btn-primary" id="moment-deliver-cta" data-i18n="nav.deliver.cta">Prepare handoff</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="app-shell hub-mode" style="display: none">
       <!-- Sidebar -->
       <nav class="sidebar" role="tablist" aria-label="Navigation">
         <button
@@ -4805,6 +5261,27 @@
 
       var TRANSLATIONS = {
         en: {
+          // ── 3-moment shell + Quality Check (Phase 4) ──
+          "nav.start": "Je démarre", "nav.build": "Je construis", "nav.deliver": "Je livre",
+          "nav.start.title": "Je démarre", "nav.build.title": "Je construis", "nav.deliver.title": "Je livre",
+          "nav.start.body": "Start a new file with the right structure.",
+          "nav.deliver.body": "Prepare your file for handoff.",
+          "nav.start.cta": "Open Starter Kit", "nav.build.import": "Import Toolkit", "nav.build.cover": "Update Cover",
+          "nav.deliver.cta": "Prepare handoff", "nav.a11y.link": "Accessibility — external plugin ↗",
+          "qc.run": "Run Quality Check", "qc.rescan": "Rescan", "qc.cancel": "Cancel",
+          "qc.scope.page": "Page", "qc.scope.selection": "Selection", "qc.scope.file": "Entire file",
+          "qc.scanning": "Scanning…",
+          "qc.empty.title": "Check your file's quality",
+          "qc.empty.body": "Pick a scope and run a scan to get a score and an actionable list.",
+          "qc.clean": "No violations — nice work!",
+          "qc.error": "The scan failed. Check your selection and try again.",
+          "qc.cancelled": "Scan cancelled — no result kept.",
+          "qc.threshold.label": "Confidence threshold",
+          "qc.fix.category": "Fix this category", "qc.fix.all": "Fix all", "qc.ignore": "Ignore",
+          "qc.cat.naming": "Naming", "qc.cat.colors": "Colors", "qc.cat.typography": "Typography",
+          "qc.cat.spacing": "Spacing", "qc.cat.coverage": "Coverage",
+          "qc.deadstyles.note": "Informational — does not affect the score",
+          "qc.back": "← Back",
           "hub.title": "Marcel Toolbox", "hub.badge": "Beta",
           "hub.desc": "Welcome to the ultimate Marcel Toolbox. Your all-in-one design ops companion for Figma.",
           "hub.doc": "Documentation", "hub.support": "Support", "hub.features": "Features", "hub.coming-soon": "Coming soon",
@@ -5010,6 +5487,75 @@
           });
         });
 
+      // ══════════════════════════════════════════════
+      //  3-moment shell routing (Phase 4 — NAV-01/02/03)
+      // ══════════════════════════════════════════════
+      // Pure class-toggle over the 3 moment panels + nav buttons.
+      // MUST NOT touch qcResult / qcView / qcDrillCategory (NAV-03 / D-07) —
+      // those JS vars live in module scope so the in-memory scan survives
+      // switching moments with no re-scan.
+      function switchMoment(momentId) {
+        var shell = document.getElementById("moment-shell");
+        if (!shell) return;
+        // Ensure the moment shell is the active surface (legacy app-shell stays hidden).
+        shell.classList.add("active");
+        var appShell = document.querySelector(".app-shell");
+        if (appShell) appShell.style.display = "none";
+
+        document
+          .querySelectorAll(".moment-nav-btn[data-moment]")
+          .forEach(function (btn) {
+            var isActive = btn.getAttribute("data-moment") === momentId;
+            btn.classList.toggle("active", isActive);
+            btn.setAttribute("aria-selected", isActive ? "true" : "false");
+          });
+        document
+          .querySelectorAll(".moment-panel")
+          .forEach(function (panel) {
+            panel.classList.remove("active");
+          });
+        var target = document.getElementById("panel-" + momentId);
+        if (target) target.classList.add("active");
+      }
+
+      document
+        .querySelectorAll(".moment-nav-btn[data-moment]")
+        .forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            switchMoment(btn.getAttribute("data-moment"));
+          });
+        });
+
+      // ── Stub-launchers (D-02 — migration-safe; post EXISTING messages) ──
+      var momentStartCta = document.getElementById("moment-start-cta");
+      if (momentStartCta)
+        momentStartCta.addEventListener("click", function () {
+          parent.postMessage(
+            { pluginMessage: { type: "create-starter-kit", template: "prd" } },
+            "*",
+          );
+        });
+      var momentImportCta = document.getElementById("moment-import-cta");
+      if (momentImportCta)
+        momentImportCta.addEventListener("click", function () {
+          switchTab("import-toolkit");
+        });
+      var momentCoverCta = document.getElementById("moment-cover-cta");
+      if (momentCoverCta)
+        momentCoverCta.addEventListener("click", function () {
+          parent.postMessage(
+            { pluginMessage: { type: "generate-cover", status: "" } },
+            "*",
+          );
+        });
+      var momentDeliverCta = document.getElementById("moment-deliver-cta");
+      if (momentDeliverCta)
+        momentDeliverCta.addEventListener("click", function () {
+          parent.postMessage(
+            { pluginMessage: { type: "generate-cover", status: "" } },
+            "*",
+          );
+        });
 
       // ══════════════════════════════════════════════
       //  Starter Kit logic
@@ -6032,9 +6578,9 @@
         var msg = event.data.pluginMessage;
         if (!msg) return;
 
-        // ── Always start on hub ──
+        // ── Always start on the 3-moment shell (NAV-01), Je construis (D-03) ──
         if (msg.type === "init-context") {
-          switchTab("hub");
+          switchMoment("build");
           parent.postMessage({ pluginMessage: { type: "get-language" } }, "*");
         }
 
