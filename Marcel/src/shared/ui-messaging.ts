@@ -2,6 +2,7 @@ import type { HCResult } from '../features/health-check/hc-types';
 import type { DeadStylesResult, DeadItemType, StyleCleanerResult } from '../features/dead-styles/dead-styles-types';
 import type { A11YResult } from '../features/accessibility/a11y-types';
 import type { QualityCheckResult } from './quality-check-types';
+import type { Violation } from './violation-types';
 
 // ── Messages from UI to Plugin Sandbox ──
 
@@ -20,6 +21,10 @@ export type UIMessage =
   | { type: "run-health-check"; scope: "page" | "selection" | "file" }
   // Unified Quality Check (hidden/dev trigger — Phase 2 wiring, D-06)
   | { type: "run-quality-check"; scope: "page" | "selection" | "file" }
+  // Unified Quality Check fix-routing (Phase 4 — QC-08/QC-09)
+  | { type: "fix-qc-violation"; nodeId: string; category: string; rule: string; suggestion?: string; metadata?: Record<string, unknown>; violationId?: string }
+  | { type: "fix-qc-by-category"; category: string; violations: Violation[] }
+  | { type: "fix-qc-all"; violations: Violation[] }
   // i18n (Phase 3 — MIGR-05)
   | { type: "get-language" }
   | { type: "set-language"; language: "fr" | "en" | "pt-BR" }
@@ -86,6 +91,9 @@ export type PluginMessage =
   | { type: "quality-check-result"; result: QualityCheckResult }
   | { type: "quality-check-error"; message: string }
   | { type: "quality-check-progress"; phase: string; processed: number; total: number }
+  // Unified Quality Check fix-routing results (Phase 4 — QC-08/QC-09)
+  | { type: "fix-qc-violation-result"; result: { success: boolean }; violationId?: string }
+  | { type: "fix-qc-bulk-result"; result: { fixed: number; failed: number; fixedNodeIds: string[] } }
   // i18n (Phase 3 — MIGR-05)
   | { type: "language"; language: "fr" | "en" | "pt-BR" }
   // Scan progress
