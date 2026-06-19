@@ -3417,6 +3417,31 @@
           <div class="moment-heading" data-i18n="nav.start.title">Je démarre</div>
           <div class="moment-body" data-i18n="nav.start.body">Start a new file with the right structure.</div>
           <button class="btn-primary" id="moment-start-cta" data-i18n="nav.start.cta">Open Starter Kit</button>
+          <div
+            id="start-cover-init-banner"
+            class="hidden"
+            style="display: flex; align-items: center; gap: var(--spacing-s, 8px); margin-top: var(--spacing-l); background: var(--bg-subtle); border-radius: var(--radius-m); padding: var(--spacing-l);"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 16 16"
+              fill="none"
+              style="flex-shrink: 0;"
+              aria-hidden="true"
+            >
+              <path
+                d="M3 8.5L6.25 11.5L13 4.5"
+                stroke="#2c815e"
+                stroke-width="1.6"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+            <span style="font-size: 12px; font-weight: 400;" data-i18n="start.cover.init"
+              >Cover initialized to 'In Progress'.</span
+            >
+          </div>
         </div>
 
         <!-- ── Je construis (QC home) ── -->
@@ -5320,6 +5345,8 @@
           "nav.start.body": "Start a new file with the right structure.",
           "nav.deliver.body": "Prepare your file for handoff.",
           "nav.start.cta": "Open Starter Kit", "nav.build.import": "Import Toolkit", "nav.build.cover": "Update Cover",
+          "start.body": "Creates the standard file structure + DS components in one click.",
+          "start.cover.init": "Cover initialized to 'In Progress'.",
           "nav.deliver.cta": "Prepare handoff", "nav.a11y.link": "Accessibility — external plugin ↗",
           "qc.run": "Run Quality Check", "qc.rescan": "Rescan", "qc.cancel": "Cancel",
           "qc.scope.page": "Page", "qc.scope.selection": "Selection", "qc.scope.file": "Entire file",
@@ -5458,6 +5485,8 @@
           "nav.start.body": "Démarrez un nouveau fichier avec la bonne structure.",
           "nav.deliver.body": "Préparez votre fichier pour la livraison.",
           "nav.start.cta": "Ouvrir le Starter Kit", "nav.build.import": "Importer la Toolkit", "nav.build.cover": "Mettre à jour la Cover",
+          "start.body": "Crée la structure de fichier standard + les composants DS en un clic.",
+          "start.cover.init": "Cover initialisée sur « En cours ».",
           "nav.deliver.cta": "Préparer la livraison", "nav.a11y.link": "Accessibilité (plugin externe) ↗",
           "qc.run": "Lancer le Quality Check", "qc.rescan": "Relancer l'analyse", "qc.cancel": "Annuler",
           "qc.scope.page": "Page", "qc.scope.selection": "Sélection", "qc.scope.file": "Fichier entier",
@@ -5487,6 +5516,8 @@
           "nav.start.body": "Comece um novo arquivo com a estrutura certa.",
           "nav.deliver.body": "Prepare seu arquivo para a entrega.",
           "nav.start.cta": "Abrir o Starter Kit", "nav.build.import": "Importar a Toolkit", "nav.build.cover": "Atualizar a Cover",
+          "start.body": "Cria a estrutura de arquivo padrão + os componentes DS em um clique.",
+          "start.cover.init": "Cover inicializada em « Em andamento ».",
           "nav.deliver.cta": "Preparar a entrega", "nav.a11y.link": "Acessibilidade (plugin externo) ↗",
           "qc.run": "Executar o Quality Check", "qc.rescan": "Refazer a análise", "qc.cancel": "Cancelar",
           "qc.scope.page": "Página", "qc.scope.selection": "Seleção", "qc.scope.file": "Arquivo inteiro",
@@ -6784,6 +6815,9 @@
           createBtn.classList.add("btn-success");
           createBtn.disabled = true;
           btnLabel.textContent = t("sk.created");
+          // Reveal the Je démarre cover-init confirmation banner (START-01)
+          var startCoverInitBanner = document.getElementById("start-cover-init-banner");
+          if (startCoverInitBanner) startCoverInitBanner.classList.remove("hidden");
           // Do NOT call setLoading(false) — that would re-enable the button
         }
 
