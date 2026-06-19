@@ -3471,11 +3471,31 @@
 
               <!-- Secondary stub-launchers in Je construis (D-02) -->
               <div class="qc-card" style="margin-top: var(--spacing-l);">
-                <button class="moment-secondary-btn" id="moment-import-cta" data-i18n="nav.build.import">Import Toolkit</button>
-                <button class="moment-secondary-btn" id="moment-cover-cta" data-i18n="nav.build.cover">Update Cover</button>
+                <button class="moment-secondary-btn" id="moment-import-cta" data-i18n="build.import">Import Toolkit</button>
+
+                <!-- BUILD-03 / D-05: NET-NEW 4-value cover-status picker.
+                     Distinct id (#build-cover-status) — does NOT touch the legacy
+                     5-value #cover-status-select. "Design Done" is OMITTED here;
+                     only the Je livre gate may set it. -->
+                <div style="margin-top: var(--spacing-s); display: flex; flex-direction: column; gap: var(--spacing-xs);">
+                  <label for="build-cover-status"
+                         style="font-size: 12px; font-weight: 400; color: var(--content-subtle);"
+                         data-i18n="build.cover.label">Cover status</label>
+                  <select id="build-cover-status"
+                          style="height: 36px; border-radius: var(--radius-s); border: 1px solid var(--border-default); background: var(--bg-subtle); padding: 0 var(--spacing-s); font-size: 14px;">
+                    <option value="In Progress" data-i18n="cover.status.inprogress">In Progress</option>
+                    <option value="Playground" data-i18n="cover.status.playground">Playground</option>
+                    <option value="SOT" data-i18n="cover.status.sot">SOT</option>
+                    <option value="Archived" data-i18n="cover.status.archived">Archived</option>
+                  </select>
+                  <span id="build-cover-current" class="hidden"
+                        style="font-size: 12px; font-weight: 400; color: var(--content-subtle);"></span>
+                  <button class="moment-secondary-btn" id="build-cover-apply" data-i18n="build.cover.apply">Update Cover</button>
+                </div>
+
                 <a class="moment-secondary-btn" id="moment-a11y-link"
                    href="https://www.figma.com/community/plugin/733159460536249875"
-                   target="_blank" rel="noopener" data-i18n="nav.a11y.link">Accessibility — external plugin ↗</a>
+                   target="_blank" rel="noopener" data-i18n="build.a11y.link">Accessibility — external plugin ↗</a>
               </div>
             </div>
 
@@ -5347,6 +5367,11 @@
           "nav.start.cta": "Open Starter Kit", "nav.build.import": "Import Toolkit", "nav.build.cover": "Update Cover",
           "start.body": "Creates the standard file structure + DS components in one click.",
           "start.cover.init": "Cover initialized to 'In Progress'.",
+          "build.import": "Import Toolkit", "build.a11y.link": "Accessibility — external plugin ↗",
+          "build.cover.label": "Cover status", "build.cover.apply": "Update Cover",
+          "build.cover.current": "Current: {status}",
+          "cover.status.inprogress": "In Progress", "cover.status.playground": "Playground",
+          "cover.status.sot": "SOT", "cover.status.archived": "Archived",
           "nav.deliver.cta": "Prepare handoff", "nav.a11y.link": "Accessibility — external plugin ↗",
           "qc.run": "Run Quality Check", "qc.rescan": "Rescan", "qc.cancel": "Cancel",
           "qc.scope.page": "Page", "qc.scope.selection": "Selection", "qc.scope.file": "Entire file",
@@ -5487,6 +5512,11 @@
           "nav.start.cta": "Ouvrir le Starter Kit", "nav.build.import": "Importer la Toolkit", "nav.build.cover": "Mettre à jour la Cover",
           "start.body": "Crée la structure de fichier standard + les composants DS en un clic.",
           "start.cover.init": "Cover initialisée sur « En cours ».",
+          "build.import": "Importer la Toolkit", "build.a11y.link": "Accessibilité (plugin externe) ↗",
+          "build.cover.label": "Statut de la Cover", "build.cover.apply": "Mettre à jour la Cover",
+          "build.cover.current": "Actuel : {status}",
+          "cover.status.inprogress": "En cours", "cover.status.playground": "Playground",
+          "cover.status.sot": "SOT", "cover.status.archived": "Archivé",
           "nav.deliver.cta": "Préparer la livraison", "nav.a11y.link": "Accessibilité (plugin externe) ↗",
           "qc.run": "Lancer le Quality Check", "qc.rescan": "Relancer l'analyse", "qc.cancel": "Annuler",
           "qc.scope.page": "Page", "qc.scope.selection": "Sélection", "qc.scope.file": "Fichier entier",
@@ -5518,6 +5548,11 @@
           "nav.start.cta": "Abrir o Starter Kit", "nav.build.import": "Importar a Toolkit", "nav.build.cover": "Atualizar a Cover",
           "start.body": "Cria a estrutura de arquivo padrão + os componentes DS em um clique.",
           "start.cover.init": "Cover inicializada em « Em andamento ».",
+          "build.import": "Importar a Toolkit", "build.a11y.link": "Acessibilidade (plugin externo) ↗",
+          "build.cover.label": "Status da Cover", "build.cover.apply": "Atualizar a Cover",
+          "build.cover.current": "Atual: {status}",
+          "cover.status.inprogress": "Em andamento", "cover.status.playground": "Playground",
+          "cover.status.sot": "SOT", "cover.status.archived": "Arquivado",
           "nav.deliver.cta": "Preparar a entrega", "nav.a11y.link": "Acessibilidade (plugin externo) ↗",
           "qc.run": "Executar o Quality Check", "qc.rescan": "Refazer a análise", "qc.cancel": "Cancelar",
           "qc.scope.page": "Página", "qc.scope.selection": "Seleção", "qc.scope.file": "Arquivo inteiro",
@@ -5698,6 +5733,15 @@
           });
         var target = document.getElementById("panel-" + momentId);
         if (target) target.classList.add("active");
+
+        // BUILD-03: hydrate the Je construis 4-value cover picker on entry.
+        // Read-only side effect — does NOT touch qcResult / qcView (NAV-03).
+        if (momentId === "build") {
+          parent.postMessage(
+            { pluginMessage: { type: "load-cover-config" } },
+            "*",
+          );
+        }
       }
 
       document
@@ -5720,13 +5764,31 @@
       var momentImportCta = document.getElementById("moment-import-cta");
       if (momentImportCta)
         momentImportCta.addEventListener("click", function () {
-          switchTab("import-toolkit");
-        });
-      var momentCoverCta = document.getElementById("moment-cover-cta");
-      if (momentCoverCta)
-        momentCoverCta.addEventListener("click", function () {
+          // BUILD-02: launch the existing import-ds-component flow in-moment
+          // (no switchTab — stay in the moment shell). Stable handoff-toolkit
+          // key from DS_COMPONENT_KEYS (handoffDevice / Device=Desktop). No key
+          // hardening (deferred); the main.ts handler surfaces not_found /
+          // library_disabled / network errors.
           parent.postMessage(
-            { pluginMessage: { type: "generate-cover", status: "" } },
+            {
+              pluginMessage: {
+                type: "import-ds-component",
+                componentKey: "06dea5d62ebf241040170244766d9742ead0cda9",
+              },
+            },
+            "*",
+          );
+        });
+      // BUILD-03 / D-05: net-new 4-value cover picker apply button.
+      // Reads #build-cover-status (4 values, Design Done excluded) and posts the
+      // existing generate-cover message with the selected status (NOT empty).
+      var buildCoverApply = document.getElementById("build-cover-apply");
+      if (buildCoverApply)
+        buildCoverApply.addEventListener("click", function () {
+          var sel = document.getElementById("build-cover-status");
+          var status = sel ? sel.value : "In Progress";
+          parent.postMessage(
+            { pluginMessage: { type: "generate-cover", status: status } },
             "*",
           );
         });
@@ -7121,6 +7183,24 @@
           if (msg.config && msg.config.projectStatus) {
             document.getElementById("cover-status-select").value =
               msg.config.projectStatus;
+            // BUILD-03 / D-05: parallel hydrate the net-new 4-value picker.
+            // If stored status is "Design Done" (gate-owned), the 4-value picker
+            // cannot represent it — show a read-only "current" label and leave
+            // the picker at its default; never select Design Done here.
+            var buildSel = document.getElementById("build-cover-status");
+            var buildCurrent = document.getElementById("build-cover-current");
+            if (buildSel) {
+              if (msg.config.projectStatus === "Design Done") {
+                if (buildCurrent) {
+                  buildCurrent.textContent =
+                    t("build.cover.current", { status: "Design Done" });
+                  buildCurrent.classList.remove("hidden");
+                }
+              } else {
+                buildSel.value = msg.config.projectStatus;
+                if (buildCurrent) buildCurrent.classList.add("hidden");
+              }
+            }
           }
         }
 
