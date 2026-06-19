@@ -5633,7 +5633,6 @@
           "nav.start.body": "Start a new file with the right structure.",
           "nav.deliver.body": "Prepare your file for handoff.",
           "nav.start.cta": "Open Starter Kit", "nav.build.import": "Import Toolkit", "nav.build.cover": "Update Cover",
-          "start.body": "Creates the standard file structure + DS components in one click.",
           "start.cover.init": "Cover initialized to 'In Progress'.",
           "build.import": "Import Toolkit", "build.a11y.link": "Accessibility — external plugin ↗",
           "build.cover.label": "Cover status", "build.cover.apply": "Update Cover",
@@ -5796,7 +5795,6 @@
           "nav.start.body": "Démarrez un nouveau fichier avec la bonne structure.",
           "nav.deliver.body": "Préparez votre fichier pour la livraison.",
           "nav.start.cta": "Ouvrir le Starter Kit", "nav.build.import": "Importer la Toolkit", "nav.build.cover": "Mettre à jour la Cover",
-          "start.body": "Crée la structure de fichier standard + les composants DS en un clic.",
           "start.cover.init": "Cover initialisée sur « En cours ».",
           "build.import": "Importer la Toolkit", "build.a11y.link": "Accessibilité (plugin externe) ↗",
           "build.cover.label": "Statut de la Cover", "build.cover.apply": "Mettre à jour la Cover",
@@ -5850,7 +5848,6 @@
           "nav.start.body": "Comece um novo arquivo com a estrutura certa.",
           "nav.deliver.body": "Prepare seu arquivo para a entrega.",
           "nav.start.cta": "Abrir o Starter Kit", "nav.build.import": "Importar a Toolkit", "nav.build.cover": "Atualizar a Cover",
-          "start.body": "Cria a estrutura de arquivo padrão + os componentes DS em um clique.",
           "start.cover.init": "Cover inicializada em « Em andamento ».",
           "build.import": "Importar a Toolkit", "build.a11y.link": "Acessibilidade (plugin externo) ↗",
           "build.cover.label": "Status da Cover", "build.cover.apply": "Atualizar a Cover",
@@ -7531,12 +7528,17 @@
           if (deliverMarkdonePending) {
             deliverMarkdonePending = false;
             coverStatus = "Design Done";
-            renderDeliverGate();      // recompute rows with the fresh status
-            deliverShowView("done");  // then surface the done confirmation banner
+            // WR-02: show the done confirmation directly. The gate rows are
+            // recomputed by renderDeliverGate() when the user clicks "back to the
+            // gate" (#deliver-done-back-btn), so no intermediate gate render here.
+            deliverShowView("done");
           }
         }
 
         if (msg.type === "cover-error") {
+          // CR-01: clear the gate's pending flag so a failed "Mark Design Done"
+          // does NOT ghost-write "Design Done" on the next successful cover update.
+          deliverMarkdonePending = false;
           document.getElementById("cover-default").classList.add("hidden");
           document.getElementById("cover-error").classList.remove("hidden");
           document.getElementById("cover-success").classList.add("hidden");
