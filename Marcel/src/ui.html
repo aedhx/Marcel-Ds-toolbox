@@ -3563,11 +3563,279 @@
           </div>
         </div>
 
-        <!-- ── Je livre ── -->
+        <!-- ── Je livre — Handoff gate (NET-NEW; DELIVER-01/02/03 — D-01/D-03/D-04) ── -->
         <div id="panel-deliver" class="moment-panel" role="tabpanel">
           <div class="moment-heading" data-i18n="nav.deliver.title">Je livre</div>
-          <div class="moment-body" data-i18n="nav.deliver.body">Prepare your file for handoff.</div>
-          <button class="btn-primary" id="moment-deliver-cta" data-i18n="nav.deliver.cta">Prepare handoff</button>
+
+          <!-- State: no scan this session (qcResult === null) — D-04, no persisted fallback -->
+          <div
+            id="deliver-noscan"
+            class="hidden"
+            style="
+              border-left: 4px solid var(--error);
+              background: var(--bg-subtle);
+              border-radius: var(--radius-m);
+              padding: var(--spacing-l);
+              margin-top: var(--spacing-l);
+            "
+          >
+            <div
+              style="font-size: 16px; font-weight: 700; line-height: 1.3;"
+              data-i18n="deliver.noscan.title"
+            >
+              Run a Quality Check first
+            </div>
+            <div
+              style="
+                font-size: 14px;
+                font-weight: 400;
+                line-height: 1.5;
+                margin-top: var(--spacing-s);
+              "
+              data-i18n="deliver.noscan.body"
+            >
+              No score in memory for this session.
+            </div>
+            <button
+              class="btn-primary"
+              id="deliver-noscan-cta"
+              style="margin-top: var(--spacing-l);"
+              data-i18n="deliver.noscan.cta"
+            >
+              Run a Quality Check
+            </button>
+          </div>
+
+          <!-- State: gate (PASS or WARN) — WARN is a modifier on this card -->
+          <div
+            id="deliver-gate"
+            class="hidden"
+            style="margin-top: var(--spacing-l);"
+          >
+            <div
+              id="deliver-gate-card"
+              style="
+                background: var(--bg-default);
+                border: 1px solid var(--border-default);
+                border-left: 1px solid var(--border-default);
+                border-radius: var(--radius-m);
+                padding: var(--spacing-l);
+              "
+            >
+              <div
+                style="font-size: 16px; font-weight: 700; line-height: 1.3;"
+                data-i18n="deliver.gate.title"
+              >
+                Ready to hand off?
+              </div>
+              <div
+                style="
+                  font-size: 14px;
+                  font-weight: 400;
+                  line-height: 1.5;
+                  margin-top: var(--spacing-s);
+                "
+                data-i18n="deliver.gate.body"
+              >
+                Review the handoff conditions, then mark the Cover as done.
+              </div>
+
+              <!-- Score block (reuse qcDonut/qcScoreLabel/qcScoreColor — D-02) -->
+              <div
+                id="deliver-score-block"
+                style="
+                  margin-top: var(--spacing-2xl);
+                  display: flex;
+                  flex-direction: column;
+                  align-items: center;
+                  gap: var(--spacing-xs);
+                "
+              ></div>
+
+              <!-- Three-row checklist (score / a11y / cover) -->
+              <div
+                id="deliver-checklist"
+                style="
+                  margin-top: var(--spacing-2xl);
+                  display: flex;
+                  flex-direction: column;
+                  gap: var(--spacing-s);
+                "
+              >
+                <!-- Score row -->
+                <div
+                  id="deliver-row-score"
+                  style="
+                    display: flex;
+                    align-items: flex-start;
+                    gap: var(--spacing-s);
+                    min-height: 24px;
+                  "
+                >
+                  <span id="deliver-row-score-icon" style="flex: 0 0 auto; margin-top: 1px;"></span>
+                  <div>
+                    <div
+                      style="font-size: 14px; font-weight: 400; line-height: 1.5;"
+                      data-i18n="deliver.check.score.label"
+                    >
+                      Quality Check score
+                    </div>
+                    <div
+                      id="deliver-row-score-status"
+                      style="font-size: 12px; font-weight: 400; line-height: 1.4;"
+                    ></div>
+                  </div>
+                </div>
+
+                <!-- A11y manual attestation row (D-03 — checkbox, NOT a real score) -->
+                <div
+                  id="deliver-row-a11y"
+                  style="
+                    display: flex;
+                    align-items: flex-start;
+                    gap: var(--spacing-s);
+                    min-height: 24px;
+                  "
+                >
+                  <input
+                    type="checkbox"
+                    id="deliver-a11y-attest"
+                    style="
+                      flex: 0 0 auto;
+                      width: 18px;
+                      height: 18px;
+                      margin: 3px 0 0 0;
+                      cursor: pointer;
+                    "
+                  />
+                  <label for="deliver-a11y-attest" style="cursor: pointer;">
+                    <div
+                      id="deliver-row-a11y-label"
+                      style="font-size: 14px; font-weight: 400; line-height: 1.5;"
+                      data-i18n="deliver.check.a11y"
+                    >
+                      I ran the accessibility check
+                    </div>
+                    <div
+                      style="font-size: 12px; font-weight: 400; line-height: 1.4;"
+                      data-i18n="deliver.check.a11y.sub"
+                    >
+                      Via the external plugin ↗
+                    </div>
+                  </label>
+                </div>
+
+                <!-- Cover-ready row -->
+                <div
+                  id="deliver-row-cover"
+                  style="
+                    display: flex;
+                    align-items: flex-start;
+                    gap: var(--spacing-s);
+                    min-height: 24px;
+                  "
+                >
+                  <span id="deliver-row-cover-icon" style="flex: 0 0 auto; margin-top: 1px;"></span>
+                  <div>
+                    <div
+                      style="font-size: 14px; font-weight: 400; line-height: 1.5;"
+                      data-i18n="deliver.check.cover.label"
+                    >
+                      Cover ready
+                    </div>
+                    <div
+                      id="deliver-row-cover-status"
+                      style="font-size: 12px; font-weight: 400; line-height: 1.4;"
+                    ></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- A11y annotation-export path (DELIVER-03 — manual, no automated export) -->
+              <div
+                style="
+                  margin-top: var(--spacing-l);
+                  font-size: 12px;
+                  font-weight: 400;
+                  line-height: 1.4;
+                "
+              >
+                <a
+                  id="deliver-a11y-export-link"
+                  href="https://www.figma.com/community/plugin/733159460536249875"
+                  target="_blank"
+                  rel="noopener"
+                  data-i18n="deliver.a11y.export"
+                  style="color: var(--brand);"
+                  >Export your accessibility annotations from the external plugin ↗</a
+                >
+              </div>
+
+              <!-- Soft-warn caption (any unmet condition) — D-01 -->
+              <div
+                id="deliver-warn-caption"
+                class="hidden"
+                style="
+                  margin-top: var(--spacing-l);
+                  font-size: 12px;
+                  font-weight: 400;
+                  line-height: 1.4;
+                "
+                data-i18n="deliver.warn"
+              >
+                Some conditions aren't met — you can still hand off.
+              </div>
+
+              <!-- Primary action — ALWAYS enabled (soft gate D-01); only writer of "Design Done" (D-05) -->
+              <button
+                class="btn-primary"
+                id="deliver-markdone-btn"
+                style="margin-top: var(--spacing-s); width: 100%;"
+                data-i18n="deliver.markdone"
+              >
+                Mark as Design Done
+              </button>
+            </div>
+          </div>
+
+          <!-- State: done (after generate-cover {status:"Design Done"} succeeds) -->
+          <div
+            id="deliver-done"
+            class="hidden"
+            style="
+              border-left: 4px solid #2c815e;
+              background: var(--bg-subtle);
+              border-radius: var(--radius-m);
+              padding: var(--spacing-l);
+              margin-top: var(--spacing-l);
+            "
+          >
+            <div style="display: flex; align-items: center; gap: var(--spacing-s);">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <path
+                  d="M3 8.5l3 3 7-7"
+                  stroke="#2c815e"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+              <div
+                style="font-size: 14px; font-weight: 700; line-height: 1.5;"
+                data-i18n="deliver.done"
+              >
+                Cover marked 'Design Done'.
+              </div>
+            </div>
+            <button
+              class="btn-primary"
+              id="deliver-done-back-btn"
+              style="margin-top: var(--spacing-l);"
+              data-i18n="deliver.done.back"
+            >
+              Back to the gate
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -5373,6 +5641,24 @@
           "cover.status.inprogress": "In Progress", "cover.status.playground": "Playground",
           "cover.status.sot": "SOT", "cover.status.archived": "Archived",
           "nav.deliver.cta": "Prepare handoff", "nav.a11y.link": "Accessibility — external plugin ↗",
+          "deliver.gate.title": "Ready to hand off?",
+          "deliver.gate.body": "Review the handoff conditions, then mark the Cover as done.",
+          "deliver.noscan.title": "Run a Quality Check first",
+          "deliver.noscan.body": "No score in memory for this session.",
+          "deliver.noscan.cta": "Run a Quality Check",
+          "deliver.warn": "Some conditions aren't met — you can still hand off.",
+          "deliver.markdone": "Mark as Design Done",
+          "deliver.done": "Cover marked 'Design Done'.",
+          "deliver.done.back": "Back to the gate",
+          "deliver.check.score.label": "Quality Check score",
+          "deliver.check.score.met": "Score {score}/100 — above threshold ✓",
+          "deliver.check.score.unmet": "Score {score}/100 — below recommended threshold",
+          "deliver.check.a11y": "I ran the accessibility check",
+          "deliver.check.a11y.sub": "Via the external plugin ↗",
+          "deliver.check.cover.label": "Cover ready",
+          "deliver.check.cover.met": "Cover exists and is up to date ✓",
+          "deliver.check.cover.unmet": "Update the Cover before handing off",
+          "deliver.a11y.export": "Export your accessibility annotations from the external plugin ↗",
           "qc.run": "Run Quality Check", "qc.rescan": "Rescan", "qc.cancel": "Cancel",
           "qc.scope.page": "Page", "qc.scope.selection": "Selection", "qc.scope.file": "Entire file",
           "qc.scanning": "Scanning…",
@@ -5518,6 +5804,24 @@
           "cover.status.inprogress": "En cours", "cover.status.playground": "Playground",
           "cover.status.sot": "SOT", "cover.status.archived": "Archivé",
           "nav.deliver.cta": "Préparer la livraison", "nav.a11y.link": "Accessibilité (plugin externe) ↗",
+          "deliver.gate.title": "Prêt à livrer ?",
+          "deliver.gate.body": "Vérifiez les conditions de livraison, puis marquez la Cover comme terminée.",
+          "deliver.noscan.title": "Lancez d'abord un Quality Check",
+          "deliver.noscan.body": "Aucun score en mémoire pour cette session.",
+          "deliver.noscan.cta": "Lancer un Quality Check",
+          "deliver.warn": "Certaines conditions ne sont pas remplies — vous pouvez tout de même livrer.",
+          "deliver.markdone": "Marquer comme Design Done",
+          "deliver.done": "Cover marquée « Design Done ».",
+          "deliver.done.back": "Retour au gate",
+          "deliver.check.score.label": "Score Quality Check",
+          "deliver.check.score.met": "Score {score}/100 — au-dessus du seuil ✓",
+          "deliver.check.score.unmet": "Score {score}/100 — sous le seuil recommandé",
+          "deliver.check.a11y": "J'ai lancé la vérification d'accessibilité",
+          "deliver.check.a11y.sub": "Via le plugin externe ↗",
+          "deliver.check.cover.label": "Cover prête",
+          "deliver.check.cover.met": "La Cover existe et est à jour ✓",
+          "deliver.check.cover.unmet": "Mettez à jour la Cover avant de livrer",
+          "deliver.a11y.export": "Exportez vos annotations d'accessibilité depuis le plugin externe ↗",
           "qc.run": "Lancer le Quality Check", "qc.rescan": "Relancer l'analyse", "qc.cancel": "Annuler",
           "qc.scope.page": "Page", "qc.scope.selection": "Sélection", "qc.scope.file": "Fichier entier",
           "qc.scanning": "Analyse en cours…",
@@ -5554,6 +5858,24 @@
           "cover.status.inprogress": "Em andamento", "cover.status.playground": "Playground",
           "cover.status.sot": "SOT", "cover.status.archived": "Arquivado",
           "nav.deliver.cta": "Preparar a entrega", "nav.a11y.link": "Acessibilidade (plugin externo) ↗",
+          "deliver.gate.title": "Pronto para a entrega?",
+          "deliver.gate.body": "Verifique as condições de entrega e marque a Cover como concluída.",
+          "deliver.noscan.title": "Execute primeiro um Quality Check",
+          "deliver.noscan.body": "Nenhum score em memória nesta sessão.",
+          "deliver.noscan.cta": "Executar um Quality Check",
+          "deliver.warn": "Algumas condições não foram atendidas — você ainda pode fazer a entrega.",
+          "deliver.markdone": "Marcar como Design Done",
+          "deliver.done": "Cover marcada como « Design Done ».",
+          "deliver.done.back": "Voltar ao gate",
+          "deliver.check.score.label": "Score do Quality Check",
+          "deliver.check.score.met": "Score {score}/100 — acima do limite ✓",
+          "deliver.check.score.unmet": "Score {score}/100 — abaixo do limite recomendado",
+          "deliver.check.a11y": "Executei a verificação de acessibilidade",
+          "deliver.check.a11y.sub": "Via o plugin externo ↗",
+          "deliver.check.cover.label": "Cover pronta",
+          "deliver.check.cover.met": "A Cover existe e está atualizada ✓",
+          "deliver.check.cover.unmet": "Atualize a Cover antes da entrega",
+          "deliver.a11y.export": "Exporte suas anotações de acessibilidade do plugin externo ↗",
           "qc.run": "Executar o Quality Check", "qc.rescan": "Refazer a análise", "qc.cancel": "Cancelar",
           "qc.scope.page": "Página", "qc.scope.selection": "Seleção", "qc.scope.file": "Arquivo inteiro",
           "qc.scanning": "Analisando…",
@@ -5742,6 +6064,17 @@
             "*",
           );
         }
+
+        // DELIVER-01: recompute the Handoff gate from the LIVE qcResult on every
+        // Je livre entry, and refresh coverStatus via load-cover-config. The gate
+        // only READS qcResult — switchMoment never assigns to qcResult/qcView (NAV-03).
+        if (momentId === "deliver") {
+          parent.postMessage(
+            { pluginMessage: { type: "load-cover-config" } },
+            "*",
+          );
+          renderDeliverGate();
+        }
       }
 
       document
@@ -5792,13 +6125,41 @@
             "*",
           );
         });
-      var momentDeliverCta = document.getElementById("moment-deliver-cta");
-      if (momentDeliverCta)
-        momentDeliverCta.addEventListener("click", function () {
+      // ── Je livre — Handoff gate listeners (DELIVER-01/02/03) ──
+      // No-scan CTA (D-04, no new message): route to Je construis + the QC view in
+      // one tap, purely in UI JS (zero contract change).
+      var deliverNoscanCta = document.getElementById("deliver-noscan-cta");
+      if (deliverNoscanCta)
+        deliverNoscanCta.addEventListener("click", function () {
+          switchMoment("build");
+          qcShowView("empty");
+        });
+
+      // A11y manual attestation (D-03 — checkbox only; never reads a11y-engine).
+      var deliverA11yAttest = document.getElementById("deliver-a11y-attest");
+      if (deliverA11yAttest)
+        deliverA11yAttest.addEventListener("change", function () {
+          deliverA11yAttested = deliverA11yAttest.checked;
+          renderDeliverGate();
+        });
+
+      // Mark Design Done — ALWAYS enabled (soft gate D-01); the ONLY new-UI writer
+      // of Cover status "Design Done" (D-05). Reuses the existing generate-cover.
+      var deliverMarkdoneBtn = document.getElementById("deliver-markdone-btn");
+      if (deliverMarkdoneBtn)
+        deliverMarkdoneBtn.addEventListener("click", function () {
+          deliverMarkdonePending = true;
           parent.postMessage(
-            { pluginMessage: { type: "generate-cover", status: "" } },
+            { pluginMessage: { type: "generate-cover", status: "Design Done" } },
             "*",
           );
+        });
+
+      // Done-state "back" — re-render the gate (cover-ready row now flips to met).
+      var deliverDoneBackBtn = document.getElementById("deliver-done-back-btn");
+      if (deliverDoneBackBtn)
+        deliverDoneBackBtn.addEventListener("click", function () {
+          renderDeliverGate();
         });
 
       // ══════════════════════════════════════════════
@@ -7162,6 +7523,17 @@
           document
             .getElementById("cover-generate-spinner")
             .classList.add("hidden");
+
+          // DELIVER-02 / D-05: when the Je livre gate initiated this round-trip,
+          // the Cover is now "Design Done" — surface the done confirmation and
+          // re-render so the cover-ready row flips to met. (deliverMarkdonePending
+          // distinguishes the gate's write from the Je construis picker's write.)
+          if (deliverMarkdonePending) {
+            deliverMarkdonePending = false;
+            coverStatus = "Design Done";
+            renderDeliverGate();      // recompute rows with the fresh status
+            deliverShowView("done");  // then surface the done confirmation banner
+          }
         }
 
         if (msg.type === "cover-error") {
@@ -7181,6 +7553,13 @@
 
         if (msg.type === "cover-config-loaded") {
           if (msg.config && msg.config.projectStatus) {
+            // DELIVER-01: keep the gate's cover-ready row fresh (read-only).
+            coverStatus = msg.config.projectStatus;
+            // If the Je livre gate is currently visible, recompute its rows.
+            var deliverPanel = document.getElementById("panel-deliver");
+            if (deliverPanel && deliverPanel.classList.contains("active")) {
+              renderDeliverGate();
+            }
             document.getElementById("cover-status-select").value =
               msg.config.projectStatus;
             // BUILD-03 / D-05: parallel hydrate the net-new 4-value picker.
@@ -8761,6 +9140,121 @@
           { pluginMessage: { type: "run-quality-check", scope: scope } },
           "*",
         );
+      }
+
+      // ══════════════════════════════════════════════
+      //  Je livre — Handoff gate (DELIVER-01/02/03 — D-01/D-03/D-04/D-05)
+      // ══════════════════════════════════════════════
+      // Session-only state (NO clientStorage — D-04 posture; gate only READS qcResult).
+      var deliverA11yAttested = false;   // manual a11y attestation (D-03)
+      var coverStatus = null;            // last cover-config-loaded projectStatus
+      var deliverMarkdonePending = false; // true between gate Mark-Done click and cover-generated reply
+
+      // View switcher — mirrors qcShowView's class-toggle shape (states: noscan/gate/done).
+      function deliverShowView(view) {
+        var ids = {
+          noscan: "deliver-noscan",
+          gate: "deliver-gate",
+          done: "deliver-done",
+        };
+        Object.keys(ids).forEach(function (k) {
+          var el = document.getElementById(ids[k]);
+          if (el) el.classList.toggle("hidden", k !== view);
+        });
+      }
+
+      // Inline status icons (hand-authored SVG; no icon package).
+      function deliverIconMet(color) {
+        return '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">' +
+          '<path d="M3 8.5l3 3 7-7" stroke="' + color +
+          '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      }
+      function deliverIconWarn(color) {
+        return '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">' +
+          '<path d="M8 1.5L15 14H1L8 1.5z" stroke="' + color +
+          '" stroke-width="1.6" stroke-linejoin="round"/>' +
+          '<path d="M8 6v3.5" stroke="' + color +
+          '" stroke-width="1.6" stroke-linecap="round"/>' +
+          '<circle cx="8" cy="11.6" r="0.9" fill="' + color + '"/></svg>';
+      }
+
+      // Recompute the gate from the LIVE qcResult + coverStatus + attestation (no caching).
+      function renderDeliverGate() {
+        // Pitfall 3: branch on null FIRST — no persisted fallback (D-04).
+        if (qcResult === null) {
+          deliverShowView("noscan");
+          return;
+        }
+
+        var overall = qcResult.overall;
+        var scorePass = overall >= 75;          // D-02 "good" band — no new threshold
+        var coverReady = !!(coverStatus && coverStatus !== "");
+        var a11yMet = deliverA11yAttested;
+        var anyUnmet = !scorePass || !a11yMet || !coverReady;
+
+        // ── Score block (reuse qcDonut + qcScoreLabel + qcScoreColor — D-02) ──
+        var scoreBlock = document.getElementById("deliver-score-block");
+        if (scoreBlock) {
+          scoreBlock.innerHTML =
+            qcDonut(overall, "large") +
+            '<div style="font-size:14px;font-weight:700;color:' +
+            qcScoreColor(overall) + ';">' +
+            escapeHtml(qcScoreLabel(overall)) + "</div>" +
+            '<div style="font-size:12px;font-weight:400;color:var(--content-subtler);">' +
+            "Score " + overall + "/100</div>";
+        }
+
+        // ── Score row ──
+        var scoreColor = qcScoreColor(overall);   // reuse band color (no new colors)
+        var scoreIcon = document.getElementById("deliver-row-score-icon");
+        var scoreStatus = document.getElementById("deliver-row-score-status");
+        if (scoreIcon)
+          scoreIcon.innerHTML = scorePass
+            ? deliverIconMet(scoreColor)
+            : deliverIconWarn(scoreColor);
+        if (scoreStatus) {
+          scoreStatus.textContent = scorePass
+            ? t("deliver.check.score.met", { score: overall })
+            : t("deliver.check.score.unmet", { score: overall });
+          scoreStatus.style.color = scoreColor;
+        }
+
+        // ── A11y row (manual; amber #8a5f00 when unattested — designer-attested, NOT red) ──
+        var a11yLabel = document.getElementById("deliver-row-a11y-label");
+        if (a11yLabel) a11yLabel.style.color = a11yMet ? "#2c815e" : "#8a5f00";
+        var a11yCheckbox = document.getElementById("deliver-a11y-attest");
+        if (a11yCheckbox) a11yCheckbox.checked = a11yMet;
+
+        // ── Cover-ready row (amber #8a5f00 when unmet — designer-attested) ──
+        var coverColor = coverReady ? "#2c815e" : "#8a5f00";
+        var coverIcon = document.getElementById("deliver-row-cover-icon");
+        var coverStatusEl = document.getElementById("deliver-row-cover-status");
+        if (coverIcon)
+          coverIcon.innerHTML = coverReady
+            ? deliverIconMet(coverColor)
+            : deliverIconWarn(coverColor);
+        if (coverStatusEl) {
+          coverStatusEl.textContent = coverReady
+            ? t("deliver.check.cover.met")
+            : t("deliver.check.cover.unmet");
+          coverStatusEl.style.color = coverColor;
+        }
+
+        // ── Soft-warn visuals (D-01 — never disables the button) ──
+        var card = document.getElementById("deliver-gate-card");
+        var warnCaption = document.getElementById("deliver-warn-caption");
+        if (card) {
+          if (anyUnmet) {
+            // Red when QC score is critical (<50), else amber.
+            var warnColor = overall < 50 ? "#df1116" : "#8a5f00";
+            card.style.borderLeft = "4px solid " + warnColor;
+          } else {
+            card.style.borderLeft = "1px solid var(--border-default)";
+          }
+        }
+        if (warnCaption) warnCaption.classList.toggle("hidden", !anyUnmet);
+
+        deliverShowView("gate");
       }
 
       // ── Render: dashboard (ring + 5 cards) ──
