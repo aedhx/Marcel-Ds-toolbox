@@ -1309,6 +1309,30 @@
         flex-direction: column;
         gap: var(--spacing-s);
       }
+      /* Phase 05.1 — shared status-badge grammar (idle/done, neutral/success).
+         ONE badge component reused across all 3 moments (Plans 03/04 call statusBadge()).
+         Pill, --radius-s, 2px/spacing-s padding, --bg-subtle + --border-default.
+         The 8px dot carries the state color; the label text stays content-default/subtle
+         so color is never the sole signal (a11y). */
+      .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--spacing-xs);
+        padding: 2px var(--spacing-s);
+        background: var(--bg-subtle);
+        border: 1px solid var(--border-default);
+        border-radius: var(--radius-s);
+        font-size: 12px;
+        font-weight: 400;
+        color: var(--content-default);
+        line-height: 1.4;
+      }
+      .status-badge .status-badge-dot {
+        flex-shrink: 0;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+      }
       /* QC dashboard */
       .qc-score-global {
         display: flex;
@@ -3417,6 +3441,14 @@
           <div class="moment-heading" data-i18n="nav.start.title">Je démarre</div>
           <div class="moment-body" data-i18n="nav.start.body">Start a new file with the right structure.</div>
           <button class="btn-primary" id="moment-start-cta" data-i18n="nav.start.cta">Open Starter Kit</button>
+          <!-- D-06 / START-04: DS-Library template re-surfaced as a SUBORDINATE secondary
+               action below the prd primary (never a 2nd brand button). Posts
+               create-starter-kit {template:"ds-library"}; backend already branches it. -->
+          <button class="moment-secondary-btn" id="moment-start-dslib-cta"
+                  style="margin-top: var(--spacing-s);"
+                  data-i18n="start.dslib">Start from the DS Library</button>
+          <div class="moment-meta" style="margin-top: var(--spacing-xs);"
+               data-i18n="start.dslib.caption">Creates a file from the DS Library template.</div>
           <div
             id="start-cover-init-banner"
             class="hidden"
@@ -3472,6 +3504,9 @@
               <!-- Secondary stub-launchers in Je construis (D-02) -->
               <div class="qc-card" style="margin-top: var(--spacing-l);">
                 <button class="moment-secondary-btn" id="moment-import-cta" data-i18n="build.import">Import Toolkit</button>
+                <!-- D-01 / SC-5: clarify what the Import launcher inserts. Copy-only
+                     12px caption; behavior + hardcoded component key are untouched. -->
+                <div class="moment-meta" data-i18n="build.import.caption">Inserts the Design System handoff components (annotations, specs).</div>
 
                 <!-- BUILD-03 / D-05: NET-NEW 4-value cover-status picker.
                      Distinct id (#build-cover-status) — does NOT touch the legacy
@@ -5783,7 +5818,28 @@
           "dialog.reset.confirm": "Delete all pages",
           "dialog.template.warning": "The template <strong>{name}</strong> has already been generated in this file ({count} pages detected).<br><br>Do you want to recreate it? New pages will be added alongside existing ones.",
           "dialog.pages.deleted": "All pages have been deleted.",
-          "dialog.reset.error": "Error during reset."
+          "dialog.reset.error": "Error during reset.",
+          // ── Phase 05.1 — shared grammar + re-integration (NEW) ──
+          "build.tools.title": "Quick tools",
+          "build.tools.caption": "Targeted fixes without running a full Quality Check.",
+          "build.tool.cleanstyles": "Clean styles",
+          "build.tool.cleanstyles.scope": "Page / Selection",
+          "build.tool.cleanstyles.found": "{count} unused style(s) found",
+          "build.tool.cleanstyles.clean": "No unused styles.",
+          "build.tool.cleanstyles.remove": "Remove unused styles",
+          "build.tool.cleanstyles.detach": "Detach foreign styles",
+          "build.tool.naming": "Check naming",
+          "build.tool.naming.scope": "Page / Selection",
+          "build.tool.naming.found": "{count} naming issue(s)",
+          "build.tool.naming.clean": "Naming is clean.",
+          "build.tool.naming.fix": "Fix naming",
+          "build.tool.fullpanel": "Open full tool ↗",
+          "start.dslib": "Start from the DS Library",
+          "start.dslib.caption": "Creates a file from the DS Library template.",
+          "state.scan.none": "Not scanned yet",
+          "state.scan.done": "Scan done",
+          "state.cover.prefix": "Cover: ",
+          "build.import.caption": "Inserts the Design System handoff components (annotations, specs)."
         },
         // ── French (FR) — product default locale (marcel:global:language) ──
         // Branded moment names « Je démarre / Je construis / Je livre » stay FR across ALL locales.
@@ -5838,7 +5894,28 @@
           "hub.title": "Marcel Toolbox", "hub.badge": "Bêta",
           "hub.desc": "Bienvenue dans le Marcel Toolbox. Votre compagnon design ops tout-en-un pour Figma.",
           "hub.doc": "Documentation", "hub.support": "Support", "hub.features": "Fonctionnalités", "hub.coming-soon": "Bientôt disponible",
-          "sidebar.settings": "Paramètres"
+          "sidebar.settings": "Paramètres",
+          // ── Phase 05.1 — shared grammar + re-integration (NEW) ──
+          "build.tools.title": "Outils rapides",
+          "build.tools.caption": "Corrections ciblées sans lancer un Quality Check complet.",
+          "build.tool.cleanstyles": "Nettoyer les styles",
+          "build.tool.cleanstyles.scope": "Page / Sélection",
+          "build.tool.cleanstyles.found": "{count} style(s) inutilisé(s) trouvé(s)",
+          "build.tool.cleanstyles.clean": "Aucun style inutilisé.",
+          "build.tool.cleanstyles.remove": "Supprimer les styles inutilisés",
+          "build.tool.cleanstyles.detach": "Détacher les styles externes",
+          "build.tool.naming": "Vérifier le nommage",
+          "build.tool.naming.scope": "Page / Sélection",
+          "build.tool.naming.found": "{count} problème(s) de nommage",
+          "build.tool.naming.clean": "Nommage conforme.",
+          "build.tool.naming.fix": "Corriger le nommage",
+          "build.tool.fullpanel": "Ouvrir l'outil complet ↗",
+          "start.dslib": "Démarrer depuis la librairie DS",
+          "start.dslib.caption": "Crée un fichier basé sur le template Librairie DS.",
+          "state.scan.none": "Pas encore scanné",
+          "state.scan.done": "Scan effectué",
+          "state.cover.prefix": "Cover : ",
+          "build.import.caption": "Insère les composants de handoff du Design System (annotations, specs)."
         },
         // ── Brazilian Portuguese (PT-BR) ──
         // Branded moment names stay FR across all locales (« Je démarre / Je construis / Je livre »).
@@ -5891,7 +5968,28 @@
           "hub.title": "Marcel Toolbox", "hub.badge": "Beta",
           "hub.desc": "Bem-vindo ao Marcel Toolbox. Seu companheiro de design ops tudo-em-um para o Figma.",
           "hub.doc": "Documentação", "hub.support": "Suporte", "hub.features": "Funcionalidades", "hub.coming-soon": "Em breve",
-          "sidebar.settings": "Configurações"
+          "sidebar.settings": "Configurações",
+          // ── Phase 05.1 — shared grammar + re-integration (NEW) ──
+          "build.tools.title": "Ferramentas rápidas",
+          "build.tools.caption": "Correções específicas sem executar um Quality Check completo.",
+          "build.tool.cleanstyles": "Limpar estilos",
+          "build.tool.cleanstyles.scope": "Página / Seleção",
+          "build.tool.cleanstyles.found": "{count} estilo(s) não utilizado(s) encontrado(s)",
+          "build.tool.cleanstyles.clean": "Nenhum estilo não utilizado.",
+          "build.tool.cleanstyles.remove": "Remover estilos não utilizados",
+          "build.tool.cleanstyles.detach": "Desanexar estilos externos",
+          "build.tool.naming": "Verificar a nomenclatura",
+          "build.tool.naming.scope": "Página / Seleção",
+          "build.tool.naming.found": "{count} problema(s) de nomenclatura",
+          "build.tool.naming.clean": "Nomenclatura em conformidade.",
+          "build.tool.naming.fix": "Corrigir a nomenclatura",
+          "build.tool.fullpanel": "Abrir a ferramenta completa ↗",
+          "start.dslib": "Começar a partir da biblioteca DS",
+          "start.dslib.caption": "Cria um arquivo a partir do modelo da biblioteca DS.",
+          "state.scan.none": "Ainda não verificado",
+          "state.scan.done": "Verificação concluída",
+          "state.cover.prefix": "Capa: ",
+          "build.import.caption": "Insere os componentes de handoff do Design System (anotações, especificações)."
         }
       };
 
@@ -6088,6 +6186,16 @@
         momentStartCta.addEventListener("click", function () {
           parent.postMessage(
             { pluginMessage: { type: "create-starter-kit", template: "prd" } },
+            "*",
+          );
+        });
+      // D-06 / START-04: subordinate DS-Library starter. Mirrors momentStartCta;
+      // backend already branches template "ds-library" and inits Cover "In Progress".
+      var momentStartDslibCta = document.getElementById("moment-start-dslib-cta");
+      if (momentStartDslibCta)
+        momentStartDslibCta.addEventListener("click", function () {
+          parent.postMessage(
+            { pluginMessage: { type: "create-starter-kit", template: "ds-library" } },
             "*",
           );
         });
@@ -9166,6 +9274,18 @@
       }
 
       // Inline status icons (hand-authored SVG; no icon package).
+      // Phase 05.1 — shared status-badge render helper (string-concat, deliverIconMet style).
+      // ONE reusable badge for all 3 moments (Plans 03/04 call this verbatim).
+      // state "none" → neutral #696969 dot + "Pas encore scanné"; "done" → #2c815e dot + "Scan effectué".
+      // The dot carries the color; the label stays --content-default (color never the sole signal).
+      // An explicit label overrides the default state copy; any color is piped through escapeAttr.
+      function statusBadge(state, label) {
+        var color = state === "done" ? "#2c815e" : "#696969";
+        var text = label || t(state === "done" ? "state.scan.done" : "state.scan.none");
+        return '<span class="status-badge">' +
+          '<span class="status-badge-dot" style="background:' + escapeAttr(color) + ';"></span>' +
+          '<span>' + escapeHtml(text) + '</span></span>';
+      }
       function deliverIconMet(color) {
         return '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">' +
           '<path d="M3 8.5l3 3 7-7" stroke="' + color +
