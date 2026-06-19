@@ -208,6 +208,7 @@ const handlers: Record<string, Handler> = {
     try {
       var template = (msg.template === "ds-library") ? "ds-library" : "prd";
       await createStarterKit(template);
+      await saveCoverConfig({ projectStatus: "In Progress" });
       figma.ui.postMessage({ type: "starter-kit-created" });
       figma.notify(nt("sk.created"), { timeout: 4000 });
     } catch (error: any) {
