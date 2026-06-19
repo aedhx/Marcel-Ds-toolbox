@@ -3528,9 +3528,11 @@
                   <button class="moment-secondary-btn" id="build-cover-apply" data-i18n="build.cover.apply">Update Cover</button>
                 </div>
 
-                <a class="moment-secondary-btn" id="moment-a11y-link"
-                   href="https://www.figma.com/community/plugin/733159460536249875"
-                   target="_blank" rel="noopener" data-i18n="build.a11y.link">Accessibility — external plugin ↗</a>
+                <!-- D-07 / SC-5: open the a11y plugin via the typed open-external
+                     message → figma.openExternal (Plan 01), NOT <a target=_blank>.
+                     Posts the single canonical A11Y_PLUGIN_URL the handler allowlists. -->
+                <button class="moment-secondary-btn" id="moment-a11y-link"
+                   data-i18n="build.a11y.link">Accessibility — external plugin ↗</button>
               </div>
             </div>
 
@@ -3734,6 +3736,14 @@
                 Review the handoff conditions, then mark the Cover as done.
               </div>
 
+              <!-- SC-1/SC-2: explicit Cover-status badge via the shared statusBadge
+                   grammar (Plan 02). Rendered in renderDeliverGate + on
+                   cover-config-loaded so it reflects the live coverStatus. -->
+              <div
+                id="deliver-cover-badge"
+                style="margin-top: var(--spacing-s);"
+              ></div>
+
               <!-- Score block (reuse qcDonut/qcScoreLabel/qcScoreColor — D-02) -->
               <div
                 id="deliver-score-block"
@@ -3854,13 +3864,13 @@
                   line-height: 1.4;
                 "
               >
+                <!-- D-07 / SC-5: open via typed open-external → figma.openExternal
+                     (Plan 01), NOT <a target=_blank>. Same single canonical URL. -->
                 <a
                   id="deliver-a11y-export-link"
-                  href="https://www.figma.com/community/plugin/733159460536249875"
-                  target="_blank"
-                  rel="noopener"
+                  href="#"
                   data-i18n="deliver.a11y.export"
-                  style="color: var(--brand);"
+                  style="color: var(--brand); cursor: pointer;"
                   >Export your accessibility annotations from the external plugin ↗</a
                 >
               </div>
@@ -5429,8 +5439,11 @@
                     font-size: 12px;
                   "
                 >
+                  <!-- D-05 / WR-01: "Design Done" is gate-only (reachable solely
+                       through the Je livre Handoff gate). Removed from the legacy
+                       picker so designers cannot shortcut past the score / a11y /
+                       cover checklist. The legacy panel stays (Phase-7 removes it). -->
                   <option value="In Progress">In Progress</option>
-                  <option value="Design Done">Design Done</option>
                   <option value="Archived">Archived</option>
                   <option value="SOT">SOT</option>
                   <option value="Playground">Playground</option>
@@ -6289,6 +6302,31 @@
             "*",
           );
         });
+      // D-07 / SC-5: single canonical a11y plugin URL — MUST equal the
+      // module-level A11Y_PLUGIN_URL the main.ts open-external handler (Plan 01)
+      // allowlists, or the handler's strict equality check rejects the open.
+      var A11Y_PLUGIN_URL =
+        "https://www.figma.com/community/plugin/1625532706318215948";
+      function openA11yPlugin() {
+        parent.postMessage(
+          { pluginMessage: { type: "open-external", url: A11Y_PLUGIN_URL } },
+          "*",
+        );
+      }
+      var momentA11yLink = document.getElementById("moment-a11y-link");
+      if (momentA11yLink)
+        momentA11yLink.addEventListener("click", function () {
+          openA11yPlugin();
+        });
+      var deliverA11yExportLink = document.getElementById(
+        "deliver-a11y-export-link",
+      );
+      if (deliverA11yExportLink)
+        deliverA11yExportLink.addEventListener("click", function (e) {
+          e.preventDefault();
+          openA11yPlugin();
+        });
+
       // ── Je livre — Handoff gate listeners (DELIVER-01/02/03) ──
       // No-scan CTA (D-04, no new message): route to Je construis + the QC view in
       // one tap, purely in UI JS (zero contract change).
@@ -7953,9 +7991,17 @@
             var deliverPanel = document.getElementById("panel-deliver");
             if (deliverPanel && deliverPanel.classList.contains("active")) {
               renderDeliverGate();
+            } else {
+              // SC-2: keep the gate header Cover badge honest even when not active.
+              renderDeliverCoverBadge();
             }
-            document.getElementById("cover-status-select").value =
-              msg.config.projectStatus;
+            // D-05 / WR-01: the legacy select no longer offers "Design Done".
+            // Guard so a stored gate-owned "Design Done" doesn't set an absent
+            // <option> (leave the legacy select at its prior value in that case).
+            var legacySelect = document.getElementById("cover-status-select");
+            if (legacySelect && msg.config.projectStatus !== "Design Done") {
+              legacySelect.value = msg.config.projectStatus;
+            }
             // BUILD-03 / D-05: parallel hydrate the net-new 4-value picker.
             // If stored status is "Design Done" (gate-owned), the 4-value picker
             // cannot represent it — show a read-only "current" label and leave
@@ -9596,25 +9642,55 @@
       // state "none" → neutral #696969 dot + "Pas encore scanné"; "done" → #2c815e dot + "Scan effectué".
       // The dot carries the color; the label stays --content-default (color never the sole signal).
       // An explicit label overrides the default state copy; any color is piped through escapeAttr.
-      function statusBadge(state, label) {
-        var color = state === "done" ? "#2c815e" : "#696969";
+      function statusBadge(state, label, dotColor) {
+        // Optional dotColor override lets callers (e.g. the Je livre Cover badge)
+        // map a domain status onto the same one badge grammar without forking it;
+        // default keeps the none/done dot colors. Color always piped via escapeAttr.
+        var color = dotColor || (state === "done" ? "#2c815e" : "#696969");
         var text = label || t(state === "done" ? "state.scan.done" : "state.scan.none");
         return '<span class="status-badge">' +
           '<span class="status-badge-dot" style="background:' + escapeAttr(color) + ';"></span>' +
           '<span>' + escapeHtml(text) + '</span></span>';
       }
+      // UI-SPEC Cover-status → dot-color mapping (no invented hex):
+      // Design Done → #2c815e ; In Progress/Playground/SOT → amber #8a5f00 ;
+      // Archived / unset → neutral #696969.
+      function coverStatusColor(status) {
+        if (status === "Design Done") return "#2c815e";
+        if (status === "In Progress" || status === "Playground" || status === "SOT")
+          return "#8a5f00";
+        return "#696969";
+      }
       function deliverIconMet(color) {
+        // IN-02: escape the interpolated color before it lands in SVG attributes
+        // (defense-in-depth — current callers pass band-helper hex, but escaping
+        // prevents attribute-injection if a future caller passes untrusted data).
+        var safeColor = escapeAttr(color);
         return '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">' +
-          '<path d="M3 8.5l3 3 7-7" stroke="' + color +
+          '<path d="M3 8.5l3 3 7-7" stroke="' + safeColor +
           '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
       }
       function deliverIconWarn(color) {
+        // IN-02: escape the interpolated color (see deliverIconMet).
+        var safeColor = escapeAttr(color);
         return '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">' +
-          '<path d="M8 1.5L15 14H1L8 1.5z" stroke="' + color +
+          '<path d="M8 1.5L15 14H1L8 1.5z" stroke="' + safeColor +
           '" stroke-width="1.6" stroke-linejoin="round"/>' +
-          '<path d="M8 6v3.5" stroke="' + color +
+          '<path d="M8 6v3.5" stroke="' + safeColor +
           '" stroke-width="1.6" stroke-linecap="round"/>' +
-          '<circle cx="8" cy="11.6" r="0.9" fill="' + color + '"/></svg>';
+          '<circle cx="8" cy="11.6" r="0.9" fill="' + safeColor + '"/></svg>';
+      }
+
+      // SC-1/SC-2: render the gate-header Cover-status badge from the live
+      // coverStatus, using the shared statusBadge grammar (prefix state.cover.prefix
+      // + status, dot colored per coverStatusColor). Safe to call even when the
+      // badge element isn't mounted.
+      function renderDeliverCoverBadge() {
+        var badgeEl = document.getElementById("deliver-cover-badge");
+        if (!badgeEl) return;
+        var status = coverStatus && coverStatus !== "" ? coverStatus : "—";
+        var label = t("state.cover.prefix") + status;
+        badgeEl.innerHTML = statusBadge("none", label, coverStatusColor(coverStatus));
       }
 
       // Recompute the gate from the LIVE qcResult + coverStatus + attestation (no caching).
@@ -9663,6 +9739,9 @@
         if (a11yLabel) a11yLabel.style.color = a11yMet ? "#2c815e" : "#8a5f00";
         var a11yCheckbox = document.getElementById("deliver-a11y-attest");
         if (a11yCheckbox) a11yCheckbox.checked = a11yMet;
+
+        // ── Cover-status badge (SC-1/SC-2 — shared statusBadge grammar) ──
+        renderDeliverCoverBadge();
 
         // ── Cover-ready row (amber #8a5f00 when unmet — designer-attested) ──
         var coverColor = coverReady ? "#2c815e" : "#8a5f00";
