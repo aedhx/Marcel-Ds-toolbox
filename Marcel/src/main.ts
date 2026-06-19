@@ -190,6 +190,7 @@ type UiMsg = {
   status?: string;
   altText?: string;
   placement?: "new-page" | "same-page";
+  url?: string;
 };
 
 type Handler = (msg: UiMsg) => void | Promise<void>;

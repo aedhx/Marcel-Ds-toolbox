@@ -44,6 +44,8 @@ export type UIMessage =
   // Cover Updater
   | { type: "generate-cover"; status: string }
   | { type: "load-cover-config" }
+  // External link-out (D-07 — a11y plugin shortcut; fire-and-forget, no reply)
+  | { type: "open-external"; url: string }
   // Dead Styles
   | { type: "scan-dead-styles" }
   | { type: "remove-dead-style"; styleId: string; itemType: "PAINT" | "TEXT" | "EFFECT" | "VARIABLE" }
