@@ -165,6 +165,11 @@ async function getLinterConfig(): Promise<LinterConfig> {
   return linterConfig;
 }
 
+// ── External link-out allowlist (D-07 / T-051-01) ──
+// The ONLY URL open-external may pass to figma.openExternal. A compromised/buggy
+// UI could post an arbitrary phishing url; the handler opens this constant only.
+const A11Y_PLUGIN_URL = "https://www.figma.com/community/plugin/1625532706318215948";
+
 type UiMsg = {
   type: string;
   lang?: string;
@@ -766,6 +771,19 @@ const handlers: Record<string, Handler> = {
       figma.ui.postMessage({ type: "cover-config-loaded", config: coverCfg });
     } catch (error: any) {
       console.error("Load cover config error:", error);
+    }
+  },
+
+  // ── External link-out (D-07 / SC-5) — hardened against arbitrary urls (T-051-01) ──
+  "open-external": async (msg) => {
+    try {
+      if (msg.url === A11Y_PLUGIN_URL) {
+        figma.openExternal(A11Y_PLUGIN_URL);
+      } else {
+        console.error("open-external: rejected non-allowlisted url");
+      }
+    } catch (error: any) {
+      console.error("Open external error:", error);
     }
   },
 
