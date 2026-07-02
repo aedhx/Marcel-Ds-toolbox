@@ -12,8 +12,7 @@
 // const/let + single quotes (matches hc-engine, the prototype).
 
 import { traverseNodes, type TraversalScope, type ScanAbortToken } from './node-traversal';
-import { buildScoreResult, calculateWeightedCategoryScore, DEFAULT_SEVERITY_WEIGHTS } from './scoring';
-import type { CategoryScore } from './scoring';
+import { calculatePenaltyScore } from './scoring';
 import { type Violation } from './violation-types';
 import { getNodeFills, getNodeStrokes } from './figma-helpers';
 import type { QualityCheckResult } from './quality-check-types';
@@ -35,18 +34,12 @@ import {
 } from '../features/dead-styles/dead-styles-engine';
 import { styleCleanerToViolations } from '../features/dead-styles/dead-styles-adapter';
 
-// ── Equal-weight category weights (D-01) ──
-// Single retunable source for the SCORED categories' relative weights. All 1.0 to start
-// (equal-weight, D-01); change here once real scores are observed — no other call site edits.
-// dead-styles is deliberately ABSENT: it is non-scoring (D-02) and never entered into
-// categoryScores, so it has no weight here.
-const QC_CATEGORY_WEIGHTS: Record<string, number> = {
-  naming: 1.0,
-  colors: 1.0,
-  typography: 1.0,
-  spacing: 1.0,
-  coverage: 1.0,
-};
+// ── Scoring model (Phase 5.2) ──
+// The headline is now the penalty model (calculatePenaltyScore, spec §1.1–§1.5):
+// score = 100 − Σ capped category penalties. All tunable numbers (budgets, severity
+// fractions, rule→severity map) live in scoring-config.ts — this engine only feeds it
+// the unified violations[]. The former equal-weight QC_CATEGORY_WEIGHTS block (D-01)
+// is gone: budgets ARE the weights now (spec §1.2), owned by scoring-config.ts.
 
 // ── Default vague-name set for the naming context ──
 // Mirrors linter-engine.ts BASE_VAGUE_NAMES (the engine default, before user customVagueNames).
@@ -251,32 +244,12 @@ export async function runQualityCheck(
 
   const deadStyleViolations = styleCleanerToViolations(finalized.result);
 
-  // ── Weighted score over SCORED categories ONLY (D-01/D-02/D-03/D-14) ──
-  // dead-styles is OMITTED from categoryScores — that omission IS the non-scoring mechanism (D-02).
-  const coverageCatScore: CategoryScore = {
-    category: 'coverage',
-    score: coverageResult.score === -1 ? 100 : coverageResult.score,
-    weight: coverageResult.score === -1 ? 0 : QC_CATEGORY_WEIGHTS.coverage,
-    violationCount: coverageResult.violations.length,
-    totalChecked: coverageResult.totalCount,
-  };
-
-  const categoryScores: CategoryScore[] = [
-    calculateWeightedCategoryScore('naming', namingViolations, namingNodesChecked, QC_CATEGORY_WEIGHTS.naming, DEFAULT_SEVERITY_WEIGHTS),
-    calculateWeightedCategoryScore('colors', colorViolations, colorNodesChecked, QC_CATEGORY_WEIGHTS.colors, DEFAULT_SEVERITY_WEIGHTS),
-    calculateWeightedCategoryScore('typography', typographyViolations, textNodesChecked, QC_CATEGORY_WEIGHTS.typography, DEFAULT_SEVERITY_WEIGHTS),
-    calculateWeightedCategoryScore('spacing', spacingViolations, layoutNodesChecked, QC_CATEGORY_WEIGHTS.spacing, DEFAULT_SEVERITY_WEIGHTS),
-    coverageCatScore,
-    // NOTE (D-02): components is scored in HC today but is NOT one of the five QC scored
-    // categories named in the must_haves (naming/colors/typography/spacing/coverage). Component
-    // violations still ride the unified violations[] below; component scoring is folded into the
-    // HC result today and is intentionally not double-counted into the QC headline here.
-  ];
-  const scoreResult = buildScoreResult(categoryScores);
-
-  // ── Assemble QualityCheckResult (D-14) ──
-  // violations[] = every family's violations concatenated, INCLUDING the dead-styles adapter
-  // output (tagged category: "dead-styles", non-scoring) and component violations.
+  // ── Assemble the unified violations[] (D-14) ──
+  // Every family's violations concatenated, INCLUDING the dead-styles adapter output
+  // (tagged category: "dead-styles") and component violations. This SAME array is both
+  // the score input (below) and the contract's violation list — one source of truth.
+  // coverage violations ride along for the UI list but are EXCLUDED from the penalty
+  // buckets by scoring-config's CATEGORY_OF_RULE (coverage → null; spec §1.11).
   const violations: Violation[] = [
     ...namingViolations,
     ...colorViolations,
@@ -287,8 +260,18 @@ export async function runQualityCheck(
     ...deadStyleViolations,
   ];
 
+  // ── Penalty-model headline (SCORE-01/SCORE-02 — spec §1.1–§1.5) ──
+  // Replaces the former calculateWeightedCategoryScore[] → buildScoreResult path.
+  // Budgets, severity map and caps all live in scoring-config.ts. dead-styles folds
+  // into the `components` bucket; coverage is excluded (spec §1.11).
+  const scoreResult = calculatePenaltyScore(violations);
+
+  // conformityScore IS the DS penalty headline. overall === conformityScore for now;
+  // Plan 03's a11y gate will later derive overall = conformityScore − a11yGatePenalty.
+  const conformityScore = scoreResult.overall;
+
   return {
-    overall: scoreResult.overall,
+    overall: conformityScore,
     label: scoreResult.label,
     color: scoreResult.color,
     categories: scoreResult.categories,
@@ -297,5 +280,14 @@ export async function runQualityCheck(
     violations,
     processed: traversalResult.processed,
     cancelled: false,
+    // ── Penalty-model contract (Phase 5.2) ──
+    conformityScore,
+    // Downstream fields defaulted so the contract is fully shaped before Plans 02–04 land.
+    legacyDebtPercent: 0,   // Plan 02 (SCORE-03)
+    a11yFramePresent: true, // Plan 03 (SCORE-04) — no gate applied yet
+    a11yGatePenalty: 0,     // Plan 03 (SCORE-04)
+    hsPenalty: 0,           // Plan 04 (HS-01)
+    coverUpToDate: true,    // Plan 04 (HS-01)
+    hsChecklist: [],        // Plan 04 (HS-01)
   };
 }
