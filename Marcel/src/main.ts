@@ -12,6 +12,7 @@ import { generateOrUpdateCover } from "./features/cover-updater/cover-updater";
 import { loadCoverConfig, saveCoverConfig } from "./features/cover-updater/cover-config";
 import type { CoverConfig } from "./features/cover-updater/cover-types";
 import { PROJECT_PROFILES, DEFAULT_PROFILE_ID } from "./shared/scoring-config";
+import { generateDeliveryStamp } from "./features/delivery/delivery-stamp";
 import { scanDeadStyles, scanStyleCleaner } from "./features/dead-styles/dead-styles-engine";
 import { removeDeadStyle, removeAllDeadStyles } from "./features/dead-styles/dead-styles-actions";
 import { detachVariableBinding, detachStyleBinding, replaceVariableBinding, batchDetachForeign, batchReplaceForeign } from "./features/dead-styles/dead-styles-fix";
@@ -48,6 +49,8 @@ const NOTIF: Record<string, Record<string, string>> = {
     "hc.error": "Erreur lors de l'audit Health Check.",
     "cover.updated": "Cover mise à jour ✅",
     "cover.error": "Erreur lors de la mise à jour de la cover.",
+    "deliver.stamp.done": "Tampon de livraison généré · Cover → Design Done ✅",
+    "deliver.stamp.error": "Erreur lors de la génération du tampon de livraison.",
     "config.saved": "Paramètres sauvegardés ✅",
     "config.reset": "Paramètres réinitialisés",
     "ds.removed": "Style supprime",
@@ -77,6 +80,8 @@ const NOTIF: Record<string, Record<string, string>> = {
     "hc.error": "Error during Health Check audit.",
     "cover.updated": "Cover updated ✅",
     "cover.error": "Error updating the cover.",
+    "deliver.stamp.done": "Delivery stamp generated · Cover → Design Done ✅",
+    "deliver.stamp.error": "Error generating the delivery stamp.",
     "config.saved": "Settings saved ✅",
     "config.reset": "Settings reset",
     "ds.removed": "Style deleted",
@@ -106,6 +111,8 @@ const NOTIF: Record<string, Record<string, string>> = {
     "hc.error": "Erro durante a auditoria Health Check.",
     "cover.updated": "Cover atualizada ✅",
     "cover.error": "Erro ao atualizar a cover.",
+    "deliver.stamp.done": "Carimbo de entrega gerado · Cover → Design Done ✅",
+    "deliver.stamp.error": "Erro ao gerar o carimbo de entrega.",
     "config.saved": "Configurações salvas ✅",
     "config.reset": "Configurações resetadas",
     "ds.removed": "Estilo excluído",
@@ -770,7 +777,15 @@ const handlers: Record<string, Handler> = {
   "load-cover-config": async (msg) => {
     try {
       const coverCfg = await loadCoverConfig();
-      figma.ui.postMessage({ type: "cover-config-loaded", config: coverCfg });
+      // Piggy-back aggregate document identifiers so the UI can build the delivery
+      // stamp WITHOUT reading figma.* (EXPORT-01). No design content — just the
+      // file + current page name (privacy-safe).
+      figma.ui.postMessage({
+        type: "cover-config-loaded",
+        config: coverCfg,
+        fileName: figma.root.name,
+        pageName: figma.currentPage.name,
+      });
     } catch (error: any) {
       console.error("Load cover config error:", error);
     }
@@ -816,6 +831,36 @@ const handlers: Record<string, Handler> = {
       });
     } catch (error: any) {
       console.error("Set project profile error:", error);
+    }
+  },
+
+  // ── Export delivery stamp (spec §2 — EXPORT-01) ──
+  // At the "Je livre" gate: generate the in-file aggregate-only badge AND flip the
+  // Cover to "Design Done" in one action (spec §2: stamp + Design Done happen
+  // simultaneously). The stamp data is untrusted (UI → sandbox) but carries only
+  // aggregate numeric/label fields — no node references (threat T-052-11). The Cover
+  // flip goes through the existing validated generateOrUpdateCover path (T-052-12).
+  "generate-delivery-stamp": async (msg) => {
+    try {
+      // Flip the Cover to Design Done, preserving the persisted governed profile
+      // (saveCoverConfig + generateOrUpdateCover so status + profile persist together).
+      const coverCfg = await loadCoverConfig();
+      coverCfg.projectStatus = "Design Done";
+      await saveCoverConfig(coverCfg);
+      await generateOrUpdateCover(coverCfg);
+
+      // Build the in-file badge (aggregate-only) next to the project.
+      await generateDeliveryStamp(msg.data);
+
+      figma.ui.postMessage({ type: "delivery-stamp-generated" });
+      figma.notify(nt("deliver.stamp.done"), { timeout: 3000 });
+    } catch (error: any) {
+      console.error("Delivery stamp error:", error);
+      figma.ui.postMessage({
+        type: "delivery-stamp-error",
+        message: error?.message || nt("deliver.stamp.error"),
+      });
+      figma.notify(nt("deliver.stamp.error"), { timeout: 4000, error: true });
     }
   },
 
