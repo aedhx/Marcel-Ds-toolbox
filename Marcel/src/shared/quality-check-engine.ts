@@ -12,7 +12,8 @@
 // const/let + single quotes (matches hc-engine, the prototype).
 
 import { traverseNodes, type TraversalScope, type ScanAbortToken } from './node-traversal';
-import { calculatePenaltyScore } from './scoring';
+import { calculatePenaltyScore, formatScoreLabel, getScoreColor } from './scoring';
+import { A11Y_FRAME_NAME, A11Y_ABSENT_PENALTY } from './scoring-config';
 import { type Violation } from './violation-types';
 import { getNodeFills, getNodeStrokes } from './figma-helpers';
 import type { QualityCheckResult } from './quality-check-types';
@@ -114,6 +115,13 @@ export async function runQualityCheck(
   const varSeenKeys = new Set<string>();
   const styleSeenKeys = new Set<string>();
 
+  // ── A11y presence gate — lot 1 (SCORE-04, spec §1.8) ──
+  // Rides the single pass: flip true the moment any visited node's name matches the
+  // standard a11y frame name (read from scoring-config — never hard-coded). Lot 2 /
+  // plugin fusion will replace this name-detection with a real a11y-completeness read.
+  const a11yFrameNameNorm = A11Y_FRAME_NAME.trim().toLowerCase();
+  let a11yFramePresent = false;
+
   let namingNodesChecked = 0;
   let colorNodesChecked = 0;
   let textNodesChecked = 0;
@@ -129,6 +137,13 @@ export async function runQualityCheck(
 
   // ── Pass 1: ONE cancellable traversal, fan out to ALL families (D-13 — no re-walk) ──
   const traversalResult = await traverseNodes((node, _depth, path) => {
+    // ── A11y frame presence (SCORE-04) — name match, case-insensitive ──
+    // Checked BEFORE the remote-instance skip so a match is never missed. A frame-type
+    // match is sufficient; any node carrying the standard name flips the gate open.
+    if (!a11yFramePresent && node.name && node.name.trim().toLowerCase() === a11yFrameNameNorm) {
+      a11yFramePresent = true;
+    }
+
     // Collect ALL instance IDs for coverage (must be BEFORE the remote skip — hc-engine 77-79)
     if (node.type === 'INSTANCE') {
       coverageInstanceIds.push(node.id);
@@ -292,14 +307,25 @@ export async function runQualityCheck(
   // into the `components` bucket; coverage is excluded (spec §1.11).
   const scoreResult = calculatePenaltyScore(violations);
 
-  // conformityScore IS the DS penalty headline. overall === conformityScore for now;
-  // Plan 03's a11y gate will later derive overall = conformityScore − a11yGatePenalty.
+  // conformityScore IS the DS penalty headline — the pure DS score, kept unchanged by
+  // the a11y gate (spec §1.6: the DS score is separate from the gated global).
   const conformityScore = scoreResult.overall;
 
+  // ── A11y presence gate (SCORE-04 — spec §1.8, lot 1) ──
+  // Absent standard a11y frame → fixed penalty off the GLOBAL score (floor 0), and flag
+  // the absence so the gate UI (Plan 05) can warn + force-launch the a11y plugin. Present
+  // frame → no penalty, global === DS conformity. Penalty is the named scoring-config
+  // constant (never a literal), satisfying T-052-06.
+  const a11yGatePenalty = a11yFramePresent ? 0 : A11Y_ABSENT_PENALTY;
+  const overall = Math.max(0, conformityScore - a11yGatePenalty);
+  // Headline band must match the penalized number, not the raw DS score.
+  const label = formatScoreLabel(overall);
+  const color = getScoreColor(overall);
+
   return {
-    overall: conformityScore,
-    label: scoreResult.label,
-    color: scoreResult.color,
+    overall,
+    label,
+    color,
     categories: scoreResult.categories,
     totalViolations: scoreResult.totalViolations,
     totalChecked: scoreResult.totalChecked,
@@ -308,10 +334,10 @@ export async function runQualityCheck(
     cancelled: false,
     // ── Penalty-model contract (Phase 5.2) ──
     conformityScore,
-    // Downstream fields defaulted so the contract is fully shaped before Plans 02–04 land.
+    // Downstream fields defaulted so the contract is fully shaped before Plan 04 lands.
     legacyDebtPercent,      // Plan 02 (SCORE-03) — derived from foreign-library bindings
-    a11yFramePresent: true, // Plan 03 (SCORE-04) — no gate applied yet
-    a11yGatePenalty: 0,     // Plan 03 (SCORE-04)
+    a11yFramePresent,       // Plan 03 (SCORE-04) — real name-detection from the pass
+    a11yGatePenalty,        // Plan 03 (SCORE-04) — fixed penalty when the frame is absent
     hsPenalty: 0,           // Plan 04 (HS-01)
     coverUpToDate: true,    // Plan 04 (HS-01)
     hsChecklist: [],        // Plan 04 (HS-01)
