@@ -244,6 +244,32 @@ export async function runQualityCheck(
 
   const deadStyleViolations = styleCleanerToViolations(finalized.result);
 
+  // ── Legacy dual-view (SCORE-03 — spec §1.9) ──
+  // A value bound to an OLD/frozen DS library is legacy debt, NOT a penalty. The unified
+  // pass already collected the foreign-library bindings and finalizeDeadStyles classified
+  // them into `finalized.result.foreignItems` (a binding is "foreign" iff it resolves to a
+  // remote, non-approved DS collection — see dead-styles-engine isApprovedCollection). We
+  // reuse that exact signal here rather than re-detecting legacy.
+  //
+  // legacyDebtPercent = share of scanned nodes carrying >= 1 foreign-library binding,
+  // deduped by nodeId (one node with several foreign bindings counts once). This is a pure
+  // post-pass derivation: no extra traversal, no change to the single finalizeDeadStyles call.
+  //
+  // Non-dilution guarantee (SCORE-03): foreign bindings are tagged category "dead-styles"
+  // (foreignItemToViolation) → mapped to the `components` bucket at COSMÉTIQUE severity in
+  // scoring-config (CATEGORY_OF_RULE + RULE_SEVERITY_MAP: foreign-variable/foreign-style =
+  // cosmetique). So a legacy binding is reported here AND only very lightly (cosmetique)
+  // weighted — never as a grave/moyen conformity penalty. A value bound to NOTHING
+  // (hardcoded) is not a foreign item; it stays a grave off-token-fill/off-token-stroke
+  // color penalty (a real custom fault), untouched by this block.
+  const legacyBoundNodeIds = new Set<string>();
+  for (const foreignItem of finalized.result.foreignItems) {
+    if (foreignItem.nodeId) legacyBoundNodeIds.add(foreignItem.nodeId);
+  }
+  const legacyDebtPercent = Math.round(
+    (legacyBoundNodeIds.size / Math.max(1, traversalResult.processed)) * 100
+  );
+
   // ── Assemble the unified violations[] (D-14) ──
   // Every family's violations concatenated, INCLUDING the dead-styles adapter output
   // (tagged category: "dead-styles") and component violations. This SAME array is both
@@ -283,7 +309,7 @@ export async function runQualityCheck(
     // ── Penalty-model contract (Phase 5.2) ──
     conformityScore,
     // Downstream fields defaulted so the contract is fully shaped before Plans 02–04 land.
-    legacyDebtPercent: 0,   // Plan 02 (SCORE-03)
+    legacyDebtPercent,      // Plan 02 (SCORE-03) — derived from foreign-library bindings
     a11yFramePresent: true, // Plan 03 (SCORE-04) — no gate applied yet
     a11yGatePenalty: 0,     // Plan 03 (SCORE-04)
     hsPenalty: 0,           // Plan 04 (HS-01)
