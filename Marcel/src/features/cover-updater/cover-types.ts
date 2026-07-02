@@ -1,9 +1,13 @@
 // ── Cover Updater Types ──
 
 import { DS_COMPONENT_KEYS } from "../starter-kit/config";
+import { DEFAULT_PROFILE_ID } from "../../shared/scoring-config";
 
 export interface CoverConfig {
   projectStatus: string; // "In Progress" | "Design Done" | "Archived" | "SOT" | "Playground"
+  // Governed project profile id (spec §1.7) — drives the "Je livre" delivery
+  // threshold and is carried into the export stamp. One of PROJECT_PROFILES ids.
+  projectProfile?: string;
 }
 
 export const PROJECT_STATUSES = [
@@ -21,4 +25,5 @@ export const STATUS_TO_KEY: Record<string, string> = {
 
 export const DEFAULT_COVER_CONFIG: CoverConfig = {
   projectStatus: "In Progress",
+  projectProfile: DEFAULT_PROFILE_ID,
 };

@@ -44,6 +44,9 @@ export type UIMessage =
   // Cover Updater
   | { type: "generate-cover"; status: string }
   | { type: "load-cover-config" }
+  // Governed project profile (spec §1.7 — PROFILE-01): persist the chosen delivery profile
+  | { type: "set-project-profile"; profileId: string }
+  | { type: "load-delivery-profile-config" }
   // External link-out (D-07 — a11y plugin shortcut; fire-and-forget, no reply)
   | { type: "open-external"; url: string }
   // Dead Styles
@@ -111,6 +114,8 @@ export type PluginMessage =
   | { type: "cover-generated" }
   | { type: "cover-error"; message: string }
   | { type: "cover-config-loaded"; config: unknown }
+  // Governed project profile list (spec §1.7 — PROFILE-01): the closed list + current selection
+  | { type: "delivery-profile-config"; profiles: Array<{ id: string; label: string; threshold: number }>; selectedProfileId: string }
   // Dead Styles
   | { type: "dead-styles-result"; result: DeadStylesResult }
   | { type: "dead-styles-error"; message: string }

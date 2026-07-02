@@ -11,6 +11,7 @@ import type { ScanAbortToken } from "./shared/node-traversal";
 import { generateOrUpdateCover } from "./features/cover-updater/cover-updater";
 import { loadCoverConfig, saveCoverConfig } from "./features/cover-updater/cover-config";
 import type { CoverConfig } from "./features/cover-updater/cover-types";
+import { PROJECT_PROFILES, DEFAULT_PROFILE_ID } from "./shared/scoring-config";
 import { scanDeadStyles, scanStyleCleaner } from "./features/dead-styles/dead-styles-engine";
 import { removeDeadStyle, removeAllDeadStyles } from "./features/dead-styles/dead-styles-actions";
 import { detachVariableBinding, detachStyleBinding, replaceVariableBinding, batchDetachForeign, batchReplaceForeign } from "./features/dead-styles/dead-styles-fix";
@@ -196,6 +197,7 @@ type UiMsg = {
   altText?: string;
   placement?: "new-page" | "same-page";
   url?: string;
+  profileId?: string;
 };
 
 type Handler = (msg: UiMsg) => void | Promise<void>;
@@ -771,6 +773,49 @@ const handlers: Record<string, Handler> = {
       figma.ui.postMessage({ type: "cover-config-loaded", config: coverCfg });
     } catch (error: any) {
       console.error("Load cover config error:", error);
+    }
+  },
+
+  // ── Governed project profile (spec §1.7 — PROFILE-01) ──
+  // Forward the closed profile list from the single calibration source (scoring-config)
+  // + the currently selected profile so the UI never hardcodes thresholds.
+  "load-delivery-profile-config": async (msg) => {
+    try {
+      const coverCfg = await loadCoverConfig();
+      const selectedProfileId =
+        coverCfg.projectProfile && PROJECT_PROFILES.some((p) => p.id === coverCfg.projectProfile)
+          ? coverCfg.projectProfile
+          : DEFAULT_PROFILE_ID;
+      figma.ui.postMessage({
+        type: "delivery-profile-config",
+        profiles: PROJECT_PROFILES,
+        selectedProfileId,
+      });
+    } catch (error: any) {
+      console.error("Load delivery profile config error:", error);
+    }
+  },
+
+  // Persist the chosen delivery profile on the cover config. The profileId is
+  // untrusted (UI → sandbox): reject anything not in the governed closed list
+  // before saving (threat T-052-09).
+  "set-project-profile": async (msg) => {
+    try {
+      const isGoverned = PROJECT_PROFILES.some((p) => p.id === msg.profileId);
+      if (!isGoverned) {
+        console.error("set-project-profile: rejected non-governed profileId");
+        return;
+      }
+      const coverCfg = await loadCoverConfig();
+      coverCfg.projectProfile = msg.profileId;
+      await saveCoverConfig(coverCfg);
+      figma.ui.postMessage({
+        type: "delivery-profile-config",
+        profiles: PROJECT_PROFILES,
+        selectedProfileId: msg.profileId,
+      });
+    } catch (error: any) {
+      console.error("Set project profile error:", error);
     }
   },
 
