@@ -3744,6 +3744,48 @@
                 style="margin-top: var(--spacing-s);"
               ></div>
 
+              <!-- PROFILE-01 (spec §1.7): governed project profile picker. Options
+                   are populated from the delivery-profile-config message (the closed
+                   list lives in scoring-config, never hardcoded here); the selected
+                   profile's threshold arms the gate's score condition below. -->
+              <div id="deliver-profile-block" style="margin-top: var(--spacing-l);">
+                <label
+                  for="deliver-profile-select"
+                  style="
+                    display: block;
+                    font-size: 12px;
+                    font-weight: 400;
+                    line-height: 1.4;
+                    margin-bottom: var(--spacing-xs);
+                  "
+                  data-i18n="deliver.profile.label"
+                  >Project profile</label
+                >
+                <select
+                  id="deliver-profile-select"
+                  style="
+                    width: 100%;
+                    padding: var(--spacing-s);
+                    font-size: 14px;
+                    border: 1px solid var(--border-default);
+                    border-radius: var(--radius-m);
+                    background: var(--bg-default);
+                    color: var(--content-default);
+                    cursor: pointer;
+                  "
+                ></select>
+                <div
+                  id="deliver-profile-threshold"
+                  style="
+                    margin-top: var(--spacing-xs);
+                    font-size: 12px;
+                    font-weight: 400;
+                    line-height: 1.4;
+                    color: var(--content-subtler);
+                  "
+                ></div>
+              </div>
+
               <!-- Score block (reuse qcDonut/qcScoreLabel/qcScoreColor — D-02) -->
               <div
                 id="deliver-score-block"
@@ -3853,6 +3895,54 @@
                     ></div>
                   </div>
                 </div>
+              </div>
+
+              <!-- SCORE-04 (UI half — spec §1.8): when the Quality Check found no
+                   a11y frame by name, surface a visible warning + a shortcut that
+                   force-launches the a11y plugin via the hardened open-external
+                   (T-051-01, same canonical URL). Additive to the manual checkbox;
+                   never disables "Mark as Design Done" (soft gate). -->
+              <div
+                id="deliver-a11y-missing"
+                class="hidden"
+                style="
+                  margin-top: var(--spacing-l);
+                  border-left: 4px solid #8a5f00;
+                  background: var(--bg-subtle);
+                  border-radius: var(--radius-m);
+                  padding: var(--spacing-m);
+                "
+              >
+                <div
+                  style="
+                    font-size: 13px;
+                    font-weight: 700;
+                    line-height: 1.4;
+                    color: #8a5f00;
+                  "
+                  data-i18n="deliver.a11y.missing.warn"
+                >
+                  No accessibility frame found in this file.
+                </div>
+                <div
+                  style="
+                    font-size: 12px;
+                    font-weight: 400;
+                    line-height: 1.4;
+                    margin-top: var(--spacing-xs);
+                  "
+                  data-i18n="deliver.a11y.missing.body"
+                >
+                  Add one via the accessibility plugin, then re-run the Quality Check.
+                </div>
+                <button
+                  class="btn-secondary"
+                  id="deliver-a11y-launch-btn"
+                  style="margin-top: var(--spacing-s);"
+                  data-i18n="deliver.a11y.launch"
+                >
+                  Launch the accessibility plugin ↗
+                </button>
               </div>
 
               <!-- A11y annotation-export path (DELIVER-03 — manual, no automated export) -->
@@ -5765,6 +5855,12 @@
           "deliver.check.cover.met": "Cover exists and is up to date ✓",
           "deliver.check.cover.unmet": "Update the Cover before handing off",
           "deliver.a11y.export": "Export your accessibility annotations from the external plugin ↗",
+          "deliver.profile.label": "Project profile",
+          "deliver.profile.threshold": "threshold {threshold}",
+          "deliver.profile.active": "Profile: {label} · threshold {threshold}",
+          "deliver.a11y.missing.warn": "No accessibility frame found in this file.",
+          "deliver.a11y.missing.body": "Add one via the accessibility plugin, then re-run the Quality Check.",
+          "deliver.a11y.launch": "Launch the accessibility plugin ↗",
           "qc.run": "Run Quality Check", "qc.rescan": "Rescan", "qc.cancel": "Cancel",
           "qc.scope.page": "Page", "qc.scope.selection": "Selection", "qc.scope.file": "Entire file",
           "qc.scanning": "Scanning…",
@@ -5948,6 +6044,12 @@
           "deliver.check.cover.met": "La Cover existe et est à jour ✓",
           "deliver.check.cover.unmet": "Mettez à jour la Cover avant de livrer",
           "deliver.a11y.export": "Exportez vos annotations d'accessibilité depuis le plugin externe ↗",
+          "deliver.profile.label": "Profil du projet",
+          "deliver.profile.threshold": "seuil {threshold}",
+          "deliver.profile.active": "Profil : {label} · seuil {threshold}",
+          "deliver.a11y.missing.warn": "Aucune frame d'accessibilité trouvée dans ce fichier.",
+          "deliver.a11y.missing.body": "Ajoutez-en une via le plugin d'accessibilité, puis relancez le Quality Check.",
+          "deliver.a11y.launch": "Lancer le plugin d'accessibilité ↗",
           "qc.run": "Lancer le Quality Check", "qc.rescan": "Relancer l'analyse", "qc.cancel": "Annuler",
           "qc.scope.page": "Page", "qc.scope.selection": "Sélection", "qc.scope.file": "Fichier entier",
           "qc.scanning": "Analyse en cours…",
@@ -6022,6 +6124,12 @@
           "deliver.check.cover.met": "A Cover existe e está atualizada ✓",
           "deliver.check.cover.unmet": "Atualize a Cover antes da entrega",
           "deliver.a11y.export": "Exporte suas anotações de acessibilidade do plugin externo ↗",
+          "deliver.profile.label": "Perfil do projeto",
+          "deliver.profile.threshold": "limite {threshold}",
+          "deliver.profile.active": "Perfil: {label} · limite {threshold}",
+          "deliver.a11y.missing.warn": "Nenhuma frame de acessibilidade encontrada neste arquivo.",
+          "deliver.a11y.missing.body": "Adicione uma via o plugin de acessibilidade e execute novamente o Quality Check.",
+          "deliver.a11y.launch": "Abrir o plugin de acessibilidade ↗",
           "qc.run": "Executar o Quality Check", "qc.rescan": "Refazer a análise", "qc.cancel": "Cancelar",
           "qc.scope.page": "Página", "qc.scope.selection": "Seleção", "qc.scope.file": "Arquivo inteiro",
           "qc.scanning": "Analisando…",
@@ -6240,6 +6348,12 @@
             { pluginMessage: { type: "load-cover-config" } },
             "*",
           );
+          // PROFILE-01: pull the governed profile list + current selection so the
+          // gate threshold comes from scoring-config (single calibration source).
+          parent.postMessage(
+            { pluginMessage: { type: "load-delivery-profile-config" } },
+            "*",
+          );
           renderDeliverGate();
         }
       }
@@ -6355,6 +6469,33 @@
             { pluginMessage: { type: "generate-cover", status: "Design Done" } },
             "*",
           );
+        });
+
+      // PROFILE-01: governed profile picker. On change, persist the choice on the
+      // Cover config (validated against the closed list on the sandbox side) and
+      // re-arm the gate threshold. Never blocks the Mark-Done button (soft gate).
+      var deliverProfileSelect = document.getElementById("deliver-profile-select");
+      if (deliverProfileSelect)
+        deliverProfileSelect.addEventListener("change", function () {
+          selectedDeliveryProfileId = deliverProfileSelect.value;
+          parent.postMessage(
+            {
+              pluginMessage: {
+                type: "set-project-profile",
+                profileId: selectedDeliveryProfileId,
+              },
+            },
+            "*",
+          );
+          renderDeliverGate();
+        });
+
+      // SCORE-04 (UI half): a11y-absence force-launch — same hardened open-external
+      // path + single canonical URL as the export link (T-051-01).
+      var deliverA11yLaunchBtn = document.getElementById("deliver-a11y-launch-btn");
+      if (deliverA11yLaunchBtn)
+        deliverA11yLaunchBtn.addEventListener("click", function () {
+          openA11yPlugin();
         });
 
       // Done-state "back" — re-render the gate (cover-ready row now flips to met).
@@ -8023,6 +8164,17 @@
           }
         }
 
+        // PROFILE-01: governed profile list + current selection from scoring-config.
+        if (msg.type === "delivery-profile-config") {
+          deliveryProfiles = Array.isArray(msg.profiles) ? msg.profiles : [];
+          selectedDeliveryProfileId = msg.selectedProfileId || null;
+          populateDeliverProfileSelect();
+          var deliverPanelP = document.getElementById("panel-deliver");
+          if (deliverPanelP && deliverPanelP.classList.contains("active")) {
+            renderDeliverGate();
+          }
+        }
+
         // ── Style Cleaner messages ──
         if (msg.type === "style-cleaner-result") {
           currentCleanerResult = msg.result;
@@ -9622,6 +9774,14 @@
       var deliverA11yAttested = false;   // manual a11y attestation (D-03)
       var coverStatus = null;            // last cover-config-loaded projectStatus
       var deliverMarkdonePending = false; // true between gate Mark-Done click and cover-generated reply
+      // PROFILE-01 (spec §1.7): governed profile list + selection arrive from the
+      // sandbox (delivery-profile-config) — NEVER hardcoded here. The closed list
+      // and thresholds live in scoring-config; ui.html only mirrors them.
+      var deliveryProfiles = [];         // [{ id, label, threshold }] from scoring-config
+      var selectedDeliveryProfileId = null; // persisted profile id (on the Cover config)
+      // Documented fallback used ONLY before the profile config has loaded, so the
+      // gate never crashes on first paint. Mirrors PROJECT_PROFILES "legacy" (75).
+      var DELIVER_DEFAULT_THRESHOLD = 75;
 
       // View switcher — mirrors qcShowView's class-toggle shape (states: noscan/gate/done).
       function deliverShowView(view) {
@@ -9693,6 +9853,41 @@
         badgeEl.innerHTML = statusBadge("none", label, coverStatusColor(coverStatus));
       }
 
+      // PROFILE-01: resolve the currently selected governed profile object (or null
+      // before the list has loaded). Selection is validated against the governed
+      // list on the sandbox side; here we just look it up.
+      function getSelectedDeliveryProfile() {
+        for (var i = 0; i < deliveryProfiles.length; i++) {
+          if (deliveryProfiles[i].id === selectedDeliveryProfileId)
+            return deliveryProfiles[i];
+        }
+        return null;
+      }
+
+      // The delivery threshold that arms the gate: the selected profile's threshold,
+      // falling back to the documented default only before the list has loaded.
+      function getProfileThreshold() {
+        var p = getSelectedDeliveryProfile();
+        return p ? p.threshold : DELIVER_DEFAULT_THRESHOLD;
+      }
+
+      // PROFILE-01: (re)build the <option> list from the governed profiles and select
+      // the persisted one. The list ONLY comes from delivery-profile-config.
+      function populateDeliverProfileSelect() {
+        var sel = document.getElementById("deliver-profile-select");
+        if (!sel) return;
+        var html = "";
+        for (var i = 0; i < deliveryProfiles.length; i++) {
+          var pr = deliveryProfiles[i];
+          html +=
+            '<option value="' + escapeAttr(pr.id) + '">' +
+            escapeHtml(pr.label) + " · " + t("deliver.profile.threshold", { threshold: pr.threshold }) +
+            "</option>";
+        }
+        sel.innerHTML = html;
+        if (selectedDeliveryProfileId) sel.value = selectedDeliveryProfileId;
+      }
+
       // Recompute the gate from the LIVE qcResult + coverStatus + attestation (no caching).
       function renderDeliverGate() {
         // Pitfall 3: branch on null FIRST — no persisted fallback (D-04).
@@ -9702,7 +9897,10 @@
         }
 
         var overall = qcResult.overall;
-        var scorePass = overall >= 75;          // D-02 "good" band — no new threshold
+        // PROFILE-01: the score condition is armed by the SELECTED governed profile's
+        // threshold (from scoring-config), not a hardcoded 75.
+        var profileThreshold = getProfileThreshold();
+        var scorePass = overall >= profileThreshold;
         var coverReady = !!(coverStatus && coverStatus !== "");
         var a11yMet = deliverA11yAttested;
         var anyUnmet = !scorePass || !a11yMet || !coverReady;
@@ -9717,6 +9915,21 @@
             escapeHtml(qcScoreLabel(overall)) + "</div>" +
             '<div style="font-size:12px;font-weight:400;color:var(--content-subtler);">' +
             "Score " + overall + "/100</div>";
+        }
+
+        // ── Profile picker sync + active-threshold caption (PROFILE-01) ──
+        var profileSelectEl = document.getElementById("deliver-profile-select");
+        if (profileSelectEl && selectedDeliveryProfileId)
+          profileSelectEl.value = selectedDeliveryProfileId;
+        var profileThresholdEl = document.getElementById("deliver-profile-threshold");
+        if (profileThresholdEl) {
+          var activeProfile = getSelectedDeliveryProfile();
+          profileThresholdEl.textContent = activeProfile
+            ? t("deliver.profile.active", {
+                label: activeProfile.label,
+                threshold: activeProfile.threshold,
+              })
+            : t("deliver.profile.threshold", { threshold: profileThreshold });
         }
 
         // ── Score row ──
@@ -9771,6 +9984,15 @@
           }
         }
         if (warnCaption) warnCaption.classList.toggle("hidden", !anyUnmet);
+
+        // ── SCORE-04 (UI half): a11y-frame-absence warning + force-launch ──
+        // qcResult.a11yFramePresent is set by the QC engine (Plan 03). Only warn
+        // when it is explicitly false (undefined = not evaluated → stay silent).
+        var a11yMissingEl = document.getElementById("deliver-a11y-missing");
+        if (a11yMissingEl) {
+          var a11yAbsent = qcResult.a11yFramePresent === false;
+          a11yMissingEl.classList.toggle("hidden", !a11yAbsent);
+        }
 
         deliverShowView("gate");
       }
