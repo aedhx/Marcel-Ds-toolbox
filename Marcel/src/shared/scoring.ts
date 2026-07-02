@@ -1,4 +1,12 @@
 import type { ViolationSeverity } from "./violation-types";
+import {
+  PENALTY_CATEGORIES,
+  CATEGORY_BUDGETS,
+  RULE_SEVERITY_MAP,
+  CATEGORY_OF_RULE,
+  penaltyFor,
+  type PenaltyCategory,
+} from "./scoring-config";
 
 export interface CategoryScore {
   category: string;       // e.g., "naming", "colors", "typography"
@@ -6,6 +14,8 @@ export interface CategoryScore {
   weight: number;         // Relative weight (e.g., 1.0, 0.5)
   violationCount: number; // Number of violations in this category
   totalChecked: number;   // Number of nodes checked for this category
+  budget?: number;        // Penalty model (Phase 5.2): the category's max penalty (spec §1.4)
+  penalty?: number;       // Penalty model (Phase 5.2): capped penalty actually applied
 }
 
 export type ScoreLabel = "Excellent" | "Bon" | "A ameliorer" | "Critique";
@@ -110,4 +120,89 @@ export function calculateWeightedCategoryScore(
   }, 0);
   const score = Math.max(0, Math.round(100 - (weightedCount / totalChecked) * 100));
   return { category, score, weight, violationCount: violations.length, totalChecked };
+}
+
+// ── Penalty scoring model (Phase 5.2 — spec §1.1–§1.5) ────────────────────────
+//
+// NEW model, added ALONGSIDE the legacy % functions above (which the standalone
+// HC / a11y tabs still call until Phase 7 — do NOT delete them).
+//
+//   score = 100 − Σ (capped category penalties)
+//
+// Each violation burns `penaltyFor(category, severity)` = budget × fraction of
+// its penalty category; each category's total is capped at its budget, so a real
+// grave fault BITES regardless of page volume (1 grave color among 500 clean
+// nodes → −10 → 90, not 99.6), and no category can over-drain the score.
+// All tunable numbers come from scoring-config.ts — none is hand-typed here.
+
+interface PenaltyViolationInput {
+  rule: string;
+  category: string;
+  severity: ViolationSeverity;
+}
+
+/**
+ * Compute the penalty-based DS conformity ScoreResult from raw violations.
+ *
+ * - Each violation is bucketed into a PenaltyCategory via CATEGORY_OF_RULE
+ *   (keyed on violation.category). Violations whose category maps to null
+ *   (e.g. "coverage") or to no known bucket are EXCLUDED from the score.
+ * - Severity is looked up in RULE_SEVERITY_MAP (default "cosmetique" if the rule
+ *   is unmapped, so a new rule can never silently tank a score).
+ * - Per-category penalty is summed then capped at CATEGORY_BUDGETS[category].
+ * - overall = max(0, round(100 − Σ capped penalties)).
+ *
+ * Returns one CategoryScore per penalty category (always all five), each
+ * carrying `budget`, `penalty` (capped), and `score = budget − penalty`.
+ */
+export function calculatePenaltyScore(violations: PenaltyViolationInput[]): ScoreResult {
+  // Raw (uncapped) penalty accumulator + violation count per penalty category.
+  const rawPenalty: Record<PenaltyCategory, number> = {
+    colors: 0,
+    typography: 0,
+    spacing: 0,
+    components: 0,
+    naming: 0,
+  };
+  const counts: Record<PenaltyCategory, number> = {
+    colors: 0,
+    typography: 0,
+    spacing: 0,
+    components: 0,
+    naming: 0,
+  };
+
+  for (const v of violations) {
+    const bucket = CATEGORY_OF_RULE[v.category];
+    if (!bucket) continue; // null (coverage) or unknown category → not scored
+    const severity = RULE_SEVERITY_MAP[v.rule] ?? "cosmetique";
+    rawPenalty[bucket] += penaltyFor(bucket, severity);
+    counts[bucket] += 1;
+  }
+
+  const categories: CategoryScore[] = PENALTY_CATEGORIES.map((category) => {
+    const budget = CATEGORY_BUDGETS[category];
+    const penalty = Math.min(budget, rawPenalty[category]);
+    return {
+      category,
+      score: Math.max(0, Math.round(budget - penalty)),
+      weight: budget, // spec §1.2: a category's weight IS its budget
+      violationCount: counts[category],
+      totalChecked: 0, // not meaningful in the penalty model (volume must not dilute)
+      budget,
+      penalty,
+    };
+  });
+
+  const totalPenalty = categories.reduce((sum, c) => sum + (c.penalty ?? 0), 0);
+  const overall = Math.max(0, Math.round(100 - totalPenalty));
+
+  return {
+    overall,
+    label: formatScoreLabel(overall),
+    color: getScoreColor(overall),
+    categories,
+    totalViolations: categories.reduce((sum, c) => sum + c.violationCount, 0),
+    totalChecked: 0,
+  };
 }
