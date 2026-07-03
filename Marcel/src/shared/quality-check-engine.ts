@@ -34,6 +34,7 @@ import {
   type RawStyleBinding,
 } from '../features/dead-styles/dead-styles-engine';
 import { styleCleanerToViolations } from '../features/dead-styles/dead-styles-adapter';
+import { evaluateDeliveryChecklist } from '../features/delivery/delivery-checklist';
 
 // ── Scoring model (Phase 5.2) ──
 // The headline is now the penalty model (calculatePenaltyScore, spec §1.1–§1.5):
@@ -317,7 +318,20 @@ export async function runQualityCheck(
   // frame → no penalty, global === DS conformity. Penalty is the named scoring-config
   // constant (never a literal), satisfying T-052-06.
   const a11yGatePenalty = a11yFramePresent ? 0 : A11Y_ABSENT_PENALTY;
-  const overall = Math.max(0, conformityScore - a11yGatePenalty);
+
+  // ── HS delivery checklist (HS-01 — spec §1.6/§4) ──
+  // Page-structure hygiene evaluated AFTER the pass (page-name + cover-node reads, no BFS).
+  // Its small bounded penalty folds into the GLOBAL score only — conformityScore (pure DS)
+  // is deliberately left untouched (HS is a global-only nudge, spec §1.6: DS ⊕ a11y ⊕ HS).
+  // `coverUpToDate` is only SURFACED here; the cover hard gate is enforced at the Je livre
+  // gate (Plan 06) — we do not block scanning on it. Items/penalties come from scoring-config
+  // via evaluateDeliveryChecklist (never hard-coded in the engine).
+  const hsResult = await evaluateDeliveryChecklist();
+  const hsPenalty = hsResult.penalty;
+  const coverUpToDate = hsResult.coverUpToDate;
+
+  // Macro composition (spec §1.6): global = DS conformity − a11y gate − HS, floored at 0.
+  const overall = Math.max(0, conformityScore - a11yGatePenalty - hsPenalty);
   // Headline band must match the penalized number, not the raw DS score.
   const label = formatScoreLabel(overall);
   const color = getScoreColor(overall);
@@ -338,8 +352,8 @@ export async function runQualityCheck(
     legacyDebtPercent,      // Plan 02 (SCORE-03) — derived from foreign-library bindings
     a11yFramePresent,       // Plan 03 (SCORE-04) — real name-detection from the pass
     a11yGatePenalty,        // Plan 03 (SCORE-04) — fixed penalty when the frame is absent
-    hsPenalty: 0,           // Plan 04 (HS-01)
-    coverUpToDate: true,    // Plan 04 (HS-01)
-    hsChecklist: [],        // Plan 04 (HS-01)
+    hsPenalty,               // Plan 04 (HS-01) — clamped soft penalty, folded into overall
+    coverUpToDate,           // Plan 04 (HS-01) — cover hard-gate flag (enforced at Je livre)
+    hsChecklist: hsResult.items, // Plan 04 (HS-01) — per-item pass/penalty breakdown
   };
 }
