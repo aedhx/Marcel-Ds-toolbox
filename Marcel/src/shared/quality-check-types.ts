@@ -31,4 +31,28 @@ export interface QualityCheckResult extends ScoreResult {
   // True only if the scan was cancelled. On cancel, runQualityCheck returns null
   // (discard-on-cancel, D-09) — this flag is `false` on any returned result.
   cancelled: boolean;
+
+  // ── Penalty-model fields (Phase 5.2) ──
+  // The DS conformity headline = 100 − Σ capped category penalties (SCORE-01).
+  // Set by runQualityCheck from calculatePenaltyScore (Plan 01). For now
+  // `overall === conformityScore`; the a11y gate (Plan 03) will later derive
+  // `overall = conformityScore − a11yGatePenalty`.
+  conformityScore: number;
+
+  // Legacy dual-view — DS debt bound to an old/frozen library, counted apart
+  // from the penalty score (SCORE-03). Populated by Plan 02.
+  legacyDebtPercent?: number;
+
+  // Accessibility presence gate — lot 1 (SCORE-04). Populated by Plan 03.
+  // `a11yFramePresent` = the standard a11y frame was found by name;
+  // `a11yGatePenalty` = points subtracted from the global score when absent.
+  a11yFramePresent?: boolean;
+  a11yGatePenalty?: number;
+
+  // HS delivery checklist (HS-01). Populated by Plan 04.
+  // `hsPenalty` = total soft penalty from HS items; `coverUpToDate` = the hard
+  // gate condition; `hsChecklist` = per-item pass/penalty breakdown.
+  hsPenalty?: number;
+  coverUpToDate?: boolean;
+  hsChecklist?: Array<{ id: string; ok: boolean; penalty: number }>;
 }

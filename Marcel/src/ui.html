@@ -3440,6 +3440,8 @@
         <div id="panel-start" class="moment-panel" role="tabpanel">
           <div class="moment-heading" data-i18n="nav.start.title">Je démarre</div>
           <div class="moment-body" data-i18n="nav.start.body">Start a new file with the right structure.</div>
+          <!-- Door A · blank file → Starter Kit (default; toggled by init-context.hasProjectPages) -->
+          <div id="start-blank-door">
           <button class="btn-primary" id="moment-start-cta" data-i18n="nav.start.cta">Open Starter Kit</button>
           <!-- D-06 / START-04: DS-Library template re-surfaced as a SUBORDINATE secondary
                action below the prd primary (never a 2nd brand button). Posts
@@ -3473,6 +3475,32 @@
             <span style="font-size: 12px; font-weight: 400;" data-i18n="start.cover.init"
               >Cover initialized to 'In Progress'.</span
             >
+          </div>
+          </div><!-- /start-blank-door -->
+
+          <!-- ── Door B · existing file → Audit mode (AUDIT-01, spec §3) ──
+               Non-destructive, opt-in: diagnose → tick fixes → Apply → baseline QC.
+               Revealed by init-context.hasProjectPages; hidden for blank files. -->
+          <div id="start-audit-panel" class="hidden">
+            <div class="moment-body" data-i18n="start.audit.intro"
+              >This file already has content. Run an audit to check its structure — nothing is changed without your consent.</div>
+            <button class="btn-primary" id="start-audit-diagnose" data-i18n="start.audit.diagnose"
+              >Diagnose the file</button>
+            <div id="start-audit-result" class="hidden" style="margin-top: var(--spacing-l);">
+              <div class="moment-heading" data-i18n="start.audit.result.title"
+                >Structure diagnosis</div>
+              <div id="start-audit-status" style="margin: var(--spacing-s) 0;"></div>
+              <div id="start-audit-checklist" style="margin: var(--spacing-s) 0;"></div>
+              <button class="btn-primary" id="start-audit-apply" data-i18n="start.audit.apply"
+                >Apply selected fixes</button>
+              <div class="moment-meta" style="margin-top: var(--spacing-xs);" data-i18n="start.audit.optin"
+                >Nothing is applied until you tick a box and click Apply.</div>
+              <button class="moment-secondary-btn" id="start-audit-qc"
+                      style="margin-top: var(--spacing-l);" data-i18n="start.audit.qc"
+                >Run a baseline Quality Check</button>
+              <div class="moment-meta" style="margin-top: var(--spacing-xs);" data-i18n="start.audit.qc.caption"
+                >Get a starting score for this file.</div>
+            </div>
           </div>
         </div>
 
@@ -3744,6 +3772,48 @@
                 style="margin-top: var(--spacing-s);"
               ></div>
 
+              <!-- PROFILE-01 (spec §1.7): governed project profile picker. Options
+                   are populated from the delivery-profile-config message (the closed
+                   list lives in scoring-config, never hardcoded here); the selected
+                   profile's threshold arms the gate's score condition below. -->
+              <div id="deliver-profile-block" style="margin-top: var(--spacing-l);">
+                <label
+                  for="deliver-profile-select"
+                  style="
+                    display: block;
+                    font-size: 12px;
+                    font-weight: 400;
+                    line-height: 1.4;
+                    margin-bottom: var(--spacing-xs);
+                  "
+                  data-i18n="deliver.profile.label"
+                  >Project profile</label
+                >
+                <select
+                  id="deliver-profile-select"
+                  style="
+                    width: 100%;
+                    padding: var(--spacing-s);
+                    font-size: 14px;
+                    border: 1px solid var(--border-default);
+                    border-radius: var(--radius-m);
+                    background: var(--bg-default);
+                    color: var(--content-default);
+                    cursor: pointer;
+                  "
+                ></select>
+                <div
+                  id="deliver-profile-threshold"
+                  style="
+                    margin-top: var(--spacing-xs);
+                    font-size: 12px;
+                    font-weight: 400;
+                    line-height: 1.4;
+                    color: var(--content-subtler);
+                  "
+                ></div>
+              </div>
+
               <!-- Score block (reuse qcDonut/qcScoreLabel/qcScoreColor — D-02) -->
               <div
                 id="deliver-score-block"
@@ -3855,6 +3925,54 @@
                 </div>
               </div>
 
+              <!-- SCORE-04 (UI half — spec §1.8): when the Quality Check found no
+                   a11y frame by name, surface a visible warning + a shortcut that
+                   force-launches the a11y plugin via the hardened open-external
+                   (T-051-01, same canonical URL). Additive to the manual checkbox;
+                   never disables "Mark as Design Done" (soft gate). -->
+              <div
+                id="deliver-a11y-missing"
+                class="hidden"
+                style="
+                  margin-top: var(--spacing-l);
+                  border-left: 4px solid #8a5f00;
+                  background: var(--bg-subtle);
+                  border-radius: var(--radius-m);
+                  padding: var(--spacing-m);
+                "
+              >
+                <div
+                  style="
+                    font-size: 13px;
+                    font-weight: 700;
+                    line-height: 1.4;
+                    color: #8a5f00;
+                  "
+                  data-i18n="deliver.a11y.missing.warn"
+                >
+                  No accessibility frame found in this file.
+                </div>
+                <div
+                  style="
+                    font-size: 12px;
+                    font-weight: 400;
+                    line-height: 1.4;
+                    margin-top: var(--spacing-xs);
+                  "
+                  data-i18n="deliver.a11y.missing.body"
+                >
+                  Add one via the accessibility plugin, then re-run the Quality Check.
+                </div>
+                <button
+                  class="btn-secondary"
+                  id="deliver-a11y-launch-btn"
+                  style="margin-top: var(--spacing-s);"
+                  data-i18n="deliver.a11y.launch"
+                >
+                  Launch the accessibility plugin ↗
+                </button>
+              </div>
+
               <!-- A11y annotation-export path (DELIVER-03 — manual, no automated export) -->
               <div
                 style="
@@ -3899,6 +4017,49 @@
               >
                 Mark as Design Done
               </button>
+
+              <!-- EXPORT-01 (spec §2): one-click copyable delivery summary for Jira.
+                   Aggregate-only (score, profile, legacy %, a11y, file·page, date) —
+                   NO design content leaves the file. Mirrors the in-file badge. -->
+              <div style="margin-top: var(--spacing-l);">
+                <div
+                  style="
+                    font-size: 13px;
+                    font-weight: 700;
+                    line-height: 1.4;
+                    margin-bottom: var(--spacing-xs);
+                  "
+                  data-i18n="deliver.stamp.copy.title"
+                >
+                  Delivery summary
+                </div>
+                <textarea
+                  id="deliver-stamp-text"
+                  readonly
+                  rows="7"
+                  style="
+                    width: 100%;
+                    box-sizing: border-box;
+                    font-size: 12px;
+                    line-height: 1.5;
+                    font-family: monospace;
+                    color: var(--content-default);
+                    background: var(--bg-subtle);
+                    border: 1px solid var(--border-default);
+                    border-radius: var(--radius-m);
+                    padding: var(--spacing-s);
+                    resize: vertical;
+                  "
+                ></textarea>
+                <button
+                  class="btn-secondary"
+                  id="deliver-stamp-copy-btn"
+                  style="margin-top: var(--spacing-s); width: 100%;"
+                  data-i18n="deliver.stamp.copy.btn"
+                >
+                  Copy for Jira
+                </button>
+              </div>
             </div>
           </div>
 
@@ -5756,6 +5917,17 @@
           "deliver.markdone": "Mark as Design Done",
           "deliver.done": "Cover marked 'Design Done'.",
           "deliver.done.back": "Back to the gate",
+          "deliver.stamp.copy.title": "Marcel — Delivery Quality Check",
+          "deliver.stamp.copy.btn": "Copy for Jira",
+          "deliver.stamp.copy.done": "Copied ✓",
+          "deliver.stamp.line.score": "DS conformity: {score}/100 {mark} (≥ {threshold})",
+          "deliver.stamp.line.profile": "Profile: {label} (threshold {threshold})",
+          "deliver.stamp.line.legacy": "Legacy debt: {percent}%",
+          "deliver.stamp.line.a11y": "Accessibility: {state}",
+          "deliver.stamp.line.file": "File · Page: {file} · {page}",
+          "deliver.stamp.line.date": "Date: {date}",
+          "deliver.stamp.a11y.complete": "complete",
+          "deliver.stamp.a11y.incomplete": "incomplete",
           "deliver.check.score.label": "Quality Check score",
           "deliver.check.score.met": "Score {score}/100 — above threshold ✓",
           "deliver.check.score.unmet": "Score {score}/100 — below recommended threshold",
@@ -5765,6 +5937,12 @@
           "deliver.check.cover.met": "Cover exists and is up to date ✓",
           "deliver.check.cover.unmet": "Update the Cover before handing off",
           "deliver.a11y.export": "Export your accessibility annotations from the external plugin ↗",
+          "deliver.profile.label": "Project profile",
+          "deliver.profile.threshold": "threshold {threshold}",
+          "deliver.profile.active": "Profile: {label} · threshold {threshold}",
+          "deliver.a11y.missing.warn": "No accessibility frame found in this file.",
+          "deliver.a11y.missing.body": "Add one via the accessibility plugin, then re-run the Quality Check.",
+          "deliver.a11y.launch": "Launch the accessibility plugin ↗",
           "qc.run": "Run Quality Check", "qc.rescan": "Rescan", "qc.cancel": "Cancel",
           "qc.scope.page": "Page", "qc.scope.selection": "Selection", "qc.scope.file": "Entire file",
           "qc.scanning": "Scanning…",
@@ -5908,6 +6086,22 @@
           "build.tool.fullpanel": "Open full tool ↗",
           "start.dslib": "Start from the DS Library",
           "start.dslib.caption": "Creates a file from the DS Library template.",
+          "start.audit.intro": "This file already has content. Run an audit to check its structure — nothing is changed without your consent.",
+          "start.audit.diagnose": "Diagnose the file",
+          "start.audit.result.title": "Structure diagnosis",
+          "start.audit.apply": "Apply selected fixes",
+          "start.audit.optin": "Nothing is applied until you tick a box and click Apply.",
+          "start.audit.qc": "Run a baseline Quality Check",
+          "start.audit.qc.caption": "Get a starting score for this file.",
+          "start.audit.state.cover": "Cover present",
+          "start.audit.state.legacy": "legacy cover to replace",
+          "start.audit.state.archives": "Archives page present",
+          "start.audit.state.named": "File is named",
+          "start.audit.fix.gencover": "Generate a cover",
+          "start.audit.fix.replacelegacy": "Replace the legacy cover with the current DS cover",
+          "start.audit.fix.addpage": "Add missing page:",
+          "start.audit.nofix": "Structure looks complete — no upgrade needed.",
+          "start.audit.nothing": "Tick at least one fix before applying.",
           "state.scan.none": "Not scanned yet",
           "state.scan.done": "Scan done",
           "state.cover.prefix": "Cover: ",
@@ -5939,6 +6133,17 @@
           "deliver.markdone": "Marquer comme Design Done",
           "deliver.done": "Cover marquée « Design Done ».",
           "deliver.done.back": "Retour au gate",
+          "deliver.stamp.copy.title": "Marcel — Livraison Quality Check",
+          "deliver.stamp.copy.btn": "Copier pour Jira",
+          "deliver.stamp.copy.done": "Copié ✓",
+          "deliver.stamp.line.score": "Conformité DS : {score}/100 {mark} (≥ {threshold})",
+          "deliver.stamp.line.profile": "Profil : {label} (seuil {threshold})",
+          "deliver.stamp.line.legacy": "Dette legacy : {percent}%",
+          "deliver.stamp.line.a11y": "Accessibilité : {state}",
+          "deliver.stamp.line.file": "Fichier · Page : {file} · {page}",
+          "deliver.stamp.line.date": "Date : {date}",
+          "deliver.stamp.a11y.complete": "complète",
+          "deliver.stamp.a11y.incomplete": "incomplète",
           "deliver.check.score.label": "Score Quality Check",
           "deliver.check.score.met": "Score {score}/100 — au-dessus du seuil ✓",
           "deliver.check.score.unmet": "Score {score}/100 — sous le seuil recommandé",
@@ -5948,6 +6153,12 @@
           "deliver.check.cover.met": "La Cover existe et est à jour ✓",
           "deliver.check.cover.unmet": "Mettez à jour la Cover avant de livrer",
           "deliver.a11y.export": "Exportez vos annotations d'accessibilité depuis le plugin externe ↗",
+          "deliver.profile.label": "Profil du projet",
+          "deliver.profile.threshold": "seuil {threshold}",
+          "deliver.profile.active": "Profil : {label} · seuil {threshold}",
+          "deliver.a11y.missing.warn": "Aucune frame d'accessibilité trouvée dans ce fichier.",
+          "deliver.a11y.missing.body": "Ajoutez-en une via le plugin d'accessibilité, puis relancez le Quality Check.",
+          "deliver.a11y.launch": "Lancer le plugin d'accessibilité ↗",
           "qc.run": "Lancer le Quality Check", "qc.rescan": "Relancer l'analyse", "qc.cancel": "Annuler",
           "qc.scope.page": "Page", "qc.scope.selection": "Sélection", "qc.scope.file": "Fichier entier",
           "qc.scanning": "Analyse en cours…",
@@ -5984,6 +6195,22 @@
           "build.tool.fullpanel": "Ouvrir l'outil complet ↗",
           "start.dslib": "Démarrer depuis la librairie DS",
           "start.dslib.caption": "Crée un fichier basé sur le template Librairie DS.",
+          "start.audit.intro": "Ce fichier contient déjà du contenu. Lancez un audit pour vérifier sa structure — rien n'est modifié sans votre consentement.",
+          "start.audit.diagnose": "Diagnostiquer le fichier",
+          "start.audit.result.title": "Diagnostic de la structure",
+          "start.audit.apply": "Appliquer les correctifs cochés",
+          "start.audit.optin": "Rien n'est appliqué tant que vous ne cochez pas une case et cliquez sur Appliquer.",
+          "start.audit.qc": "Lancer un Quality Check de départ",
+          "start.audit.qc.caption": "Obtenez un score de départ pour ce fichier.",
+          "start.audit.state.cover": "Cover présente",
+          "start.audit.state.legacy": "cover legacy à remplacer",
+          "start.audit.state.archives": "Page Archives présente",
+          "start.audit.state.named": "Fichier nommé",
+          "start.audit.fix.gencover": "Générer une cover",
+          "start.audit.fix.replacelegacy": "Remplacer la cover legacy par la cover DS actuelle",
+          "start.audit.fix.addpage": "Ajouter la page manquante :",
+          "start.audit.nofix": "La structure semble complète — aucune mise à niveau nécessaire.",
+          "start.audit.nothing": "Cochez au moins un correctif avant d'appliquer.",
           "state.scan.none": "Pas encore scanné",
           "state.scan.done": "Scan effectué",
           "state.cover.prefix": "Cover : ",
@@ -6013,6 +6240,17 @@
           "deliver.markdone": "Marcar como Design Done",
           "deliver.done": "Cover marcada como « Design Done ».",
           "deliver.done.back": "Voltar ao gate",
+          "deliver.stamp.copy.title": "Marcel — Entrega Quality Check",
+          "deliver.stamp.copy.btn": "Copiar para o Jira",
+          "deliver.stamp.copy.done": "Copiado ✓",
+          "deliver.stamp.line.score": "Conformidade DS: {score}/100 {mark} (≥ {threshold})",
+          "deliver.stamp.line.profile": "Perfil: {label} (limite {threshold})",
+          "deliver.stamp.line.legacy": "Dívida legacy: {percent}%",
+          "deliver.stamp.line.a11y": "Acessibilidade: {state}",
+          "deliver.stamp.line.file": "Arquivo · Página: {file} · {page}",
+          "deliver.stamp.line.date": "Data: {date}",
+          "deliver.stamp.a11y.complete": "completa",
+          "deliver.stamp.a11y.incomplete": "incompleta",
           "deliver.check.score.label": "Score do Quality Check",
           "deliver.check.score.met": "Score {score}/100 — acima do limite ✓",
           "deliver.check.score.unmet": "Score {score}/100 — abaixo do limite recomendado",
@@ -6022,6 +6260,12 @@
           "deliver.check.cover.met": "A Cover existe e está atualizada ✓",
           "deliver.check.cover.unmet": "Atualize a Cover antes da entrega",
           "deliver.a11y.export": "Exporte suas anotações de acessibilidade do plugin externo ↗",
+          "deliver.profile.label": "Perfil do projeto",
+          "deliver.profile.threshold": "limite {threshold}",
+          "deliver.profile.active": "Perfil: {label} · limite {threshold}",
+          "deliver.a11y.missing.warn": "Nenhuma frame de acessibilidade encontrada neste arquivo.",
+          "deliver.a11y.missing.body": "Adicione uma via o plugin de acessibilidade e execute novamente o Quality Check.",
+          "deliver.a11y.launch": "Abrir o plugin de acessibilidade ↗",
           "qc.run": "Executar o Quality Check", "qc.rescan": "Refazer a análise", "qc.cancel": "Cancelar",
           "qc.scope.page": "Página", "qc.scope.selection": "Seleção", "qc.scope.file": "Arquivo inteiro",
           "qc.scanning": "Analisando…",
@@ -6058,6 +6302,22 @@
           "build.tool.fullpanel": "Abrir a ferramenta completa ↗",
           "start.dslib": "Começar a partir da biblioteca DS",
           "start.dslib.caption": "Cria um arquivo a partir do modelo da biblioteca DS.",
+          "start.audit.intro": "Este arquivo já tem conteúdo. Faça uma auditoria para verificar sua estrutura — nada é alterado sem o seu consentimento.",
+          "start.audit.diagnose": "Diagnosticar o arquivo",
+          "start.audit.result.title": "Diagnóstico da estrutura",
+          "start.audit.apply": "Aplicar as correções marcadas",
+          "start.audit.optin": "Nada é aplicado até você marcar uma caixa e clicar em Aplicar.",
+          "start.audit.qc": "Rodar um Quality Check inicial",
+          "start.audit.qc.caption": "Obtenha uma pontuação inicial para este arquivo.",
+          "start.audit.state.cover": "Cover presente",
+          "start.audit.state.legacy": "cover legada a substituir",
+          "start.audit.state.archives": "Página Archives presente",
+          "start.audit.state.named": "Arquivo nomeado",
+          "start.audit.fix.gencover": "Gerar uma cover",
+          "start.audit.fix.replacelegacy": "Substituir a cover legada pela cover DS atual",
+          "start.audit.fix.addpage": "Adicionar página ausente:",
+          "start.audit.nofix": "A estrutura parece completa — nenhuma atualização necessária.",
+          "start.audit.nothing": "Marque pelo menos uma correção antes de aplicar.",
           "state.scan.none": "Ainda não verificado",
           "state.scan.done": "Verificação concluída",
           "state.cover.prefix": "Capa: ",
@@ -6240,6 +6500,12 @@
             { pluginMessage: { type: "load-cover-config" } },
             "*",
           );
+          // PROFILE-01: pull the governed profile list + current selection so the
+          // gate threshold comes from scoring-config (single calibration source).
+          parent.postMessage(
+            { pluginMessage: { type: "load-delivery-profile-config" } },
+            "*",
+          );
           renderDeliverGate();
         }
       }
@@ -6271,6 +6537,133 @@
             "*",
           );
         });
+      // ══════════════════════════════════════════════
+      //  Je démarre · Audit mode (AUDIT-01, spec §3)
+      // ══════════════════════════════════════════════
+      // Two doors: blank file → Starter Kit (start-blank-door); existing file →
+      // Audit panel (start-audit-panel). Everything in the audit is opt-in and
+      // non-destructive — the sandbox applies ONLY ticked selections.
+
+      // Toggle the Je démarre door from init-context.hasProjectPages.
+      function applyStartDoor(hasProjectPages) {
+        var blankDoor = document.getElementById("start-blank-door");
+        var auditPanel = document.getElementById("start-audit-panel");
+        if (blankDoor) blankDoor.classList.toggle("hidden", hasProjectPages);
+        if (auditPanel) auditPanel.classList.toggle("hidden", !hasProjectPages);
+      }
+
+      // Escape user/DS page names before injecting into the checklist markup.
+      function auditEsc(s) {
+        return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+          return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+        });
+      }
+
+      // Render the structure diagnosis: read-only status + opt-in fix checkboxes.
+      function renderAuditDiagnosis(d) {
+        d = d || {};
+        var resultEl = document.getElementById("start-audit-result");
+        var statusEl = document.getElementById("start-audit-status");
+        var listEl = document.getElementById("start-audit-checklist");
+        var applyBtn = document.getElementById("start-audit-apply");
+        if (!resultEl || !statusEl || !listEl) return;
+
+        // Read-only état des lieux (what the file looks like today).
+        var yes = "✓", no = "—";
+        statusEl.innerHTML =
+          '<div class="moment-meta">' +
+          (d.hasCover ? yes : no) + " " + auditEsc(t("start.audit.state.cover")) +
+          (d.coverIsLegacy ? " (" + auditEsc(t("start.audit.state.legacy")) + ")" : "") +
+          "<br>" + (d.hasArchives ? yes : no) + " " + auditEsc(t("start.audit.state.archives")) +
+          "<br>" + (d.fileNamed ? yes : no) + " " + auditEsc(t("start.audit.state.named")) +
+          "</div>";
+
+        // Opt-in fixes — one checkbox per applicable gap. Nothing pre-checked.
+        var rows = "";
+        if (!d.hasCover) {
+          rows +=
+            '<label class="audit-fix-row" style="display:flex;gap:8px;align-items:flex-start;margin:6px 0;">' +
+            '<input type="checkbox" id="audit-fix-gencover">' +
+            "<span>" + auditEsc(t("start.audit.fix.gencover")) + "</span></label>";
+        }
+        if (d.coverIsLegacy) {
+          rows +=
+            '<label class="audit-fix-row" style="display:flex;gap:8px;align-items:flex-start;margin:6px 0;">' +
+            '<input type="checkbox" id="audit-fix-replacelegacy">' +
+            "<span>" + auditEsc(t("start.audit.fix.replacelegacy")) + "</span></label>";
+        }
+        var missing = d.missingStandardPages || [];
+        for (var i = 0; i < missing.length; i++) {
+          rows +=
+            '<label class="audit-fix-row" style="display:flex;gap:8px;align-items:flex-start;margin:6px 0;">' +
+            '<input type="checkbox" class="audit-fix-addpage" data-page="' + auditEsc(missing[i]) + '">' +
+            "<span>" + auditEsc(t("start.audit.fix.addpage")) + " " + auditEsc(missing[i]) + "</span></label>";
+        }
+
+        if (rows === "") {
+          rows = '<div class="moment-meta">' + auditEsc(t("start.audit.nofix")) + "</div>";
+          if (applyBtn) applyBtn.classList.add("hidden");
+        } else if (applyBtn) {
+          applyBtn.classList.remove("hidden");
+        }
+        listEl.innerHTML = rows;
+        resultEl.classList.remove("hidden");
+      }
+
+      // Gather ONLY the ticked fixes — this is the consent boundary.
+      function collectAuditSelections() {
+        var gen = document.getElementById("audit-fix-gencover");
+        var rep = document.getElementById("audit-fix-replacelegacy");
+        var addMissingPages = [];
+        var boxes = document.querySelectorAll(".audit-fix-addpage");
+        for (var i = 0; i < boxes.length; i++) {
+          if (boxes[i].checked) addMissingPages.push(boxes[i].getAttribute("data-page"));
+        }
+        return {
+          generateCover: !!(gen && gen.checked),
+          replaceLegacyCover: !!(rep && rep.checked),
+          addMissingPages: addMissingPages,
+        };
+      }
+
+      var auditDiagnoseBtn = document.getElementById("start-audit-diagnose");
+      if (auditDiagnoseBtn)
+        auditDiagnoseBtn.addEventListener("click", function () {
+          parent.postMessage({ pluginMessage: { type: "diagnose-file-structure" } }, "*");
+        });
+
+      var auditApplyBtn = document.getElementById("start-audit-apply");
+      if (auditApplyBtn)
+        auditApplyBtn.addEventListener("click", function () {
+          var selections = collectAuditSelections();
+          // Guard: no-op if the user ticked nothing (consent boundary).
+          if (
+            !selections.generateCover &&
+            !selections.replaceLegacyCover &&
+            selections.addMissingPages.length === 0
+          ) {
+            var statusEl = document.getElementById("start-audit-status");
+            if (statusEl) statusEl.textContent = t("start.audit.nothing");
+            return;
+          }
+          parent.postMessage(
+            { pluginMessage: { type: "apply-structure-upgrade", selections: selections } },
+            "*",
+          );
+        });
+
+      var auditQcBtn = document.getElementById("start-audit-qc");
+      if (auditQcBtn)
+        auditQcBtn.addEventListener("click", function () {
+          // Baseline Quality Check on the current page — shown in Je construis.
+          switchMoment("build");
+          parent.postMessage(
+            { pluginMessage: { type: "run-quality-check", scope: "page" } },
+            "*",
+          );
+          if (typeof qcShowView === "function") qcShowView("scanning");
+        });
+
       var momentImportCta = document.getElementById("moment-import-cta");
       if (momentImportCta)
         momentImportCta.addEventListener("click", function () {
@@ -6346,15 +6739,74 @@
         });
 
       // Mark Design Done — ALWAYS enabled (soft gate D-01); the ONLY new-UI writer
-      // of Cover status "Design Done" (D-05). Reuses the existing generate-cover.
+      // of Cover status "Design Done" (D-05). EXPORT-01 (spec §2): this now posts
+      // generate-delivery-stamp, which BOTH generates the in-file badge AND flips
+      // the Cover to Design Done in one sandbox action. The badge reflects pass/fail
+      // honestly (soft gate — never hard-blocked).
       var deliverMarkdoneBtn = document.getElementById("deliver-markdone-btn");
       if (deliverMarkdoneBtn)
         deliverMarkdoneBtn.addEventListener("click", function () {
+          var stampData = buildDeliveryStampData();
+          if (!stampData) return; // no scan yet — gate shows noscan view anyway
           deliverMarkdonePending = true;
           parent.postMessage(
-            { pluginMessage: { type: "generate-cover", status: "Design Done" } },
+            { pluginMessage: { type: "generate-delivery-stamp", data: stampData } },
             "*",
           );
+        });
+
+      // EXPORT-01: "Copier pour Jira" — copy the aggregate summary to the clipboard.
+      // Prefers the async Clipboard API, falls back to execCommand for older iframes.
+      var deliverStampCopyBtn = document.getElementById("deliver-stamp-copy-btn");
+      if (deliverStampCopyBtn)
+        deliverStampCopyBtn.addEventListener("click", function () {
+          var ta = document.getElementById("deliver-stamp-text");
+          if (!ta) return;
+          var text = ta.value || "";
+          function markCopied() {
+            deliverStampCopyBtn.textContent = t("deliver.stamp.copy.done");
+            setTimeout(function () {
+              deliverStampCopyBtn.textContent = t("deliver.stamp.copy.btn");
+            }, 2000);
+          }
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(markCopied, function () {
+              ta.select();
+              document.execCommand("copy");
+              markCopied();
+            });
+          } else {
+            ta.select();
+            document.execCommand("copy");
+            markCopied();
+          }
+        });
+
+      // PROFILE-01: governed profile picker. On change, persist the choice on the
+      // Cover config (validated against the closed list on the sandbox side) and
+      // re-arm the gate threshold. Never blocks the Mark-Done button (soft gate).
+      var deliverProfileSelect = document.getElementById("deliver-profile-select");
+      if (deliverProfileSelect)
+        deliverProfileSelect.addEventListener("change", function () {
+          selectedDeliveryProfileId = deliverProfileSelect.value;
+          parent.postMessage(
+            {
+              pluginMessage: {
+                type: "set-project-profile",
+                profileId: selectedDeliveryProfileId,
+              },
+            },
+            "*",
+          );
+          renderDeliverGate();
+        });
+
+      // SCORE-04 (UI half): a11y-absence force-launch — same hardened open-external
+      // path + single canonical URL as the export link (T-051-01).
+      var deliverA11yLaunchBtn = document.getElementById("deliver-a11y-launch-btn");
+      if (deliverA11yLaunchBtn)
+        deliverA11yLaunchBtn.addEventListener("click", function () {
+          openA11yPlugin();
         });
 
       // Done-state "back" — re-render the gate (cover-ready row now flips to met).
@@ -7588,7 +8040,23 @@
         // ── Always start on the 3-moment shell (NAV-01), Je construis (D-03) ──
         if (msg.type === "init-context") {
           switchMoment("build");
+          // AUDIT-01: pick the Je démarre door — blank file keeps the Starter Kit
+          // CTA; an existing file reveals the Audit panel instead.
+          applyStartDoor(!!msg.hasProjectPages);
           parent.postMessage({ pluginMessage: { type: "get-language" } }, "*");
+        }
+
+        // ── Je démarre · Audit mode (AUDIT-01, spec §3) ──
+        if (msg.type === "file-structure-diagnosis") {
+          renderAuditDiagnosis(msg.diagnosis);
+        }
+        if (msg.type === "structure-upgrade-applied") {
+          // Re-diagnose so the checklist reflects what is now in the file.
+          parent.postMessage({ pluginMessage: { type: "diagnose-file-structure" } }, "*");
+        }
+        if (msg.type === "structure-upgrade-error") {
+          var auditErr = document.getElementById("start-audit-status");
+          if (auditErr && msg.message) auditErr.textContent = msg.message;
         }
 
         // ── i18n: apply the locale the main thread reports (init hydrate + after set-language) ──
@@ -7983,7 +8451,24 @@
             .classList.add("hidden");
         }
 
+        // EXPORT-01 (spec §2): the badge was generated AND the Cover flipped to
+        // Design Done in one sandbox action. Reflect both in the gate.
+        if (msg.type === "delivery-stamp-generated") {
+          deliverMarkdonePending = false;
+          coverStatus = "Design Done";
+          deliverShowView("done");
+        }
+        if (msg.type === "delivery-stamp-error") {
+          // Soft failure — keep the gate visible; the sandbox already notified.
+          deliverMarkdonePending = false;
+          renderDeliverGate();
+        }
+
         if (msg.type === "cover-config-loaded") {
+          // EXPORT-01: capture the aggregate file/page identifiers for the stamp
+          // (privacy-safe; no design content). Sent alongside the cover config.
+          if (typeof msg.fileName === "string") deliverFileName = msg.fileName;
+          if (typeof msg.pageName === "string") deliverPageName = msg.pageName;
           if (msg.config && msg.config.projectStatus) {
             // DELIVER-01: keep the gate's cover-ready row fresh (read-only).
             coverStatus = msg.config.projectStatus;
@@ -8020,6 +8505,17 @@
                 if (buildCurrent) buildCurrent.classList.add("hidden");
               }
             }
+          }
+        }
+
+        // PROFILE-01: governed profile list + current selection from scoring-config.
+        if (msg.type === "delivery-profile-config") {
+          deliveryProfiles = Array.isArray(msg.profiles) ? msg.profiles : [];
+          selectedDeliveryProfileId = msg.selectedProfileId || null;
+          populateDeliverProfileSelect();
+          var deliverPanelP = document.getElementById("panel-deliver");
+          if (deliverPanelP && deliverPanelP.classList.contains("active")) {
+            renderDeliverGate();
           }
         }
 
@@ -9622,6 +10118,18 @@
       var deliverA11yAttested = false;   // manual a11y attestation (D-03)
       var coverStatus = null;            // last cover-config-loaded projectStatus
       var deliverMarkdonePending = false; // true between gate Mark-Done click and cover-generated reply
+      // EXPORT-01: aggregate document identifiers for the delivery stamp. Arrive
+      // from cover-config-loaded (sandbox) — the UI NEVER reads figma.* for these.
+      var deliverFileName = "";
+      var deliverPageName = "";
+      // PROFILE-01 (spec §1.7): governed profile list + selection arrive from the
+      // sandbox (delivery-profile-config) — NEVER hardcoded here. The closed list
+      // and thresholds live in scoring-config; ui.html only mirrors them.
+      var deliveryProfiles = [];         // [{ id, label, threshold }] from scoring-config
+      var selectedDeliveryProfileId = null; // persisted profile id (on the Cover config)
+      // Documented fallback used ONLY before the profile config has loaded, so the
+      // gate never crashes on first paint. Mirrors PROJECT_PROFILES "legacy" (75).
+      var DELIVER_DEFAULT_THRESHOLD = 75;
 
       // View switcher — mirrors qcShowView's class-toggle shape (states: noscan/gate/done).
       function deliverShowView(view) {
@@ -9693,6 +10201,96 @@
         badgeEl.innerHTML = statusBadge("none", label, coverStatusColor(coverStatus));
       }
 
+      // PROFILE-01: resolve the currently selected governed profile object (or null
+      // before the list has loaded). Selection is validated against the governed
+      // list on the sandbox side; here we just look it up.
+      function getSelectedDeliveryProfile() {
+        for (var i = 0; i < deliveryProfiles.length; i++) {
+          if (deliveryProfiles[i].id === selectedDeliveryProfileId)
+            return deliveryProfiles[i];
+        }
+        return null;
+      }
+
+      // The delivery threshold that arms the gate: the selected profile's threshold,
+      // falling back to the documented default only before the list has loaded.
+      function getProfileThreshold() {
+        var p = getSelectedDeliveryProfile();
+        return p ? p.threshold : DELIVER_DEFAULT_THRESHOLD;
+      }
+
+      // EXPORT-01 (spec §2): build the aggregate-only DeliveryStampData from the
+      // LIVE qcResult + selected governed profile + file/page identifiers. This is
+      // the SINGLE source for both the in-file badge (posted to the sandbox) and
+      // the copyable text — so the two always match. NEVER includes design content.
+      function buildDeliveryStampData() {
+        if (!qcResult) return null;
+        var overall = qcResult.overall;
+        var threshold = getProfileThreshold();
+        var profile = getSelectedDeliveryProfile();
+        return {
+          // DS conformity headline is the score de conformité (fallback overall).
+          dsScore:
+            typeof qcResult.conformityScore === "number"
+              ? qcResult.conformityScore
+              : overall,
+          pass: overall >= threshold,
+          profileLabel: profile ? profile.label : "—",
+          threshold: threshold,
+          legacyDebtPercent:
+            typeof qcResult.legacyDebtPercent === "number"
+              ? qcResult.legacyDebtPercent
+              : 0,
+          a11yComplete: qcResult.a11yFramePresent === true,
+          fileName: deliverFileName || "—",
+          pageName: deliverPageName || "—",
+          date: new Date().toISOString().slice(0, 10),
+        };
+      }
+
+      // Render the copyable summary as multi-line text — the SAME aggregate fields
+      // as the badge. i18n labels; no design content (privacy).
+      function buildDeliveryStampText(d) {
+        if (!d) return "";
+        return [
+          t("deliver.stamp.copy.title"),
+          t("deliver.stamp.line.score", {
+            score: d.dsScore,
+            mark: d.pass ? "✓" : "✗",
+            threshold: d.threshold,
+          }),
+          t("deliver.stamp.line.profile", {
+            label: d.profileLabel,
+            threshold: d.threshold,
+          }),
+          t("deliver.stamp.line.legacy", { percent: d.legacyDebtPercent }),
+          t("deliver.stamp.line.a11y", {
+            state: d.a11yComplete
+              ? t("deliver.stamp.a11y.complete")
+              : t("deliver.stamp.a11y.incomplete"),
+          }),
+          t("deliver.stamp.line.file", { file: d.fileName, page: d.pageName }),
+          t("deliver.stamp.line.date", { date: d.date }),
+        ].join("\n");
+      }
+
+      // PROFILE-01: (re)build the <option> list from the governed profiles and select
+      // the persisted one. The list ONLY comes from delivery-profile-config.
+      function populateDeliverProfileSelect() {
+        var sel = document.getElementById("deliver-profile-select");
+        if (!sel) return;
+        var html = "";
+        for (var i = 0; i < deliveryProfiles.length; i++) {
+          var pr = deliveryProfiles[i];
+          html +=
+            '<option value="' + escapeAttr(pr.id) + '">' +
+            escapeHtml(pr.label) + " · " + t("deliver.profile.threshold", { threshold: pr.threshold }) +
+            "</option>";
+        }
+        sel.innerHTML = html;
+        if (selectedDeliveryProfileId) sel.value = selectedDeliveryProfileId;
+      }
+
       // Recompute the gate from the LIVE qcResult + coverStatus + attestation (no caching).
       function renderDeliverGate() {
         // Pitfall 3: branch on null FIRST — no persisted fallback (D-04).
@@ -9702,7 +10300,10 @@
         }
 
         var overall = qcResult.overall;
-        var scorePass = overall >= 75;          // D-02 "good" band — no new threshold
+        // PROFILE-01: the score condition is armed by the SELECTED governed profile's
+        // threshold (from scoring-config), not a hardcoded 75.
+        var profileThreshold = getProfileThreshold();
+        var scorePass = overall >= profileThreshold;
         var coverReady = !!(coverStatus && coverStatus !== "");
         var a11yMet = deliverA11yAttested;
         var anyUnmet = !scorePass || !a11yMet || !coverReady;
@@ -9717,6 +10318,21 @@
             escapeHtml(qcScoreLabel(overall)) + "</div>" +
             '<div style="font-size:12px;font-weight:400;color:var(--content-subtler);">' +
             "Score " + overall + "/100</div>";
+        }
+
+        // ── Profile picker sync + active-threshold caption (PROFILE-01) ──
+        var profileSelectEl = document.getElementById("deliver-profile-select");
+        if (profileSelectEl && selectedDeliveryProfileId)
+          profileSelectEl.value = selectedDeliveryProfileId;
+        var profileThresholdEl = document.getElementById("deliver-profile-threshold");
+        if (profileThresholdEl) {
+          var activeProfile = getSelectedDeliveryProfile();
+          profileThresholdEl.textContent = activeProfile
+            ? t("deliver.profile.active", {
+                label: activeProfile.label,
+                threshold: activeProfile.threshold,
+              })
+            : t("deliver.profile.threshold", { threshold: profileThreshold });
         }
 
         // ── Score row ──
@@ -9771,6 +10387,20 @@
           }
         }
         if (warnCaption) warnCaption.classList.toggle("hidden", !anyUnmet);
+
+        // ── SCORE-04 (UI half): a11y-frame-absence warning + force-launch ──
+        // qcResult.a11yFramePresent is set by the QC engine (Plan 03). Only warn
+        // when it is explicitly false (undefined = not evaluated → stay silent).
+        var a11yMissingEl = document.getElementById("deliver-a11y-missing");
+        if (a11yMissingEl) {
+          var a11yAbsent = qcResult.a11yFramePresent === false;
+          a11yMissingEl.classList.toggle("hidden", !a11yAbsent);
+        }
+
+        // ── EXPORT-01: refresh the copyable summary from the live stamp data ──
+        var stampTextEl = document.getElementById("deliver-stamp-text");
+        if (stampTextEl)
+          stampTextEl.value = buildDeliveryStampText(buildDeliveryStampData());
 
         deliverShowView("gate");
       }

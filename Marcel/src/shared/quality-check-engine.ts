@@ -12,8 +12,8 @@
 // const/let + single quotes (matches hc-engine, the prototype).
 
 import { traverseNodes, type TraversalScope, type ScanAbortToken } from './node-traversal';
-import { buildScoreResult, calculateWeightedCategoryScore, DEFAULT_SEVERITY_WEIGHTS } from './scoring';
-import type { CategoryScore } from './scoring';
+import { calculatePenaltyScore, formatScoreLabel, getScoreColor } from './scoring';
+import { A11Y_FRAME_NAME, A11Y_ABSENT_PENALTY } from './scoring-config';
 import { type Violation } from './violation-types';
 import { getNodeFills, getNodeStrokes } from './figma-helpers';
 import type { QualityCheckResult } from './quality-check-types';
@@ -34,19 +34,14 @@ import {
   type RawStyleBinding,
 } from '../features/dead-styles/dead-styles-engine';
 import { styleCleanerToViolations } from '../features/dead-styles/dead-styles-adapter';
+import { evaluateDeliveryChecklist } from '../features/delivery/delivery-checklist';
 
-// ── Equal-weight category weights (D-01) ──
-// Single retunable source for the SCORED categories' relative weights. All 1.0 to start
-// (equal-weight, D-01); change here once real scores are observed — no other call site edits.
-// dead-styles is deliberately ABSENT: it is non-scoring (D-02) and never entered into
-// categoryScores, so it has no weight here.
-const QC_CATEGORY_WEIGHTS: Record<string, number> = {
-  naming: 1.0,
-  colors: 1.0,
-  typography: 1.0,
-  spacing: 1.0,
-  coverage: 1.0,
-};
+// ── Scoring model (Phase 5.2) ──
+// The headline is now the penalty model (calculatePenaltyScore, spec §1.1–§1.5):
+// score = 100 − Σ capped category penalties. All tunable numbers (budgets, severity
+// fractions, rule→severity map) live in scoring-config.ts — this engine only feeds it
+// the unified violations[]. The former equal-weight QC_CATEGORY_WEIGHTS block (D-01)
+// is gone: budgets ARE the weights now (spec §1.2), owned by scoring-config.ts.
 
 // ── Default vague-name set for the naming context ──
 // Mirrors linter-engine.ts BASE_VAGUE_NAMES (the engine default, before user customVagueNames).
@@ -121,6 +116,13 @@ export async function runQualityCheck(
   const varSeenKeys = new Set<string>();
   const styleSeenKeys = new Set<string>();
 
+  // ── A11y presence gate — lot 1 (SCORE-04, spec §1.8) ──
+  // Rides the single pass: flip true the moment any visited node's name matches the
+  // standard a11y frame name (read from scoring-config — never hard-coded). Lot 2 /
+  // plugin fusion will replace this name-detection with a real a11y-completeness read.
+  const a11yFrameNameNorm = A11Y_FRAME_NAME.trim().toLowerCase();
+  let a11yFramePresent = false;
+
   let namingNodesChecked = 0;
   let colorNodesChecked = 0;
   let textNodesChecked = 0;
@@ -136,6 +138,13 @@ export async function runQualityCheck(
 
   // ── Pass 1: ONE cancellable traversal, fan out to ALL families (D-13 — no re-walk) ──
   const traversalResult = await traverseNodes((node, _depth, path) => {
+    // ── A11y frame presence (SCORE-04) — name match, case-insensitive ──
+    // Checked BEFORE the remote-instance skip so a match is never missed. A frame-type
+    // match is sufficient; any node carrying the standard name flips the gate open.
+    if (!a11yFramePresent && node.name && node.name.trim().toLowerCase() === a11yFrameNameNorm) {
+      a11yFramePresent = true;
+    }
+
     // Collect ALL instance IDs for coverage (must be BEFORE the remote skip — hc-engine 77-79)
     if (node.type === 'INSTANCE') {
       coverageInstanceIds.push(node.id);
@@ -251,32 +260,38 @@ export async function runQualityCheck(
 
   const deadStyleViolations = styleCleanerToViolations(finalized.result);
 
-  // ── Weighted score over SCORED categories ONLY (D-01/D-02/D-03/D-14) ──
-  // dead-styles is OMITTED from categoryScores — that omission IS the non-scoring mechanism (D-02).
-  const coverageCatScore: CategoryScore = {
-    category: 'coverage',
-    score: coverageResult.score === -1 ? 100 : coverageResult.score,
-    weight: coverageResult.score === -1 ? 0 : QC_CATEGORY_WEIGHTS.coverage,
-    violationCount: coverageResult.violations.length,
-    totalChecked: coverageResult.totalCount,
-  };
+  // ── Legacy dual-view (SCORE-03 — spec §1.9) ──
+  // A value bound to an OLD/frozen DS library is legacy debt, NOT a penalty. The unified
+  // pass already collected the foreign-library bindings and finalizeDeadStyles classified
+  // them into `finalized.result.foreignItems` (a binding is "foreign" iff it resolves to a
+  // remote, non-approved DS collection — see dead-styles-engine isApprovedCollection). We
+  // reuse that exact signal here rather than re-detecting legacy.
+  //
+  // legacyDebtPercent = share of scanned nodes carrying >= 1 foreign-library binding,
+  // deduped by nodeId (one node with several foreign bindings counts once). This is a pure
+  // post-pass derivation: no extra traversal, no change to the single finalizeDeadStyles call.
+  //
+  // Non-dilution guarantee (SCORE-03): foreign bindings are tagged category "dead-styles"
+  // (foreignItemToViolation) → mapped to the `components` bucket at COSMÉTIQUE severity in
+  // scoring-config (CATEGORY_OF_RULE + RULE_SEVERITY_MAP: foreign-variable/foreign-style =
+  // cosmetique). So a legacy binding is reported here AND only very lightly (cosmetique)
+  // weighted — never as a grave/moyen conformity penalty. A value bound to NOTHING
+  // (hardcoded) is not a foreign item; it stays a grave off-token-fill/off-token-stroke
+  // color penalty (a real custom fault), untouched by this block.
+  const legacyBoundNodeIds = new Set<string>();
+  for (const foreignItem of finalized.result.foreignItems) {
+    if (foreignItem.nodeId) legacyBoundNodeIds.add(foreignItem.nodeId);
+  }
+  const legacyDebtPercent = Math.round(
+    (legacyBoundNodeIds.size / Math.max(1, traversalResult.processed)) * 100
+  );
 
-  const categoryScores: CategoryScore[] = [
-    calculateWeightedCategoryScore('naming', namingViolations, namingNodesChecked, QC_CATEGORY_WEIGHTS.naming, DEFAULT_SEVERITY_WEIGHTS),
-    calculateWeightedCategoryScore('colors', colorViolations, colorNodesChecked, QC_CATEGORY_WEIGHTS.colors, DEFAULT_SEVERITY_WEIGHTS),
-    calculateWeightedCategoryScore('typography', typographyViolations, textNodesChecked, QC_CATEGORY_WEIGHTS.typography, DEFAULT_SEVERITY_WEIGHTS),
-    calculateWeightedCategoryScore('spacing', spacingViolations, layoutNodesChecked, QC_CATEGORY_WEIGHTS.spacing, DEFAULT_SEVERITY_WEIGHTS),
-    coverageCatScore,
-    // NOTE (D-02): components is scored in HC today but is NOT one of the five QC scored
-    // categories named in the must_haves (naming/colors/typography/spacing/coverage). Component
-    // violations still ride the unified violations[] below; component scoring is folded into the
-    // HC result today and is intentionally not double-counted into the QC headline here.
-  ];
-  const scoreResult = buildScoreResult(categoryScores);
-
-  // ── Assemble QualityCheckResult (D-14) ──
-  // violations[] = every family's violations concatenated, INCLUDING the dead-styles adapter
-  // output (tagged category: "dead-styles", non-scoring) and component violations.
+  // ── Assemble the unified violations[] (D-14) ──
+  // Every family's violations concatenated, INCLUDING the dead-styles adapter output
+  // (tagged category: "dead-styles") and component violations. This SAME array is both
+  // the score input (below) and the contract's violation list — one source of truth.
+  // coverage violations ride along for the UI list but are EXCLUDED from the penalty
+  // buckets by scoring-config's CATEGORY_OF_RULE (coverage → null; spec §1.11).
   const violations: Violation[] = [
     ...namingViolations,
     ...colorViolations,
@@ -287,15 +302,58 @@ export async function runQualityCheck(
     ...deadStyleViolations,
   ];
 
+  // ── Penalty-model headline (SCORE-01/SCORE-02 — spec §1.1–§1.5) ──
+  // Replaces the former calculateWeightedCategoryScore[] → buildScoreResult path.
+  // Budgets, severity map and caps all live in scoring-config.ts. dead-styles folds
+  // into the `components` bucket; coverage is excluded (spec §1.11).
+  const scoreResult = calculatePenaltyScore(violations);
+
+  // conformityScore IS the DS penalty headline — the pure DS score, kept unchanged by
+  // the a11y gate (spec §1.6: the DS score is separate from the gated global).
+  const conformityScore = scoreResult.overall;
+
+  // ── A11y presence gate (SCORE-04 — spec §1.8, lot 1) ──
+  // Absent standard a11y frame → fixed penalty off the GLOBAL score (floor 0), and flag
+  // the absence so the gate UI (Plan 05) can warn + force-launch the a11y plugin. Present
+  // frame → no penalty, global === DS conformity. Penalty is the named scoring-config
+  // constant (never a literal), satisfying T-052-06.
+  const a11yGatePenalty = a11yFramePresent ? 0 : A11Y_ABSENT_PENALTY;
+
+  // ── HS delivery checklist (HS-01 — spec §1.6/§4) ──
+  // Page-structure hygiene evaluated AFTER the pass (page-name + cover-node reads, no BFS).
+  // Its small bounded penalty folds into the GLOBAL score only — conformityScore (pure DS)
+  // is deliberately left untouched (HS is a global-only nudge, spec §1.6: DS ⊕ a11y ⊕ HS).
+  // `coverUpToDate` is only SURFACED here; the cover hard gate is enforced at the Je livre
+  // gate (Plan 06) — we do not block scanning on it. Items/penalties come from scoring-config
+  // via evaluateDeliveryChecklist (never hard-coded in the engine).
+  const hsResult = await evaluateDeliveryChecklist();
+  const hsPenalty = hsResult.penalty;
+  const coverUpToDate = hsResult.coverUpToDate;
+
+  // Macro composition (spec §1.6): global = DS conformity − a11y gate − HS, floored at 0.
+  const overall = Math.max(0, conformityScore - a11yGatePenalty - hsPenalty);
+  // Headline band must match the penalized number, not the raw DS score.
+  const label = formatScoreLabel(overall);
+  const color = getScoreColor(overall);
+
   return {
-    overall: scoreResult.overall,
-    label: scoreResult.label,
-    color: scoreResult.color,
+    overall,
+    label,
+    color,
     categories: scoreResult.categories,
     totalViolations: scoreResult.totalViolations,
     totalChecked: scoreResult.totalChecked,
     violations,
     processed: traversalResult.processed,
     cancelled: false,
+    // ── Penalty-model contract (Phase 5.2) ──
+    conformityScore,
+    // Downstream fields defaulted so the contract is fully shaped before Plan 04 lands.
+    legacyDebtPercent,      // Plan 02 (SCORE-03) — derived from foreign-library bindings
+    a11yFramePresent,       // Plan 03 (SCORE-04) — real name-detection from the pass
+    a11yGatePenalty,        // Plan 03 (SCORE-04) — fixed penalty when the frame is absent
+    hsPenalty,               // Plan 04 (HS-01) — clamped soft penalty, folded into overall
+    coverUpToDate,           // Plan 04 (HS-01) — cover hard-gate flag (enforced at Je livre)
+    hsChecklist: hsResult.items, // Plan 04 (HS-01) — per-item pass/penalty breakdown
   };
 }

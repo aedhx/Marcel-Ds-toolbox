@@ -3,6 +3,8 @@ import type { DeadStylesResult, DeadItemType, StyleCleanerResult } from '../feat
 import type { A11YResult } from '../features/accessibility/a11y-types';
 import type { QualityCheckResult } from './quality-check-types';
 import type { Violation } from './violation-types';
+import type { DeliveryStampData } from '../features/delivery/delivery-stamp';
+import type { FileStructureDiagnosis } from '../features/starter-kit/audit-mode';
 
 // ── Messages from UI to Plugin Sandbox ──
 
@@ -11,6 +13,10 @@ export type UIMessage =
   | { type: "create-starter-kit"; template: "prd" | "ds-library" }
   | { type: "check-template-exists"; template: "prd" | "ds-library" }
   | { type: "reset-all-pages" }
+  // Je démarre · Audit mode (spec §3 — AUDIT-01): diagnose an existing file's
+  // structure, then apply ONLY the consented, non-destructive upgrades.
+  | { type: "diagnose-file-structure" }
+  | { type: "apply-structure-upgrade"; selections: { generateCover: boolean; replaceLegacyCover: boolean; addMissingPages: string[] } }
   | { type: "import-ds-component"; componentKey: string }
   // Linter
   | { type: "run-linter"; scope: "page" | "selection" | "file" }
@@ -44,6 +50,12 @@ export type UIMessage =
   // Cover Updater
   | { type: "generate-cover"; status: string }
   | { type: "load-cover-config" }
+  // Governed project profile (spec §1.7 — PROFILE-01): persist the chosen delivery profile
+  | { type: "set-project-profile"; profileId: string }
+  | { type: "load-delivery-profile-config" }
+  // Export delivery stamp (spec §2 — EXPORT-01): generate the in-file badge + flip
+  // Cover to Design Done. `data` is aggregate-only (no design content — privacy).
+  | { type: "generate-delivery-stamp"; data: DeliveryStampData }
   // External link-out (D-07 — a11y plugin shortcut; fire-and-forget, no reply)
   | { type: "open-external"; url: string }
   // Dead Styles
@@ -76,6 +88,10 @@ export type PluginMessage =
   | { type: "starter-kit-created" }
   | { type: "starter-kit-error"; message: string }
   | { type: "template-exists-result"; exists: boolean; matchCount: number }
+  // Je démarre · Audit mode (spec §3 — AUDIT-01)
+  | { type: "file-structure-diagnosis"; diagnosis: FileStructureDiagnosis }
+  | { type: "structure-upgrade-applied" }
+  | { type: "structure-upgrade-error"; message: string }
   | { type: "pages-reset" }
   | { type: "reset-error"; message: string }
   | { type: "ds-component-imported"; componentKey: string }
@@ -110,7 +126,14 @@ export type PluginMessage =
   // Cover Updater
   | { type: "cover-generated" }
   | { type: "cover-error"; message: string }
-  | { type: "cover-config-loaded"; config: unknown }
+  // `fileName`/`pageName` are aggregate document identifiers piggy-backed here so
+  // the UI can build the delivery stamp WITHOUT reading figma.* (EXPORT-01).
+  | { type: "cover-config-loaded"; config: unknown; fileName?: string; pageName?: string }
+  // Governed project profile list (spec §1.7 — PROFILE-01): the closed list + current selection
+  | { type: "delivery-profile-config"; profiles: Array<{ id: string; label: string; threshold: number }>; selectedProfileId: string }
+  // Export delivery stamp (spec §2 — EXPORT-01): badge generated + Cover flipped
+  | { type: "delivery-stamp-generated" }
+  | { type: "delivery-stamp-error"; message: string }
   // Dead Styles
   | { type: "dead-styles-result"; result: DeadStylesResult }
   | { type: "dead-styles-error"; message: string }

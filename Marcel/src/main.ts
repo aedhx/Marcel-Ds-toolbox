@@ -1,4 +1,5 @@
 import { createStarterKit, checkTemplateExists, resetAllPages } from "./features/starter-kit/starter-kit";
+import { diagnoseFileStructure, applyStructureUpgrade } from "./features/starter-kit/audit-mode";
 import { runLintAsync, runLintFile, LintResult } from "./features/linter/linter-engine";
 import { Violation } from "./shared/violation-types";
 import { autoFixNode, autoFixAll } from "./features/linter/linter-autofix";
@@ -11,6 +12,8 @@ import type { ScanAbortToken } from "./shared/node-traversal";
 import { generateOrUpdateCover } from "./features/cover-updater/cover-updater";
 import { loadCoverConfig, saveCoverConfig } from "./features/cover-updater/cover-config";
 import type { CoverConfig } from "./features/cover-updater/cover-types";
+import { PROJECT_PROFILES, DEFAULT_PROFILE_ID } from "./shared/scoring-config";
+import { generateDeliveryStamp } from "./features/delivery/delivery-stamp";
 import { scanDeadStyles, scanStyleCleaner } from "./features/dead-styles/dead-styles-engine";
 import { removeDeadStyle, removeAllDeadStyles } from "./features/dead-styles/dead-styles-actions";
 import { detachVariableBinding, detachStyleBinding, replaceVariableBinding, batchDetachForeign, batchReplaceForeign } from "./features/dead-styles/dead-styles-fix";
@@ -30,6 +33,8 @@ const NOTIF: Record<string, Record<string, string>> = {
   fr: {
     "sk.created": "Starter Kit créé avec succès ✅",
     "sk.error": "Erreur lors de la création du Starter Kit",
+    "audit.upgraded": "Mise à niveau appliquée ✅",
+    "audit.error": "Erreur lors de la mise à niveau du fichier.",
     "pages.reset": "Pages réinitialisées → COVER",
     "import.success": "Composant importé avec succès",
     "import.not_found": "Composant introuvable. Vérifiez que la clé est valide.",
@@ -47,6 +52,8 @@ const NOTIF: Record<string, Record<string, string>> = {
     "hc.error": "Erreur lors de l'audit Health Check.",
     "cover.updated": "Cover mise à jour ✅",
     "cover.error": "Erreur lors de la mise à jour de la cover.",
+    "deliver.stamp.done": "Tampon de livraison généré · Cover → Design Done ✅",
+    "deliver.stamp.error": "Erreur lors de la génération du tampon de livraison.",
     "config.saved": "Paramètres sauvegardés ✅",
     "config.reset": "Paramètres réinitialisés",
     "ds.removed": "Style supprime",
@@ -59,6 +66,8 @@ const NOTIF: Record<string, Record<string, string>> = {
   en: {
     "sk.created": "Starter Kit created successfully ✅",
     "sk.error": "Error creating Starter Kit",
+    "audit.upgraded": "Upgrade applied ✅",
+    "audit.error": "Error upgrading the file.",
     "pages.reset": "Pages reset → COVER",
     "import.success": "Component imported successfully",
     "import.not_found": "Component not found. Check that the key is valid.",
@@ -76,6 +85,8 @@ const NOTIF: Record<string, Record<string, string>> = {
     "hc.error": "Error during Health Check audit.",
     "cover.updated": "Cover updated ✅",
     "cover.error": "Error updating the cover.",
+    "deliver.stamp.done": "Delivery stamp generated · Cover → Design Done ✅",
+    "deliver.stamp.error": "Error generating the delivery stamp.",
     "config.saved": "Settings saved ✅",
     "config.reset": "Settings reset",
     "ds.removed": "Style deleted",
@@ -88,6 +99,8 @@ const NOTIF: Record<string, Record<string, string>> = {
   "pt-BR": {
     "sk.created": "Starter Kit criado com sucesso ✅",
     "sk.error": "Erro ao criar o Starter Kit",
+    "audit.upgraded": "Atualização aplicada ✅",
+    "audit.error": "Erro ao atualizar o arquivo.",
     "pages.reset": "Páginas resetadas → COVER",
     "import.success": "Componente importado com sucesso",
     "import.not_found": "Componente não encontrado. Verifique se a chave é válida.",
@@ -105,6 +118,8 @@ const NOTIF: Record<string, Record<string, string>> = {
     "hc.error": "Erro durante a auditoria Health Check.",
     "cover.updated": "Cover atualizada ✅",
     "cover.error": "Erro ao atualizar a cover.",
+    "deliver.stamp.done": "Carimbo de entrega gerado · Cover → Design Done ✅",
+    "deliver.stamp.error": "Erro ao gerar o carimbo de entrega.",
     "config.saved": "Configurações salvas ✅",
     "config.reset": "Configurações resetadas",
     "ds.removed": "Estilo excluído",
@@ -196,6 +211,8 @@ type UiMsg = {
   altText?: string;
   placement?: "new-page" | "same-page";
   url?: string;
+  profileId?: string;
+  selections?: { generateCover: boolean; replaceLegacyCover: boolean; addMissingPages: string[] };
 };
 
 type Handler = (msg: UiMsg) => void | Promise<void>;
@@ -205,7 +222,9 @@ const handlers: Record<string, Handler> = {
   // ── UI ready: send init-context for tab selection ──
   "ui-ready": async (msg) => {
     activeLocale = await globalStorage.getOrDefault("language", "fr");
-    figma.ui.postMessage({ type: "init-context" });
+    // Convey blank-vs-existing so Je démarre can pick its door (AUDIT-01):
+    // blank file → Starter Kit ; existing file → Audit mode.
+    figma.ui.postMessage({ type: "init-context", hasProjectPages: hasProjectPages() });
   },
 
   // ── Starter Kit handlers ──
@@ -238,6 +257,41 @@ const handlers: Record<string, Handler> = {
       exists: result.exists,
       matchCount: result.matchCount,
     });
+  },
+
+  // ── Je démarre · Audit mode handlers (spec §3 — AUDIT-01) ──
+
+  "diagnose-file-structure": async (msg) => {
+    try {
+      var diagnosis = await diagnoseFileStructure();
+      figma.ui.postMessage({ type: "file-structure-diagnosis", diagnosis });
+    } catch (error: any) {
+      console.error("Audit diagnose error:", error);
+      figma.ui.postMessage({
+        type: "structure-upgrade-error",
+        message: error?.message || nt("audit.error"),
+      });
+    }
+  },
+
+  "apply-structure-upgrade": async (msg) => {
+    try {
+      var selections = msg.selections || {
+        generateCover: false,
+        replaceLegacyCover: false,
+        addMissingPages: [],
+      };
+      await applyStructureUpgrade(selections);
+      figma.ui.postMessage({ type: "structure-upgrade-applied" });
+      figma.notify(nt("audit.upgraded"), { timeout: 4000 });
+    } catch (error: any) {
+      console.error("Audit upgrade error:", error);
+      figma.ui.postMessage({
+        type: "structure-upgrade-error",
+        message: error?.message || nt("audit.error"),
+      });
+      figma.notify(nt("audit.error"), { timeout: 4000, error: true });
+    }
   },
 
   "reset-all-pages": async (msg) => {
@@ -768,9 +822,90 @@ const handlers: Record<string, Handler> = {
   "load-cover-config": async (msg) => {
     try {
       const coverCfg = await loadCoverConfig();
-      figma.ui.postMessage({ type: "cover-config-loaded", config: coverCfg });
+      // Piggy-back aggregate document identifiers so the UI can build the delivery
+      // stamp WITHOUT reading figma.* (EXPORT-01). No design content — just the
+      // file + current page name (privacy-safe).
+      figma.ui.postMessage({
+        type: "cover-config-loaded",
+        config: coverCfg,
+        fileName: figma.root.name,
+        pageName: figma.currentPage.name,
+      });
     } catch (error: any) {
       console.error("Load cover config error:", error);
+    }
+  },
+
+  // ── Governed project profile (spec §1.7 — PROFILE-01) ──
+  // Forward the closed profile list from the single calibration source (scoring-config)
+  // + the currently selected profile so the UI never hardcodes thresholds.
+  "load-delivery-profile-config": async (msg) => {
+    try {
+      const coverCfg = await loadCoverConfig();
+      const selectedProfileId =
+        coverCfg.projectProfile && PROJECT_PROFILES.some((p) => p.id === coverCfg.projectProfile)
+          ? coverCfg.projectProfile
+          : DEFAULT_PROFILE_ID;
+      figma.ui.postMessage({
+        type: "delivery-profile-config",
+        profiles: PROJECT_PROFILES,
+        selectedProfileId,
+      });
+    } catch (error: any) {
+      console.error("Load delivery profile config error:", error);
+    }
+  },
+
+  // Persist the chosen delivery profile on the cover config. The profileId is
+  // untrusted (UI → sandbox): reject anything not in the governed closed list
+  // before saving (threat T-052-09).
+  "set-project-profile": async (msg) => {
+    try {
+      const isGoverned = PROJECT_PROFILES.some((p) => p.id === msg.profileId);
+      if (!isGoverned) {
+        console.error("set-project-profile: rejected non-governed profileId");
+        return;
+      }
+      const coverCfg = await loadCoverConfig();
+      coverCfg.projectProfile = msg.profileId;
+      await saveCoverConfig(coverCfg);
+      figma.ui.postMessage({
+        type: "delivery-profile-config",
+        profiles: PROJECT_PROFILES,
+        selectedProfileId: msg.profileId,
+      });
+    } catch (error: any) {
+      console.error("Set project profile error:", error);
+    }
+  },
+
+  // ── Export delivery stamp (spec §2 — EXPORT-01) ──
+  // At the "Je livre" gate: generate the in-file aggregate-only badge AND flip the
+  // Cover to "Design Done" in one action (spec §2: stamp + Design Done happen
+  // simultaneously). The stamp data is untrusted (UI → sandbox) but carries only
+  // aggregate numeric/label fields — no node references (threat T-052-11). The Cover
+  // flip goes through the existing validated generateOrUpdateCover path (T-052-12).
+  "generate-delivery-stamp": async (msg) => {
+    try {
+      // Flip the Cover to Design Done, preserving the persisted governed profile
+      // (saveCoverConfig + generateOrUpdateCover so status + profile persist together).
+      const coverCfg = await loadCoverConfig();
+      coverCfg.projectStatus = "Design Done";
+      await saveCoverConfig(coverCfg);
+      await generateOrUpdateCover(coverCfg);
+
+      // Build the in-file badge (aggregate-only) next to the project.
+      await generateDeliveryStamp(msg.data);
+
+      figma.ui.postMessage({ type: "delivery-stamp-generated" });
+      figma.notify(nt("deliver.stamp.done"), { timeout: 3000 });
+    } catch (error: any) {
+      console.error("Delivery stamp error:", error);
+      figma.ui.postMessage({
+        type: "delivery-stamp-error",
+        message: error?.message || nt("deliver.stamp.error"),
+      });
+      figma.notify(nt("deliver.stamp.error"), { timeout: 4000, error: true });
     }
   },
 
