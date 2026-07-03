@@ -1,4 +1,5 @@
 import { createStarterKit, checkTemplateExists, resetAllPages } from "./features/starter-kit/starter-kit";
+import { diagnoseFileStructure, applyStructureUpgrade } from "./features/starter-kit/audit-mode";
 import { runLintAsync, runLintFile, LintResult } from "./features/linter/linter-engine";
 import { Violation } from "./shared/violation-types";
 import { autoFixNode, autoFixAll } from "./features/linter/linter-autofix";
@@ -32,6 +33,8 @@ const NOTIF: Record<string, Record<string, string>> = {
   fr: {
     "sk.created": "Starter Kit créé avec succès ✅",
     "sk.error": "Erreur lors de la création du Starter Kit",
+    "audit.upgraded": "Mise à niveau appliquée ✅",
+    "audit.error": "Erreur lors de la mise à niveau du fichier.",
     "pages.reset": "Pages réinitialisées → COVER",
     "import.success": "Composant importé avec succès",
     "import.not_found": "Composant introuvable. Vérifiez que la clé est valide.",
@@ -63,6 +66,8 @@ const NOTIF: Record<string, Record<string, string>> = {
   en: {
     "sk.created": "Starter Kit created successfully ✅",
     "sk.error": "Error creating Starter Kit",
+    "audit.upgraded": "Upgrade applied ✅",
+    "audit.error": "Error upgrading the file.",
     "pages.reset": "Pages reset → COVER",
     "import.success": "Component imported successfully",
     "import.not_found": "Component not found. Check that the key is valid.",
@@ -94,6 +99,8 @@ const NOTIF: Record<string, Record<string, string>> = {
   "pt-BR": {
     "sk.created": "Starter Kit criado com sucesso ✅",
     "sk.error": "Erro ao criar o Starter Kit",
+    "audit.upgraded": "Atualização aplicada ✅",
+    "audit.error": "Erro ao atualizar o arquivo.",
     "pages.reset": "Páginas resetadas → COVER",
     "import.success": "Componente importado com sucesso",
     "import.not_found": "Componente não encontrado. Verifique se a chave é válida.",
@@ -205,6 +212,7 @@ type UiMsg = {
   placement?: "new-page" | "same-page";
   url?: string;
   profileId?: string;
+  selections?: { generateCover: boolean; replaceLegacyCover: boolean; addMissingPages: string[] };
 };
 
 type Handler = (msg: UiMsg) => void | Promise<void>;
@@ -214,7 +222,9 @@ const handlers: Record<string, Handler> = {
   // ── UI ready: send init-context for tab selection ──
   "ui-ready": async (msg) => {
     activeLocale = await globalStorage.getOrDefault("language", "fr");
-    figma.ui.postMessage({ type: "init-context" });
+    // Convey blank-vs-existing so Je démarre can pick its door (AUDIT-01):
+    // blank file → Starter Kit ; existing file → Audit mode.
+    figma.ui.postMessage({ type: "init-context", hasProjectPages: hasProjectPages() });
   },
 
   // ── Starter Kit handlers ──
@@ -247,6 +257,41 @@ const handlers: Record<string, Handler> = {
       exists: result.exists,
       matchCount: result.matchCount,
     });
+  },
+
+  // ── Je démarre · Audit mode handlers (spec §3 — AUDIT-01) ──
+
+  "diagnose-file-structure": async (msg) => {
+    try {
+      var diagnosis = await diagnoseFileStructure();
+      figma.ui.postMessage({ type: "file-structure-diagnosis", diagnosis });
+    } catch (error: any) {
+      console.error("Audit diagnose error:", error);
+      figma.ui.postMessage({
+        type: "structure-upgrade-error",
+        message: error?.message || nt("audit.error"),
+      });
+    }
+  },
+
+  "apply-structure-upgrade": async (msg) => {
+    try {
+      var selections = msg.selections || {
+        generateCover: false,
+        replaceLegacyCover: false,
+        addMissingPages: [],
+      };
+      await applyStructureUpgrade(selections);
+      figma.ui.postMessage({ type: "structure-upgrade-applied" });
+      figma.notify(nt("audit.upgraded"), { timeout: 4000 });
+    } catch (error: any) {
+      console.error("Audit upgrade error:", error);
+      figma.ui.postMessage({
+        type: "structure-upgrade-error",
+        message: error?.message || nt("audit.error"),
+      });
+      figma.notify(nt("audit.error"), { timeout: 4000, error: true });
+    }
   },
 
   "reset-all-pages": async (msg) => {

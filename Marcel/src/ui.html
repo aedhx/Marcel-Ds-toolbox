@@ -3440,6 +3440,8 @@
         <div id="panel-start" class="moment-panel" role="tabpanel">
           <div class="moment-heading" data-i18n="nav.start.title">Je démarre</div>
           <div class="moment-body" data-i18n="nav.start.body">Start a new file with the right structure.</div>
+          <!-- Door A · blank file → Starter Kit (default; toggled by init-context.hasProjectPages) -->
+          <div id="start-blank-door">
           <button class="btn-primary" id="moment-start-cta" data-i18n="nav.start.cta">Open Starter Kit</button>
           <!-- D-06 / START-04: DS-Library template re-surfaced as a SUBORDINATE secondary
                action below the prd primary (never a 2nd brand button). Posts
@@ -3473,6 +3475,32 @@
             <span style="font-size: 12px; font-weight: 400;" data-i18n="start.cover.init"
               >Cover initialized to 'In Progress'.</span
             >
+          </div>
+          </div><!-- /start-blank-door -->
+
+          <!-- ── Door B · existing file → Audit mode (AUDIT-01, spec §3) ──
+               Non-destructive, opt-in: diagnose → tick fixes → Apply → baseline QC.
+               Revealed by init-context.hasProjectPages; hidden for blank files. -->
+          <div id="start-audit-panel" class="hidden">
+            <div class="moment-body" data-i18n="start.audit.intro"
+              >This file already has content. Run an audit to check its structure — nothing is changed without your consent.</div>
+            <button class="btn-primary" id="start-audit-diagnose" data-i18n="start.audit.diagnose"
+              >Diagnose the file</button>
+            <div id="start-audit-result" class="hidden" style="margin-top: var(--spacing-l);">
+              <div class="moment-heading" data-i18n="start.audit.result.title"
+                >Structure diagnosis</div>
+              <div id="start-audit-status" style="margin: var(--spacing-s) 0;"></div>
+              <div id="start-audit-checklist" style="margin: var(--spacing-s) 0;"></div>
+              <button class="btn-primary" id="start-audit-apply" data-i18n="start.audit.apply"
+                >Apply selected fixes</button>
+              <div class="moment-meta" style="margin-top: var(--spacing-xs);" data-i18n="start.audit.optin"
+                >Nothing is applied until you tick a box and click Apply.</div>
+              <button class="moment-secondary-btn" id="start-audit-qc"
+                      style="margin-top: var(--spacing-l);" data-i18n="start.audit.qc"
+                >Run a baseline Quality Check</button>
+              <div class="moment-meta" style="margin-top: var(--spacing-xs);" data-i18n="start.audit.qc.caption"
+                >Get a starting score for this file.</div>
+            </div>
           </div>
         </div>
 
@@ -6058,6 +6086,22 @@
           "build.tool.fullpanel": "Open full tool ↗",
           "start.dslib": "Start from the DS Library",
           "start.dslib.caption": "Creates a file from the DS Library template.",
+          "start.audit.intro": "This file already has content. Run an audit to check its structure — nothing is changed without your consent.",
+          "start.audit.diagnose": "Diagnose the file",
+          "start.audit.result.title": "Structure diagnosis",
+          "start.audit.apply": "Apply selected fixes",
+          "start.audit.optin": "Nothing is applied until you tick a box and click Apply.",
+          "start.audit.qc": "Run a baseline Quality Check",
+          "start.audit.qc.caption": "Get a starting score for this file.",
+          "start.audit.state.cover": "Cover present",
+          "start.audit.state.legacy": "legacy cover to replace",
+          "start.audit.state.archives": "Archives page present",
+          "start.audit.state.named": "File is named",
+          "start.audit.fix.gencover": "Generate a cover",
+          "start.audit.fix.replacelegacy": "Replace the legacy cover with the current DS cover",
+          "start.audit.fix.addpage": "Add missing page:",
+          "start.audit.nofix": "Structure looks complete — no upgrade needed.",
+          "start.audit.nothing": "Tick at least one fix before applying.",
           "state.scan.none": "Not scanned yet",
           "state.scan.done": "Scan done",
           "state.cover.prefix": "Cover: ",
@@ -6151,6 +6195,22 @@
           "build.tool.fullpanel": "Ouvrir l'outil complet ↗",
           "start.dslib": "Démarrer depuis la librairie DS",
           "start.dslib.caption": "Crée un fichier basé sur le template Librairie DS.",
+          "start.audit.intro": "Ce fichier contient déjà du contenu. Lancez un audit pour vérifier sa structure — rien n'est modifié sans votre consentement.",
+          "start.audit.diagnose": "Diagnostiquer le fichier",
+          "start.audit.result.title": "Diagnostic de la structure",
+          "start.audit.apply": "Appliquer les correctifs cochés",
+          "start.audit.optin": "Rien n'est appliqué tant que vous ne cochez pas une case et cliquez sur Appliquer.",
+          "start.audit.qc": "Lancer un Quality Check de départ",
+          "start.audit.qc.caption": "Obtenez un score de départ pour ce fichier.",
+          "start.audit.state.cover": "Cover présente",
+          "start.audit.state.legacy": "cover legacy à remplacer",
+          "start.audit.state.archives": "Page Archives présente",
+          "start.audit.state.named": "Fichier nommé",
+          "start.audit.fix.gencover": "Générer une cover",
+          "start.audit.fix.replacelegacy": "Remplacer la cover legacy par la cover DS actuelle",
+          "start.audit.fix.addpage": "Ajouter la page manquante :",
+          "start.audit.nofix": "La structure semble complète — aucune mise à niveau nécessaire.",
+          "start.audit.nothing": "Cochez au moins un correctif avant d'appliquer.",
           "state.scan.none": "Pas encore scanné",
           "state.scan.done": "Scan effectué",
           "state.cover.prefix": "Cover : ",
@@ -6242,6 +6302,22 @@
           "build.tool.fullpanel": "Abrir a ferramenta completa ↗",
           "start.dslib": "Começar a partir da biblioteca DS",
           "start.dslib.caption": "Cria um arquivo a partir do modelo da biblioteca DS.",
+          "start.audit.intro": "Este arquivo já tem conteúdo. Faça uma auditoria para verificar sua estrutura — nada é alterado sem o seu consentimento.",
+          "start.audit.diagnose": "Diagnosticar o arquivo",
+          "start.audit.result.title": "Diagnóstico da estrutura",
+          "start.audit.apply": "Aplicar as correções marcadas",
+          "start.audit.optin": "Nada é aplicado até você marcar uma caixa e clicar em Aplicar.",
+          "start.audit.qc": "Rodar um Quality Check inicial",
+          "start.audit.qc.caption": "Obtenha uma pontuação inicial para este arquivo.",
+          "start.audit.state.cover": "Cover presente",
+          "start.audit.state.legacy": "cover legada a substituir",
+          "start.audit.state.archives": "Página Archives presente",
+          "start.audit.state.named": "Arquivo nomeado",
+          "start.audit.fix.gencover": "Gerar uma cover",
+          "start.audit.fix.replacelegacy": "Substituir a cover legada pela cover DS atual",
+          "start.audit.fix.addpage": "Adicionar página ausente:",
+          "start.audit.nofix": "A estrutura parece completa — nenhuma atualização necessária.",
+          "start.audit.nothing": "Marque pelo menos uma correção antes de aplicar.",
           "state.scan.none": "Ainda não verificado",
           "state.scan.done": "Verificação concluída",
           "state.cover.prefix": "Capa: ",
@@ -6461,6 +6537,133 @@
             "*",
           );
         });
+      // ══════════════════════════════════════════════
+      //  Je démarre · Audit mode (AUDIT-01, spec §3)
+      // ══════════════════════════════════════════════
+      // Two doors: blank file → Starter Kit (start-blank-door); existing file →
+      // Audit panel (start-audit-panel). Everything in the audit is opt-in and
+      // non-destructive — the sandbox applies ONLY ticked selections.
+
+      // Toggle the Je démarre door from init-context.hasProjectPages.
+      function applyStartDoor(hasProjectPages) {
+        var blankDoor = document.getElementById("start-blank-door");
+        var auditPanel = document.getElementById("start-audit-panel");
+        if (blankDoor) blankDoor.classList.toggle("hidden", hasProjectPages);
+        if (auditPanel) auditPanel.classList.toggle("hidden", !hasProjectPages);
+      }
+
+      // Escape user/DS page names before injecting into the checklist markup.
+      function auditEsc(s) {
+        return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+          return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+        });
+      }
+
+      // Render the structure diagnosis: read-only status + opt-in fix checkboxes.
+      function renderAuditDiagnosis(d) {
+        d = d || {};
+        var resultEl = document.getElementById("start-audit-result");
+        var statusEl = document.getElementById("start-audit-status");
+        var listEl = document.getElementById("start-audit-checklist");
+        var applyBtn = document.getElementById("start-audit-apply");
+        if (!resultEl || !statusEl || !listEl) return;
+
+        // Read-only état des lieux (what the file looks like today).
+        var yes = "✓", no = "—";
+        statusEl.innerHTML =
+          '<div class="moment-meta">' +
+          (d.hasCover ? yes : no) + " " + auditEsc(t("start.audit.state.cover")) +
+          (d.coverIsLegacy ? " (" + auditEsc(t("start.audit.state.legacy")) + ")" : "") +
+          "<br>" + (d.hasArchives ? yes : no) + " " + auditEsc(t("start.audit.state.archives")) +
+          "<br>" + (d.fileNamed ? yes : no) + " " + auditEsc(t("start.audit.state.named")) +
+          "</div>";
+
+        // Opt-in fixes — one checkbox per applicable gap. Nothing pre-checked.
+        var rows = "";
+        if (!d.hasCover) {
+          rows +=
+            '<label class="audit-fix-row" style="display:flex;gap:8px;align-items:flex-start;margin:6px 0;">' +
+            '<input type="checkbox" id="audit-fix-gencover">' +
+            "<span>" + auditEsc(t("start.audit.fix.gencover")) + "</span></label>";
+        }
+        if (d.coverIsLegacy) {
+          rows +=
+            '<label class="audit-fix-row" style="display:flex;gap:8px;align-items:flex-start;margin:6px 0;">' +
+            '<input type="checkbox" id="audit-fix-replacelegacy">' +
+            "<span>" + auditEsc(t("start.audit.fix.replacelegacy")) + "</span></label>";
+        }
+        var missing = d.missingStandardPages || [];
+        for (var i = 0; i < missing.length; i++) {
+          rows +=
+            '<label class="audit-fix-row" style="display:flex;gap:8px;align-items:flex-start;margin:6px 0;">' +
+            '<input type="checkbox" class="audit-fix-addpage" data-page="' + auditEsc(missing[i]) + '">' +
+            "<span>" + auditEsc(t("start.audit.fix.addpage")) + " " + auditEsc(missing[i]) + "</span></label>";
+        }
+
+        if (rows === "") {
+          rows = '<div class="moment-meta">' + auditEsc(t("start.audit.nofix")) + "</div>";
+          if (applyBtn) applyBtn.classList.add("hidden");
+        } else if (applyBtn) {
+          applyBtn.classList.remove("hidden");
+        }
+        listEl.innerHTML = rows;
+        resultEl.classList.remove("hidden");
+      }
+
+      // Gather ONLY the ticked fixes — this is the consent boundary.
+      function collectAuditSelections() {
+        var gen = document.getElementById("audit-fix-gencover");
+        var rep = document.getElementById("audit-fix-replacelegacy");
+        var addMissingPages = [];
+        var boxes = document.querySelectorAll(".audit-fix-addpage");
+        for (var i = 0; i < boxes.length; i++) {
+          if (boxes[i].checked) addMissingPages.push(boxes[i].getAttribute("data-page"));
+        }
+        return {
+          generateCover: !!(gen && gen.checked),
+          replaceLegacyCover: !!(rep && rep.checked),
+          addMissingPages: addMissingPages,
+        };
+      }
+
+      var auditDiagnoseBtn = document.getElementById("start-audit-diagnose");
+      if (auditDiagnoseBtn)
+        auditDiagnoseBtn.addEventListener("click", function () {
+          parent.postMessage({ pluginMessage: { type: "diagnose-file-structure" } }, "*");
+        });
+
+      var auditApplyBtn = document.getElementById("start-audit-apply");
+      if (auditApplyBtn)
+        auditApplyBtn.addEventListener("click", function () {
+          var selections = collectAuditSelections();
+          // Guard: no-op if the user ticked nothing (consent boundary).
+          if (
+            !selections.generateCover &&
+            !selections.replaceLegacyCover &&
+            selections.addMissingPages.length === 0
+          ) {
+            var statusEl = document.getElementById("start-audit-status");
+            if (statusEl) statusEl.textContent = t("start.audit.nothing");
+            return;
+          }
+          parent.postMessage(
+            { pluginMessage: { type: "apply-structure-upgrade", selections: selections } },
+            "*",
+          );
+        });
+
+      var auditQcBtn = document.getElementById("start-audit-qc");
+      if (auditQcBtn)
+        auditQcBtn.addEventListener("click", function () {
+          // Baseline Quality Check on the current page — shown in Je construis.
+          switchMoment("build");
+          parent.postMessage(
+            { pluginMessage: { type: "run-quality-check", scope: "page" } },
+            "*",
+          );
+          if (typeof qcShowView === "function") qcShowView("scanning");
+        });
+
       var momentImportCta = document.getElementById("moment-import-cta");
       if (momentImportCta)
         momentImportCta.addEventListener("click", function () {
@@ -7837,7 +8040,23 @@
         // ── Always start on the 3-moment shell (NAV-01), Je construis (D-03) ──
         if (msg.type === "init-context") {
           switchMoment("build");
+          // AUDIT-01: pick the Je démarre door — blank file keeps the Starter Kit
+          // CTA; an existing file reveals the Audit panel instead.
+          applyStartDoor(!!msg.hasProjectPages);
           parent.postMessage({ pluginMessage: { type: "get-language" } }, "*");
+        }
+
+        // ── Je démarre · Audit mode (AUDIT-01, spec §3) ──
+        if (msg.type === "file-structure-diagnosis") {
+          renderAuditDiagnosis(msg.diagnosis);
+        }
+        if (msg.type === "structure-upgrade-applied") {
+          // Re-diagnose so the checklist reflects what is now in the file.
+          parent.postMessage({ pluginMessage: { type: "diagnose-file-structure" } }, "*");
+        }
+        if (msg.type === "structure-upgrade-error") {
+          var auditErr = document.getElementById("start-audit-status");
+          if (auditErr && msg.message) auditErr.textContent = msg.message;
         }
 
         // ── i18n: apply the locale the main thread reports (init hydrate + after set-language) ──

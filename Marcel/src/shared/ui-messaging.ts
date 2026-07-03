@@ -4,6 +4,7 @@ import type { A11YResult } from '../features/accessibility/a11y-types';
 import type { QualityCheckResult } from './quality-check-types';
 import type { Violation } from './violation-types';
 import type { DeliveryStampData } from '../features/delivery/delivery-stamp';
+import type { FileStructureDiagnosis } from '../features/starter-kit/audit-mode';
 
 // ── Messages from UI to Plugin Sandbox ──
 
@@ -12,6 +13,10 @@ export type UIMessage =
   | { type: "create-starter-kit"; template: "prd" | "ds-library" }
   | { type: "check-template-exists"; template: "prd" | "ds-library" }
   | { type: "reset-all-pages" }
+  // Je démarre · Audit mode (spec §3 — AUDIT-01): diagnose an existing file's
+  // structure, then apply ONLY the consented, non-destructive upgrades.
+  | { type: "diagnose-file-structure" }
+  | { type: "apply-structure-upgrade"; selections: { generateCover: boolean; replaceLegacyCover: boolean; addMissingPages: string[] } }
   | { type: "import-ds-component"; componentKey: string }
   // Linter
   | { type: "run-linter"; scope: "page" | "selection" | "file" }
@@ -83,6 +88,10 @@ export type PluginMessage =
   | { type: "starter-kit-created" }
   | { type: "starter-kit-error"; message: string }
   | { type: "template-exists-result"; exists: boolean; matchCount: number }
+  // Je démarre · Audit mode (spec §3 — AUDIT-01)
+  | { type: "file-structure-diagnosis"; diagnosis: FileStructureDiagnosis }
+  | { type: "structure-upgrade-applied" }
+  | { type: "structure-upgrade-error"; message: string }
   | { type: "pages-reset" }
   | { type: "reset-error"; message: string }
   | { type: "ds-component-imported"; componentKey: string }
