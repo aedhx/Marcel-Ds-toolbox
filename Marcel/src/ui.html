@@ -485,36 +485,8 @@
         transform: none;
       }
 
-      /* DS Component Import */
-      .sk-category {
-        margin-bottom: 8px;
-      }
-      .sk-category-header {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 6px 0;
-      }
-      .sk-category-title {
-        font-size: 12px;
-        font-weight: 600;
-        color: var(--content-subtler, #666);
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-      }
-      .sk-category-count {
-        font-size: 11px;
-        color: var(--content-subtler, #999);
-        background: var(--bg-subtle, #f0f0f0);
-        padding: 1px 6px;
-        border-radius: 8px;
-      }
-      .sk-category-grid {
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 6px;
-        padding: 4px 0 8px;
-      }
+      /* DS Component Import (the category grid rules live once in the SK-starter block
+         below, ~L760 — the dead duplicate that used to sit here was removed, P-04). */
       .sk-component-btn {
         display: flex;
         align-items: center;
@@ -624,6 +596,56 @@
       .btn-sm.btn-sm-brand:hover {
         background: var(--brand);
         color: #fff;
+      }
+
+      /* ── Tertiary (link-style) button — canonical set member.
+         Used by UXH-04's "Re-diagnostiquer" / "Lancer un Quality Check" links.
+         No background/border; brand text; underline on hover. ── */
+      .btn-tertiary {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: var(--spacing-xs);
+        padding: var(--spacing-xs) var(--spacing-s);
+        background: transparent;
+        color: var(--brand);
+        border: none;
+        border-radius: var(--radius-s);
+        font-family: "Ubuntu", sans-serif;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        text-decoration: none;
+        transition: color 0.15s ease;
+        outline: none;
+      }
+      .btn-tertiary:hover {
+        color: var(--brand-hover);
+        text-decoration: underline;
+      }
+
+      /* ── ONE shared keyboard :focus-visible ring (S-02 / START-03/04, BUILD-05/09,
+         DELIVER-08) — reaches every interactive control. :where() keeps 0 specificity
+         so the per-class .btn-primary / .btn-danger error rings still win where defined. ── */
+      :where(
+        button,
+        [role="button"],
+        a.btn-tertiary,
+        .lang-opt,
+        .moment-nav-btn,
+        .qc-back-btn,
+        .hc-back-btn,
+        .qc-fix-btn,
+        .qc-ignore-btn,
+        .ds-filter-btn,
+        .template-card,
+        .hub-card,
+        select,
+        input[type="checkbox"]
+      ):focus-visible {
+        box-shadow:
+          0 0 0 2px var(--bg-default),
+          0 0 0 4px var(--brand);
       }
 
       /* ── Spinner ── */
