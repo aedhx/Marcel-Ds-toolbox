@@ -1241,6 +1241,21 @@
         font-weight: 400;
         color: var(--content-subtler);
       }
+      .shell-alltools-btn {
+        border: 1px solid transparent;
+        background: var(--bg-subtle);
+        cursor: pointer;
+        font-family: "Ubuntu", sans-serif;
+        font-size: 12px;
+        font-weight: 400;
+        color: var(--content-subtler);
+        padding: 2px 8px;
+        border-radius: var(--radius-s);
+        transition: background 0.15s, color 0.15s;
+      }
+      .shell-alltools-btn:hover {
+        color: var(--content-default);
+      }
       .lang-picker {
         display: inline-flex;
         gap: 2px;
@@ -3429,6 +3444,7 @@
     <div class="moment-shell active" id="moment-shell">
       <!-- ── Global shell header: unobtrusive language picker (D-08), across all moments ── -->
       <div class="shell-header">
+        <button type="button" class="shell-alltools-btn" data-i18n="shell.alltools" onclick="switchTab('hub')">Tous les outils</button>
         <span class="shell-lang-label" data-i18n="settings.language">Langue</span>
         <div class="lang-picker" id="lang-picker" role="group" aria-label="Langue">
           <button type="button" class="lang-opt" data-lang="fr" onclick="selectLanguage('fr')">FR</button>
@@ -6119,6 +6135,7 @@
           "build.tool.naming.fix": "Fix naming",
           "build.tool.fullpanel": "Open full tool ↗",
           "shell.back": "← Back to moments",
+          "shell.alltools": "All tools",
           "start.dslib": "Start from the DS Library",
           "start.dslib.caption": "Creates a file from the DS Library template.",
           "start.audit.intro": "This file already has content. Run an audit to check its structure — nothing is changed without your consent.",
@@ -6229,6 +6246,7 @@
           "build.tool.naming.fix": "Corriger le nommage",
           "build.tool.fullpanel": "Ouvrir l'outil complet ↗",
           "shell.back": "← Retour aux moments",
+          "shell.alltools": "Tous les outils",
           "start.dslib": "Démarrer depuis la librairie DS",
           "start.dslib.caption": "Crée un fichier basé sur le template Librairie DS.",
           "start.audit.intro": "Ce fichier contient déjà du contenu. Lancez un audit pour vérifier sa structure — rien n'est modifié sans votre consentement.",
@@ -6337,6 +6355,7 @@
           "build.tool.naming.fix": "Corrigir a nomenclatura",
           "build.tool.fullpanel": "Abrir a ferramenta completa ↗",
           "shell.back": "← Voltar aos momentos",
+          "shell.alltools": "Todas as ferramentas",
           "start.dslib": "Começar a partir da biblioteca DS",
           "start.dslib.caption": "Cria um arquivo a partir do modelo da biblioteca DS.",
           "start.audit.intro": "Este arquivo já tem conteúdo. Faça uma auditoria para verificar sua estrutura — nada é alterado sem o seu consentimento.",
