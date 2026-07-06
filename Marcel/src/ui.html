@@ -3464,7 +3464,7 @@
           <div
             id="start-cover-init-banner"
             class="hidden"
-            style="display: flex; align-items: center; gap: var(--spacing-s, 8px); margin-top: var(--spacing-l); background: var(--bg-subtle); border-radius: var(--radius-m); padding: var(--spacing-l);"
+            style="display: flex; align-items: center; gap: var(--spacing-s, 8px); margin-top: var(--spacing-l); background: var(--bg-subtle); border-radius: var(--radius-m); padding: var(--spacing-l); color: var(--success);"
           >
             <svg
               width="16"
@@ -3476,7 +3476,7 @@
             >
               <path
                 d="M3 8.5L6.25 11.5L13 4.5"
-                stroke="#2c815e"
+                stroke="currentColor"
                 stroke-width="1.6"
                 stroke-linecap="round"
                 stroke-linejoin="round"
@@ -10007,6 +10007,14 @@
       };
       var QC_THRESHOLD_ORDER = { high: 3, medium: 2, low: 1 };
 
+      // ── Token resolver: read a CSS custom property off :root so JS-injected
+      //    colours stay theme-safe (name is always a literal, never user input). ──
+      function resolveToken(name) {
+        return getComputedStyle(document.documentElement)
+          .getPropertyValue(name)
+          .trim();
+      }
+
       // ── DS-corrected colors (net-new QC markup only; Pitfall 4) ──
       function qcScoreColor(score) {
         if (score >= 90) return "#2c815e";   // DS Success
@@ -10351,7 +10359,7 @@
         var scoreStatus = document.getElementById("deliver-row-score-status");
         if (scoreIcon)
           scoreIcon.innerHTML = scorePass
-            ? deliverIconMet(scoreColor)
+            ? deliverIconMet(resolveToken("--success"))  // B1-05: passing → always green check
             : deliverIconWarn(scoreColor);
         if (scoreStatus) {
           scoreStatus.textContent = scorePass
@@ -10362,7 +10370,10 @@
 
         // ── A11y row (manual; amber #8a5f00 when unattested — designer-attested, NOT red) ──
         var a11yLabel = document.getElementById("deliver-row-a11y-label");
-        if (a11yLabel) a11yLabel.style.color = a11yMet ? "#2c815e" : "#8a5f00";
+        if (a11yLabel)
+          a11yLabel.style.color = a11yMet
+            ? resolveToken("--success")
+            : resolveToken("--warning-text");
         var a11yCheckbox = document.getElementById("deliver-a11y-attest");
         if (a11yCheckbox) a11yCheckbox.checked = a11yMet;
 
@@ -10370,7 +10381,9 @@
         renderDeliverCoverBadge();
 
         // ── Cover-ready row (amber #8a5f00 when unmet — designer-attested) ──
-        var coverColor = coverReady ? "#2c815e" : "#8a5f00";
+        var coverColor = coverReady
+          ? resolveToken("--success")
+          : resolveToken("--warning-text");
         var coverIcon = document.getElementById("deliver-row-cover-icon");
         var coverStatusEl = document.getElementById("deliver-row-cover-status");
         if (coverIcon)
@@ -10390,7 +10403,8 @@
         if (card) {
           if (anyUnmet) {
             // Red when QC score is critical (<50), else amber.
-            var warnColor = overall < 50 ? "#df1116" : "#8a5f00";
+            var warnColor =
+              overall < 50 ? resolveToken("--error") : resolveToken("--warning-text");
             card.style.borderLeft = "4px solid " + warnColor;
           } else {
             card.style.borderLeft = "1px solid var(--border-default)";
