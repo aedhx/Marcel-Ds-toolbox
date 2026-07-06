@@ -10,7 +10,9 @@ import type { FileStructureDiagnosis } from '../features/starter-kit/audit-mode'
 
 export type UIMessage =
   // Starter Kit
-  | { type: "create-starter-kit"; template: "prd" | "ds-library" }
+  // `source` (B1-01) tells the UI which create-path fired so only the legacy
+  // SK-tab handler mutates the legacy SK-tab DOM. Closed enum (T-053-03-INJ).
+  | { type: "create-starter-kit"; template: "prd" | "ds-library"; source: "moment" | "sk-tab" }
   | { type: "check-template-exists"; template: "prd" | "ds-library" }
   | { type: "reset-all-pages" }
   // Je démarre · Audit mode (spec §3 — AUDIT-01): diagnose an existing file's
@@ -85,7 +87,9 @@ export type PluginMessage =
   // Init
   | { type: "init-context"; hasProjectPages: boolean }
   // Starter Kit
-  | { type: "starter-kit-created" }
+  // `source`/`template` echoed back so the UI can scope the legacy-DOM mutation
+  // (B1-01) and PRD-gate the cover-init banner (B1-02). Both closed enums.
+  | { type: "starter-kit-created"; source: "moment" | "sk-tab"; template: "prd" | "ds-library" }
   | { type: "starter-kit-error"; message: string }
   | { type: "template-exists-result"; exists: boolean; matchCount: number }
   // Je démarre · Audit mode (spec §3 — AUDIT-01)

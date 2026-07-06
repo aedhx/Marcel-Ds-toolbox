@@ -6579,7 +6579,7 @@
       if (momentStartCta)
         momentStartCta.addEventListener("click", function () {
           parent.postMessage(
-            { pluginMessage: { type: "create-starter-kit", template: "prd" } },
+            { pluginMessage: { type: "create-starter-kit", template: "prd", source: "moment" } },
             "*",
           );
         });
@@ -6589,7 +6589,7 @@
       if (momentStartDslibCta)
         momentStartDslibCta.addEventListener("click", function () {
           parent.postMessage(
-            { pluginMessage: { type: "create-starter-kit", template: "ds-library" } },
+            { pluginMessage: { type: "create-starter-kit", template: "ds-library", source: "moment" } },
             "*",
           );
         });
@@ -7128,6 +7128,7 @@
             pluginMessage: {
               type: "create-starter-kit",
               template: selectedTemplate,
+              source: "sk-tab",
             },
           },
           "*",
@@ -8145,19 +8146,27 @@
 
         // ── Starter Kit messages ──
         if (msg.type === "starter-kit-created") {
-          // Permanently disable Create button after success to prevent duplicate creation
-          btnSpinner.classList.add("hidden");
-          isLoading = false;
-          resetBtn.disabled = false;
-          statusSuccess.classList.remove("hidden");
-          statusError.classList.add("hidden");
-          createBtn.classList.add("btn-success");
-          createBtn.disabled = true;
-          btnLabel.textContent = t("sk.created");
-          // Reveal the Je démarre cover-init confirmation banner (START-01)
-          var startCoverInitBanner = document.getElementById("start-cover-init-banner");
-          if (startCoverInitBanner) startCoverInitBanner.classList.remove("hidden");
-          // Do NOT call setLoading(false) — that would re-enable the button
+          // B1-01: only mutate the legacy SK-tab DOM when the create actually
+          // fired FROM that tab — the Je démarre moment path must never freeze
+          // the never-opened legacy tab into a fake "success" state.
+          if (msg.source === "sk-tab") {
+            // Permanently disable Create button after success to prevent duplicate creation
+            btnSpinner.classList.add("hidden");
+            isLoading = false;
+            resetBtn.disabled = false;
+            statusSuccess.classList.remove("hidden");
+            statusError.classList.add("hidden");
+            createBtn.classList.add("btn-success");
+            createBtn.disabled = true;
+            btnLabel.textContent = t("sk.created");
+            // Do NOT call setLoading(false) — that would re-enable the button
+          }
+          // B1-02: the cover-init confirmation banner (START-01) is PRD-only —
+          // the DS-Library template does not initialise a cover.
+          if (msg.template === "prd") {
+            var startCoverInitBanner = document.getElementById("start-cover-init-banner");
+            if (startCoverInitBanner) startCoverInitBanner.classList.remove("hidden");
+          }
         }
 
         if (msg.type === "starter-kit-error") {

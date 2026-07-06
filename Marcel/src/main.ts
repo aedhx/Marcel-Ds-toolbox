@@ -193,6 +193,7 @@ type UiMsg = {
   lang?: string;
   language?: "fr" | "en" | "pt-BR";
   template?: string;
+  source?: "moment" | "sk-tab";
   scope?: "page" | "selection" | "file";
   nodeId?: string;
   ruleId?: string;
@@ -235,9 +236,11 @@ const handlers: Record<string, Handler> = {
   "create-starter-kit": async (msg) => {
     try {
       var template = (msg.template === "ds-library") ? "ds-library" : "prd";
+      // Default unknown source to "moment" (T-053-03-INJ — closed-enum guard).
+      var source = (msg.source === "sk-tab") ? "sk-tab" : "moment";
       await createStarterKit(template);
       await saveCoverConfig({ projectStatus: "In Progress" });
-      figma.ui.postMessage({ type: "starter-kit-created" });
+      figma.ui.postMessage({ type: "starter-kit-created", source: source, template: template });
       figma.notify(nt("sk.created"), { timeout: 4000 });
     } catch (error: any) {
       console.error("Starter Kit error:", error);
