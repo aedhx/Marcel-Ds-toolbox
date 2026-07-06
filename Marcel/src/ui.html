@@ -10025,7 +10025,6 @@
       var qcView = "empty";         // empty|scanning|dashboard|drilldown|error|cancelled|clean
       var qcDrillCategory = null;   // currently drilled category key
       var qcThreshold = "high";     // confidence threshold (high|medium|low)
-      var qcTransformed = null;     // cached QC→HC-shaped object
 
       // The 5 scored category cards (engine scores "colors"; coverage may be N/A).
       var QC_CATEGORY_ORDER = ["naming", "colors", "typography", "spacing", "coverage"];
@@ -10075,43 +10074,26 @@
         return QC_THRESHOLD_ORDER[conf] >= QC_THRESHOLD_ORDER[threshold];
       }
 
-      // ── QC→HC shape transform (Pattern 3 / Pitfall 1/6) ──
-      // Reshapes the flat QualityCheckResult into the keyed object map shape the
-      // reused render helpers expect, normalizing the "color"→"colors" key drift.
+      // ── Category-key canonicalizer ──
+      // Normalizes the engine's "color"→"colors" key drift when the QC renderers
+      // bucket the flat violations[] by category. (The former HC-shape bridge was
+      // removed in 07-02 — renderQCDashboard/renderQCDrilldown now read qcResult
+      // directly.)
       function qcCanonCategory(cat) {
         return cat === "color" ? "colors" : cat;
       }
-      function transformQCToHCShape(qc) {
-        var byCat = {};
-        for (var i = 0; i < qc.violations.length; i++) {
-          var v = qc.violations[i];
-          var key = qcCanonCategory(v.category);
-          (byCat[key] = byCat[key] || []).push(v);
+
+      // Flat violations[] for one canonical category, read straight from qcResult
+      // ("color"→"colors" normalized). Used by the drilldown bulk-fix count/collect.
+      function qcViolationsForCategory(category) {
+        var out = [];
+        if (!qcResult) return out;
+        for (var i = 0; i < qcResult.violations.length; i++) {
+          if (qcCanonCategory(qcResult.violations[i].category) === category) {
+            out.push(qcResult.violations[i]);
+          }
         }
-        var categories = {};
-        for (var c = 0; c < qc.categories.length; c++) {
-          var cs = qc.categories[c];
-          var bucket = byCat[cs.category] || [];
-          categories[cs.category] = {
-            score: cs.score,
-            totalChecked: cs.totalChecked,
-            totalViolations: cs.violationCount,
-            violations: bucket,
-            violationGroups: groupByRule(bucket),
-          };
-        }
-        // Dead-styles: present in violations[] but NOT scored (D-02). Kept as an
-        // informational bucket; never folded into the headline score.
-        var deadStyles = byCat["dead-styles"] || [];
-        return {
-          scoreResult: {
-            overall: qc.overall, label: qc.label, color: qc.color,
-            categories: qc.categories,
-          },
-          categories: categories,
-          deadStyles: deadStyles,
-          totalNodesScanned: qc.totalChecked,
-        };
+        return out;
       }
 
       // ── View switcher ──
@@ -10564,16 +10546,30 @@
 
       // ── Render: drilldown (single category's violation list) ──
       function renderQCDrilldown(category) {
-        if (!qcTransformed) return;
-        var catResult = qcTransformed.categories[category];
+        if (!qcResult) return;
+        // Bucket the flat violations[] by canonical category ("color"→"colors"),
+        // then group this category's bucket by rule (groupByRule reused verbatim).
+        var byCat = {};
+        for (var vi = 0; vi < qcResult.violations.length; vi++) {
+          var vv = qcResult.violations[vi];
+          var vkey = qcCanonCategory(vv.category);
+          (byCat[vkey] = byCat[vkey] || []).push(vv);
+        }
+        var catScore = null;
+        for (var ci = 0; ci < qcResult.categories.length; ci++) {
+          if (qcResult.categories[ci].category === category) {
+            catScore = qcResult.categories[ci];
+            break;
+          }
+        }
         var catLabel = t(QC_CATEGORY_LABELS[category]) || category;
-        var groups = catResult ? catResult.violationGroups : [];
+        var groups = groupByRule(byCat[category] || []);
 
         var titleEl = document.getElementById("qc-drilldown-title");
         if (titleEl) titleEl.textContent = catLabel;
         var gaugeEl = document.getElementById("qc-drilldown-gauge");
         if (gaugeEl)
-          gaugeEl.innerHTML = qcDonut(catResult ? catResult.score : 100, "small");
+          gaugeEl.innerHTML = qcDonut(catScore ? catScore.score : 100, "small");
 
         var groupsEl = document.getElementById("qc-drilldown-groups");
         if (groupsEl) {
@@ -10690,9 +10686,8 @@
       }
 
       function qcUpdateDrilldownBulk() {
-        if (!qcDrillCategory || !qcTransformed) return;
-        var catResult = qcTransformed.categories[qcDrillCategory];
-        var vs = catResult ? catResult.violations : [];
+        if (!qcDrillCategory || !qcResult) return;
+        var vs = qcViolationsForCategory(qcDrillCategory);
         var count = 0;
         for (var i = 0; i < vs.length; i++) {
           if (qcAtOrAboveThreshold(vs[i], qcThreshold)) count++;
@@ -10722,9 +10717,8 @@
         );
       }
       function qcFixCategory() {
-        if (!qcDrillCategory || !qcTransformed) return;
-        var catResult = qcTransformed.categories[qcDrillCategory];
-        var vs = catResult ? catResult.violations : [];
+        if (!qcDrillCategory || !qcResult) return;
+        var vs = qcViolationsForCategory(qcDrillCategory);
         var fixable = qcCollectFixable(vs);
         if (fixable.length === 0) return;
         if (!window.confirm(t("qc.fix.category") + " — " + fixable.length + " ?")) return;
