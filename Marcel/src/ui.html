@@ -4141,6 +4141,24 @@
       <!-- Sidebar -->
       <nav class="sidebar" role="tablist" aria-label="Navigation">
         <button
+          class="sidebar-btn"
+          id="sidebar-back-moments"
+          role="button"
+          data-i18n-title="shell.back"
+          title="Back to moments"
+        >
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+            <path
+              d="M11 4 L6 9 L11 14"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </button>
+        <div class="sidebar-home-sep"></div>
+        <button
           class="sidebar-btn sidebar-btn-home"
           data-tab="hub"
           role="tab"
@@ -6116,6 +6134,7 @@
           "build.tool.naming.clean": "Naming is clean.",
           "build.tool.naming.fix": "Fix naming",
           "build.tool.fullpanel": "Open full tool ↗",
+          "shell.back": "← Back to moments",
           "start.dslib": "Start from the DS Library",
           "start.dslib.caption": "Creates a file from the DS Library template.",
           "start.audit.intro": "This file already has content. Run an audit to check its structure — nothing is changed without your consent.",
@@ -6225,6 +6244,7 @@
           "build.tool.naming.clean": "Nommage conforme.",
           "build.tool.naming.fix": "Corriger le nommage",
           "build.tool.fullpanel": "Ouvrir l'outil complet ↗",
+          "shell.back": "← Retour aux moments",
           "start.dslib": "Démarrer depuis la librairie DS",
           "start.dslib.caption": "Crée un fichier basé sur le template Librairie DS.",
           "start.audit.intro": "Ce fichier contient déjà du contenu. Lancez un audit pour vérifier sa structure — rien n'est modifié sans votre consentement.",
@@ -6332,6 +6352,7 @@
           "build.tool.naming.clean": "Nomenclatura em conformidade.",
           "build.tool.naming.fix": "Corrigir a nomenclatura",
           "build.tool.fullpanel": "Abrir a ferramenta completa ↗",
+          "shell.back": "← Voltar aos momentos",
           "start.dslib": "Começar a partir da biblioteca DS",
           "start.dslib.caption": "Cria um arquivo a partir do modelo da biblioteca DS.",
           "start.audit.intro": "Este arquivo já tem conteúdo. Faça uma auditoria para verificar sua estrutura — nada é alterado sem o seu consentimento.",
@@ -6417,12 +6438,22 @@
       var isLoading = false;
       var selectedTemplate = "prd";
       var pendingAction = null;
+      // Last moment the user was in, so the legacy-shell Retour button can restore it.
+      var lastActiveMoment = "build";
 
       // ══════════════════════════════════════════════
       //  Tab switching (sidebar navigation)
       // ══════════════════════════════════════════════
       function switchTab(tabId) {
         var appShell = document.querySelector(".app-shell");
+
+        // Reveal the legacy app-shell (clear the inline display:none so the CSS
+        // .app-shell display:grid takes over — do NOT hardcode a display value)
+        // and deactivate the moment shell, so the quick-tools "Ouvrir l'outil
+        // complet" links actually surface the legacy tool.
+        if (appShell) appShell.style.display = "";
+        var ms = document.getElementById("moment-shell");
+        if (ms) ms.classList.remove("active");
 
         if (tabId === "hub") {
           // Hub mode: hide sidebar, show hub full-width
@@ -6485,6 +6516,13 @@
           });
         });
 
+      // Retour-aux-moments: the icon-only sidebar button restores the moment shell.
+      var backBtn = document.getElementById("sidebar-back-moments");
+      if (backBtn)
+        backBtn.addEventListener("click", function () {
+          switchMoment(lastActiveMoment || "build");
+        });
+
       // ══════════════════════════════════════════════
       //  3-moment shell routing (Phase 4 — NAV-01/02/03)
       // ══════════════════════════════════════════════
@@ -6495,6 +6533,8 @@
       function switchMoment(momentId) {
         var shell = document.getElementById("moment-shell");
         if (!shell) return;
+        // Remember the active moment so the legacy-shell Retour button can return here.
+        lastActiveMoment = momentId;
         // Ensure the moment shell is the active surface (legacy app-shell stays hidden).
         shell.classList.add("active");
         var appShell = document.querySelector(".app-shell");
