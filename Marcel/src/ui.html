@@ -598,6 +598,19 @@
         color: #fff;
       }
 
+      /* Filled brand compact primary — the migrated legacy `.btn.btn-primary.btn-sm`
+         call-sites (linter/HC scan/save/apply) keep their strong filled CTA at compact size. */
+      .btn-sm.btn-sm-primary {
+        background: var(--brand);
+        border-color: var(--brand);
+        color: #fff;
+      }
+      .btn-sm.btn-sm-primary:hover {
+        background: var(--brand-hover);
+        border-color: var(--brand-hover);
+        color: #fff;
+      }
+
       /* ── Tertiary (link-style) button — canonical set member.
          Used by UXH-04's "Re-diagnostiquer" / "Lancer un Quality Check" links.
          No background/border; brand text; underline on hover. ── */
@@ -2065,46 +2078,9 @@
         cursor: pointer;
       }
 
-      .btn {
-        padding: 6px 14px;
-        border: none;
-        border-radius: var(--radius-s, 6px);
-        font-size: 12px;
-        font-weight: 500;
-        cursor: pointer;
-        transition:
-          background 0.15s,
-          opacity 0.15s;
-      }
-
-      .btn.btn-primary {
-        background: var(--brand, #0970e6);
-        color: white;
-        flex: 1;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: auto;
-        height: auto;
-      }
-
-      .btn.btn-primary:hover {
-        opacity: 0.9;
-      }
-
-      .btn.btn-secondary {
-        background: var(--bg-subtler, rgba(0, 0, 0, 0.06));
-        color: var(--content-default);
-      }
-
-      .btn.btn-secondary:hover {
-        background: var(--bg-hover, rgba(0, 0, 0, 0.1));
-      }
-
-      .btn.btn-sm {
-        padding: 4px 10px;
-        font-size: 11px;
-      }
+      /* Legacy `.btn` / `.btn.btn-*` / `.btn.btn-sm` rules removed (B1-03): all 14 legacy
+         call-sites migrated to the canonical set (.btn-sm / .btn-sm.btn-sm-primary /
+         .moment-secondary-btn). One button system now governs the UI. */
 
       /* Progress */
       .linter-progress {
@@ -3600,7 +3576,7 @@
             <div id="qc-scanning" class="hidden">
               <div class="qc-card">
                 <div class="moment-body" id="qc-scanning-label" data-i18n="qc.scanning">Scanning…</div>
-                <button class="btn-danger" id="qc-cancel-btn" data-i18n="qc.cancel">Cancel</button>
+                <button class="moment-secondary-btn" id="qc-cancel-btn" data-i18n="qc.cancel">Cancel</button>
               </div>
             </div>
 
@@ -3996,7 +3972,7 @@
                   Add one via the accessibility plugin, then re-run the Quality Check.
                 </div>
                 <button
-                  class="btn-secondary"
+                  class="moment-secondary-btn"
                   id="deliver-a11y-launch-btn"
                   style="margin-top: var(--spacing-s);"
                   data-i18n="deliver.a11y.launch"
@@ -4084,7 +4060,7 @@
                   "
                 ></textarea>
                 <button
-                  class="btn-secondary"
+                  class="moment-secondary-btn"
                   id="deliver-stamp-copy-btn"
                   style="margin-top: var(--spacing-s); width: 100%;"
                   data-i18n="deliver.stamp.copy.btn"
@@ -5146,12 +5122,12 @@
                   <option value="selection" data-i18n="linter.scope.selection">Selection</option>
                   <option value="file" data-i18n="linter.scope.file">Entire file</option>
                 </select>
-                <button id="linter-scan-btn" class="btn btn-primary">
+                <button id="linter-scan-btn" class="btn-sm btn-sm-primary">
                   <span data-i18n="linter.scan">Scan</span>
                 </button>
                 <button
                   id="linter-cancel-btn"
-                  class="btn btn-secondary"
+                  class="btn-sm"
                   style="display: none"
                 >
                   <span data-i18n="linter.cancel">Cancel</span>
@@ -5228,7 +5204,7 @@
               class="linter-fix-toolbar"
               style="display: none"
             >
-              <button id="linter-fix-all-btn" class="btn btn-secondary btn-sm">
+              <button id="linter-fix-all-btn" class="btn-sm">
                 <span data-i18n="linter.fix.all">Fix all</span>
               </button>
             </div>
@@ -5247,10 +5223,10 @@
               </div>
               <div id="bulk-fix-list" class="bulk-fix-list"></div>
               <div class="bulk-fix-actions">
-                <button id="bulk-fix-cancel" class="btn btn-secondary btn-sm">
+                <button id="bulk-fix-cancel" class="btn-sm">
                   <span data-i18n="linter.fix.cancel">Cancel</span>
                 </button>
-                <button id="bulk-fix-confirm" class="btn btn-primary btn-sm">
+                <button id="bulk-fix-confirm" class="btn-sm btn-sm-primary">
                   <span data-i18n="linter.fix.confirm">Apply</span>
                 </button>
               </div>
@@ -5357,9 +5333,9 @@
             <div class="settings-actions">
               <button
                 id="linter-settings-reset"
-                class="btn btn-secondary btn-sm"
+                class="btn-sm"
                data-i18n="linter.settings.reset">Reset</button>
-              <button id="linter-settings-save" class="btn btn-primary btn-sm">
+              <button id="linter-settings-save" class="btn-sm btn-sm-primary">
                 <span data-i18n="linter.settings.save">Save</span>
               </button>
             </div>
@@ -5550,7 +5526,7 @@
                 class="linter-fix-toolbar"
                 style="display: none"
               >
-                <button id="hc-fix-all-btn" class="btn btn-secondary btn-sm">
+                <button id="hc-fix-all-btn" class="btn-sm">
                   <span data-i18n="hc.fix.all">Fix all</span>
                 </button>
               </div>
@@ -5569,13 +5545,13 @@
                 <div class="bulk-fix-actions">
                   <button
                     id="hc-bulk-fix-cancel"
-                    class="btn btn-secondary btn-sm"
+                    class="btn-sm"
                   >
                     <span data-i18n="hc.fix.cancel">Cancel</span>
                   </button>
                   <button
                     id="hc-bulk-fix-confirm"
-                    class="btn btn-primary btn-sm"
+                    class="btn-sm btn-sm-primary"
                   >
                     <span data-i18n="hc.fix.confirm">Apply</span>
                   </button>
@@ -5817,11 +5793,11 @@
 
               <!-- Action buttons bar -->
               <div class="a11y-action-bar">
-                <button class="btn btn-secondary btn-sm" id="a11y-badge-btn" title="Show/hide alt-text badges on the canvas">
+                <button class="btn-sm" id="a11y-badge-btn" title="Show/hide alt-text badges on the canvas">
                   ALT Badges
                 </button>
                 <div class="a11y-sim-dropdown">
-                  <button class="btn btn-secondary btn-sm" id="a11y-sim-btn">
+                  <button class="btn-sm" id="a11y-sim-btn">
                     Simulate color blindness
                   </button>
                   <div class="a11y-sim-menu" id="a11y-sim-menu" style="display: none">
@@ -5829,7 +5805,7 @@
                     <button class="a11y-sim-option" data-placement="same-page">Current page</button>
                   </div>
                 </div>
-                <button class="btn btn-secondary btn-sm" id="a11y-copy-btn" title="Copier le rapport d'audit dans le presse-papier">
+                <button class="btn-sm" id="a11y-copy-btn" title="Copier le rapport d'audit dans le presse-papier">
                   Copier rapport
                 </button>
               </div>
@@ -5874,7 +5850,7 @@
               ></textarea>
 
               <div class="a11y-detail-actions">
-                <button class="btn btn-primary btn-sm" id="a11y-save-alt-text">
+                <button class="btn-sm btn-sm-primary" id="a11y-save-alt-text">
                   Save
                 </button>
                 <span id="a11y-alt-text-status" class="a11y-status-msg"></span>
@@ -6156,7 +6132,7 @@
           "state.scan.none": "Not scanned yet",
           "state.scan.done": "Scan done",
           "state.cover.prefix": "Cover: ",
-          "build.import.caption": "Inserts the Design System handoff components (annotations, specs)."
+          "build.import.caption": "Opens the full Import Toolkit — 35 Design System components to pick from."
         },
         // ── French (FR) — product default locale (marcel:global:language) ──
         // Branded moment names « Je démarre / Je construis / Je livre » stay FR across ALL locales.
@@ -6266,7 +6242,7 @@
           "state.scan.none": "Pas encore scanné",
           "state.scan.done": "Scan effectué",
           "state.cover.prefix": "Cover : ",
-          "build.import.caption": "Insère les composants de handoff du Design System (annotations, specs)."
+          "build.import.caption": "Ouvre la Import Toolkit complète — 35 composants du Design System au choix."
         },
         // ── Brazilian Portuguese (PT-BR) ──
         // Branded moment names stay FR across all locales (« Je démarre / Je construis / Je livre »).
@@ -6374,7 +6350,7 @@
           "state.scan.none": "Ainda não verificado",
           "state.scan.done": "Verificação concluída",
           "state.cover.prefix": "Capa: ",
-          "build.import.caption": "Insere os componentes de handoff do Design System (anotações, especificações)."
+          "build.import.caption": "Abre a Import Toolkit completa — 35 componentes do Design System à escolha."
         }
       };
 
@@ -6739,20 +6715,10 @@
       var momentImportCta = document.getElementById("moment-import-cta");
       if (momentImportCta)
         momentImportCta.addEventListener("click", function () {
-          // BUILD-02: launch the existing import-ds-component flow in-moment
-          // (no switchTab — stay in the moment shell). Stable handoff-toolkit
-          // key from DS_COMPONENT_KEYS (handoffDevice / Device=Desktop). No key
-          // hardening (deferred); the main.ts handler surfaces not_found /
-          // library_disabled / network errors.
-          parent.postMessage(
-            {
-              pluginMessage: {
-                type: "import-ds-component",
-                componentKey: "06dea5d62ebf241040170244766d9742ead0cda9",
-              },
-            },
-            "*",
-          );
+          // Route to the FULL Import Toolkit panel (35 DS components across 6
+          // categories, each wired to importDSComponent) instead of importing a
+          // single hardcoded component. switchTab now reveals the legacy shell.
+          switchTab("import-toolkit");
         });
       // BUILD-03 / D-05: net-new 4-value cover picker apply button.
       // Reads #build-cover-status (4 values, Design Done excluded) and posts the
