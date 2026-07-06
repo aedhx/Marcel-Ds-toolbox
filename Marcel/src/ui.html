@@ -3680,7 +3680,6 @@
               <div id="qt-naming-badge"><!-- statusBadge injected --></div>
               <div class="moment-meta hidden" id="qt-naming-result"><!-- count line --></div>
               <button class="moment-secondary-btn hidden" id="qt-naming-fix-btn" data-i18n="build.tool.naming.fix">Fix naming</button>
-              <button class="moment-secondary-btn" id="qt-naming-fullpanel" data-i18n="build.tool.fullpanel">Open full tool ↗</button>
             </div>
 
             <!-- ── Quick-tool: Nettoyer les styles (Dead Styles) ── -->
@@ -3706,7 +3705,6 @@
 
               <!-- Non-destructive: Détacher les styles externes — no confirm. -->
               <button class="moment-secondary-btn hidden" id="qt-clean-detach-btn" data-i18n="build.tool.cleanstyles.detach">Detach foreign styles</button>
-              <button class="moment-secondary-btn" id="qt-clean-fullpanel" data-i18n="build.tool.fullpanel">Open full tool ↗</button>
             </div>
           </div>
         </div>
@@ -6908,12 +6906,9 @@
           );
         });
 
-      // Ouvrir l'outil complet ↗ — route to the legacy Linter tab (kept until Phase 7).
-      var qtNamingFullpanel = document.getElementById("qt-naming-fullpanel");
-      if (qtNamingFullpanel)
-        qtNamingFullpanel.addEventListener("click", function () {
-          switchTab("linter");
-        });
+      // D-04 (07-01): the "Open full tool" button + its legacy Linter-tab coupling
+      // were REMOVED — the naming quick-tool self-serves scan (run-linter) + fix
+      // (fix-all-violations), and the legacy Linter panel is deleted in 07-04.
 
       // Render the naming quick-tool result (count + badge), LIGHTWEIGHT (D-02):
       // NO renderViolationGroups call from this path.
@@ -7027,11 +7022,10 @@
           );
         });
 
-      var qtCleanFullpanel = document.getElementById("qt-clean-fullpanel");
-      if (qtCleanFullpanel)
-        qtCleanFullpanel.addEventListener("click", function () {
-          switchTab("dead-styles");
-        });
+      // D-04 (07-01): the "Open full tool" button + its legacy Dead-Styles-tab
+      // coupling were REMOVED — the clean quick-tool self-serves scan
+      // (scan-style-cleaner) + remove-all-dead-styles + batch-detach-foreign, and the
+      // legacy Dead Styles panel is deleted in 07-04.
 
       // Render the clean-styles quick-tool result (count + badge + bulk actions),
       // LIGHTWEIGHT (D-02): NO renderCleanerList call from this path.
