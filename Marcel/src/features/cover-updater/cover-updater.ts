@@ -7,6 +7,20 @@ import { STARTER_KIT_PAGES } from "../starter-kit/config";
 
 const COVER_PAGE_NAME = STARTER_KIT_PAGES[0].name;
 
+// Error code marking a missing Cover page/component precondition. Callers (e.g.
+// the generate-delivery-stamp handler) discriminate on this code to surface an
+// actionable, i18n-correct "run the Starter Kit first" message instead of the raw
+// French string. Mark Design Done is a SOFT gate (AUDIT-01): the stamp handler
+// never auto-creates a Cover — it points the designer at Je démarre / Starter Kit.
+export const NO_COVER_ERROR_CODE = "NO_COVER";
+
+/** Build a Cover-precondition Error carrying NO_COVER_ERROR_CODE for discrimination. */
+function noCoverError(message: string): Error {
+  const err = new Error(message);
+  (err as any).code = NO_COVER_ERROR_CODE;
+  return err;
+}
+
 /**
  * Find the cover page, then locate the InstanceNode inside the "Cover" wrapper.
  */
@@ -31,14 +45,14 @@ export async function generateOrUpdateCover(config?: CoverConfig): Promise<void>
   // Find cover page
   const coverPage = figma.root.findChild(n => n.name === COVER_PAGE_NAME) as PageNode | null;
   if (!coverPage) {
-    throw new Error("Aucune page Cover trouvée. Lance d'abord le Starter Kit.");
+    throw noCoverError("Aucune page Cover trouvée. Lance d'abord le Starter Kit.");
   }
 
   await coverPage.loadAsync();
 
   const instance = findCoverInstance(coverPage);
   if (!instance) {
-    throw new Error("Aucun composant Cover trouvé sur la page. Lance d'abord le Starter Kit.");
+    throw noCoverError("Aucun composant Cover trouvé sur la page. Lance d'abord le Starter Kit.");
   }
 
   // Import the target component and swap

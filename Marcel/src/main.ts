@@ -9,7 +9,7 @@ import { runHealthCheck } from "./features/health-check/hc-engine";
 import { hcFixNode, hcFixAll } from "./features/health-check/hc-autofix";
 import { runQualityCheck } from "./shared/quality-check-engine";
 import type { ScanAbortToken } from "./shared/node-traversal";
-import { generateOrUpdateCover } from "./features/cover-updater/cover-updater";
+import { generateOrUpdateCover, NO_COVER_ERROR_CODE } from "./features/cover-updater/cover-updater";
 import { loadCoverConfig, saveCoverConfig } from "./features/cover-updater/cover-config";
 import type { CoverConfig } from "./features/cover-updater/cover-types";
 import { PROJECT_PROFILES, DEFAULT_PROFILE_ID } from "./shared/scoring-config";
@@ -54,6 +54,7 @@ const NOTIF: Record<string, Record<string, string>> = {
     "cover.error": "Erreur lors de la mise à jour de la cover.",
     "deliver.stamp.done": "Tampon de livraison généré · Cover → Design Done ✅",
     "deliver.stamp.error": "Erreur lors de la génération du tampon de livraison.",
+    "deliver.stamp.noCover": "Aucune page Cover trouvée. Lance d'abord le Starter Kit (ou le mode audit « Je démarre ») pour créer la Cover.",
     "config.saved": "Paramètres sauvegardés ✅",
     "config.reset": "Paramètres réinitialisés",
     "ds.removed": "Style supprime",
@@ -87,6 +88,7 @@ const NOTIF: Record<string, Record<string, string>> = {
     "cover.error": "Error updating the cover.",
     "deliver.stamp.done": "Delivery stamp generated · Cover → Design Done ✅",
     "deliver.stamp.error": "Error generating the delivery stamp.",
+    "deliver.stamp.noCover": "No Cover page found. Run the Starter Kit first (or the “Je démarre” audit mode) to create the Cover.",
     "config.saved": "Settings saved ✅",
     "config.reset": "Settings reset",
     "ds.removed": "Style deleted",
@@ -120,6 +122,7 @@ const NOTIF: Record<string, Record<string, string>> = {
     "cover.error": "Erro ao atualizar a cover.",
     "deliver.stamp.done": "Carimbo de entrega gerado · Cover → Design Done ✅",
     "deliver.stamp.error": "Erro ao gerar o carimbo de entrega.",
+    "deliver.stamp.noCover": "Nenhuma página Cover encontrada. Execute primeiro o Starter Kit (ou o modo de auditoria “Je démarre”) para criar a Cover.",
     "config.saved": "Configurações salvas ✅",
     "config.reset": "Configurações resetadas",
     "ds.removed": "Estilo excluído",
@@ -901,11 +904,19 @@ const handlers: Record<string, Handler> = {
       figma.notify(nt("deliver.stamp.done"), { timeout: 3000 });
     } catch (error: any) {
       console.error("Delivery stamp error:", error);
+      // Mark Design Done is a SOFT gate (AUDIT-01): if the file has no Cover
+      // page/component, generateOrUpdateCover throws with NO_COVER_ERROR_CODE.
+      // Surface an actionable, i18n-correct message pointing the designer at the
+      // Starter Kit / Je démarre audit mode — never auto-create the Cover here.
+      var stampErrKey =
+        error?.code === NO_COVER_ERROR_CODE
+          ? "deliver.stamp.noCover"
+          : "deliver.stamp.error";
       figma.ui.postMessage({
         type: "delivery-stamp-error",
-        message: error?.message || nt("deliver.stamp.error"),
+        message: nt(stampErrKey),
       });
-      figma.notify(nt("deliver.stamp.error"), { timeout: 4000, error: true });
+      figma.notify(nt(stampErrKey), { timeout: 4000, error: true });
     }
   },
 

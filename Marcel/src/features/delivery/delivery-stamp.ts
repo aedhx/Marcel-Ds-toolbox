@@ -237,7 +237,9 @@ export async function generateDeliveryStamp(data: DeliveryStampData): Promise<vo
 
   page.appendChild(badge);
 
-  // Surface it so the designer sees the result immediately.
-  figma.currentPage = page;
+  // Surface it so the designer sees the result immediately. Under
+  // documentAccess: dynamic-page, figma.currentPage is read-only — navigation
+  // must go through setCurrentPageAsync (matches main.ts / starter-kit.ts).
+  await figma.setCurrentPageAsync(page);
   figma.viewport.scrollAndZoomIntoView([badge]);
 }
