@@ -3680,7 +3680,7 @@
               <div id="qt-naming-badge"><!-- statusBadge injected --></div>
               <div class="moment-meta hidden" id="qt-naming-result"><!-- count line --></div>
               <button class="moment-secondary-btn hidden" id="qt-naming-fix-btn" data-i18n="build.tool.naming.fix">Fix naming</button>
-              <a class="moment-secondary-btn" id="qt-naming-fullpanel" role="button" tabindex="0" style="cursor: pointer;" data-i18n="build.tool.fullpanel">Open full tool ↗</a>
+              <button class="moment-secondary-btn" id="qt-naming-fullpanel" data-i18n="build.tool.fullpanel">Open full tool ↗</button>
             </div>
 
             <!-- ── Quick-tool: Nettoyer les styles (Dead Styles) ── -->
@@ -3706,7 +3706,7 @@
 
               <!-- Non-destructive: Détacher les styles externes — no confirm. -->
               <button class="moment-secondary-btn hidden" id="qt-clean-detach-btn" data-i18n="build.tool.cleanstyles.detach">Detach foreign styles</button>
-              <a class="moment-secondary-btn" id="qt-clean-fullpanel" role="button" tabindex="0" style="cursor: pointer;" data-i18n="build.tool.fullpanel">Open full tool ↗</a>
+              <button class="moment-secondary-btn" id="qt-clean-fullpanel" data-i18n="build.tool.fullpanel">Open full tool ↗</button>
             </div>
           </div>
         </div>
@@ -10259,7 +10259,7 @@
       function renderDeliverCoverBadge() {
         var badgeEl = document.getElementById("deliver-cover-badge");
         if (!badgeEl) return;
-        var status = coverStatus && coverStatus !== "" ? coverStatus : "—";
+        var status = coverStatus ? coverStatus : "—";
         var label = t("state.cover.prefix") + status;
         badgeEl.innerHTML = statusBadge("none", label, coverStatusColor(coverStatus));
       }
@@ -10367,7 +10367,9 @@
         // threshold (from scoring-config), not a hardcoded 75.
         var profileThreshold = getProfileThreshold();
         var scorePass = overall >= profileThreshold;
-        var coverReady = !!(coverStatus && coverStatus !== "");
+        // B1-04: only the two delivery-ready cover statuses satisfy the gate —
+        // any other non-empty status (In Progress / Playground / Archived) is unmet.
+        var coverReady = coverStatus === "SOT" || coverStatus === "Design Done";
         var a11yMet = deliverA11yAttested;
         var anyUnmet = !scorePass || !a11yMet || !coverReady;
 
