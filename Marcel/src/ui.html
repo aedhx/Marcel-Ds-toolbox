@@ -8967,14 +8967,14 @@
             var cat = QC_CATEGORY_ORDER[i];
             var catLabel = t(QC_CATEGORY_LABELS[cat]) || cat;
             var catResult = catScores[cat];
-            var catScore = catResult ? catResult.score : 100;
+            var cp = qcCatPct(catResult);
             var catViolations = catResult ? catResult.violationCount : 0;
             var violText = catViolations === 0
               ? t("linter.no.violations")
               : catViolations + " violation" + (catViolations > 1 ? "s" : "");
             html +=
               '<div class="qc-category-card" onclick="qcDrillInto(\'' + cat + "')\">" +
-              qcDonut(catScore, "small") +
+              qcDonut(cp.pct, "small", cp.label) +
               '<div class="qc-category-name">' + escapeHtml(catLabel) + "</div>" +
               '<div class="qc-category-violations">' + escapeHtml(violText) + "</div>" +
               "</div>";
@@ -8999,7 +8999,25 @@
       // progress stroke and the score label use the DS ramp via qcScoreColor(score).
       // size: 'large' (r=40, viewBox 96x96, 96px display)
       //       'small' (r=20, viewBox 48x48, 64px display)
-      function qcDonut(score, size) {
+      // Normalize a CategoryScore (0→budget scale) into a 0–100 donut pct + a
+      // "score/budget" label. Perfect category (score == budget) → full green.
+      // Fallbacks: budget absent (stale in-memory result) → today's pct=score
+      // behavior; absent category (cs == null) → neutral full donut labeled "—".
+      function qcCatPct(cs) {
+        var budget = cs && typeof cs.budget === "number" ? cs.budget : null;
+        var score = cs ? cs.score : 0;
+        if (cs == null) return { pct: 100, label: "—" };
+        if (budget && budget > 0) {
+          return {
+            pct: Math.round((100 * score) / budget),
+            label: Math.round(score) + "/" + budget,
+          };
+        }
+        var p = Math.max(0, Math.min(100, Math.round(score)));
+        return { pct: p, label: String(Math.round(score)) };
+      }
+
+      function qcDonut(pct, size, labelText) {
         var isLarge = size === "large";
         var r = isLarge ? 40 : 20;
         var cx = isLarge ? 48 : 24;
@@ -9007,9 +9025,17 @@
         var display = isLarge ? 96 : 64;
         var sw = isLarge ? 6 : 4;
         var circ = 2 * Math.PI * r;
-        var offset = circ * (1 - Math.max(0, Math.min(100, score)) / 100);
-        var color = qcScoreColor(score);
-        var fontSize = isLarge ? 18 : 11;
+        var offset = circ * (1 - Math.max(0, Math.min(100, pct)) / 100);
+        var color = qcScoreColor(pct);
+        var label =
+          labelText === undefined || labelText === null
+            ? String(Math.round(pct))
+            : labelText;
+        // "15/15" is longer than "100": shrink the font when the label carries a
+        // "/" so score/budget stays inside the ring at both sizes. Baseline (fontY)
+        // and geometry are untouched; a smaller font stays visually centered.
+        var hasSlash = label.indexOf("/") !== -1;
+        var fontSize = isLarge ? (hasSlash ? 14 : 18) : hasSlash ? 9 : 11;
         var fontY = isLarge ? cx + 7 : cx + 4;
         return (
           '<svg viewBox="' +
@@ -9062,7 +9088,7 @@
           '" font-weight="700" fill="' +
           color +
           '">' +
-          Math.round(score) +
+          label +
           "</text>" +
           "</svg>"
         );
@@ -9114,8 +9140,10 @@
         var titleEl = document.getElementById("qc-drilldown-title");
         if (titleEl) titleEl.textContent = catLabel;
         var gaugeEl = document.getElementById("qc-drilldown-gauge");
-        if (gaugeEl)
-          gaugeEl.innerHTML = qcDonut(catScore ? catScore.score : 100, "small");
+        if (gaugeEl) {
+          var cp = qcCatPct(catScore);
+          gaugeEl.innerHTML = qcDonut(cp.pct, "small", cp.label);
+        }
 
         var groupsEl = document.getElementById("qc-drilldown-groups");
         if (groupsEl) {
