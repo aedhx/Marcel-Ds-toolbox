@@ -5,7 +5,6 @@ import { Violation } from "./shared/violation-types";
 import { autoFixNode, autoFixAll } from "./features/linter/linter-autofix";
 import { LinterConfig, loadLinterConfig, saveLinterConfig, resetLinterConfig } from "./features/linter/linter-config";
 import { loadAllowlist, addToAllowlist, removeFromAllowlist, clearAllowlist, filterAllowlisted } from "./features/linter/linter-allowlist";
-import { runHealthCheck } from "./features/health-check/hc-engine";
 import { hcFixNode, hcFixAll } from "./features/health-check/hc-autofix";
 import { runQualityCheck } from "./shared/quality-check-engine";
 import type { ScanAbortToken } from "./shared/node-traversal";
@@ -18,11 +17,6 @@ import { scanDeadStyles, scanStyleCleaner } from "./features/dead-styles/dead-st
 import { removeDeadStyle, removeAllDeadStyles } from "./features/dead-styles/dead-styles-actions";
 import { detachVariableBinding, detachStyleBinding, replaceVariableBinding, batchDetachForeign, batchReplaceForeign } from "./features/dead-styles/dead-styles-fix";
 import { hexToRgb } from "./shared/tokens";
-import { runAccessibilityAudit } from "./features/accessibility/a11y-engine";
-import { setAltText, getAltText } from "./features/accessibility/a11y-alt-text";
-import { createAltTextBadges, cleanupBadges } from "./features/accessibility/a11y-badges";
-import { simulateColorBlindness } from "./features/accessibility/a11y-color-blindness";
-
 
 import { createStorage } from "./shared/storage";
 
@@ -724,48 +718,10 @@ const handlers: Record<string, Handler> = {
     }
   },
 
-  // ── Health Check handler ──
-
-  "run-health-check": async (msg) => {
-    try {
-      // Cancel any in-progress scan
-      if (currentAbortToken) currentAbortToken.cancelled = true;
-      currentAbortToken = { cancelled: false };
-
-      const scope = msg.scope || "page";
-      const result = await runHealthCheck(
-        scope as "page" | "selection" | "file",
-        currentAbortToken,
-        (category, processed, total) => {
-          figma.ui.postMessage({
-            type: "health-check-progress",
-            category,
-            processed,
-            total,
-          });
-        }
-      );
-
-      currentAbortToken = null;
-
-      if (result) {
-        figma.ui.postMessage({ type: "health-check-result", result });
-      }
-    } catch (error: any) {
-      console.error("Health Check error:", error);
-      currentAbortToken = null;
-      figma.ui.postMessage({
-        type: "health-check-error",
-        message: error?.message || nt("hc.error"),
-      });
-    }
-  },
-
-  // ── Unified Quality Check handler (hidden/dev trigger — D-06/D-09) ──
+  // ── Unified Quality Check handler (D-06/D-09) ──
   // Wires runQualityCheck() into the dispatch so the unified engine is genuinely
-  // invocable end-to-end this phase. Mirrors the run-health-check handler above:
+  // invocable end-to-end. Uses the former HC scan handler pattern:
   // single currentAbortToken supersede, unified progress post, discard-on-cancel.
-  // NOT bound to any tab/UI result view (that is Phase 4).
 
   "run-quality-check": async (msg) => {
     try {
@@ -1208,117 +1164,6 @@ const handlers: Record<string, Handler> = {
         type: "batch-foreign-result",
         action: "replace",
         result: { count: 0, failed: 0 },
-      });
-    }
-  },
-
-  // ── Accessibility Audit handlers ──
-
-  "run-a11y-audit": async (msg) => {
-    try {
-      // Cancel any in-progress scan
-      if (currentAbortToken) currentAbortToken.cancelled = true;
-      currentAbortToken = { cancelled: false };
-
-      const scope = msg.scope || "page";
-      const result = await runAccessibilityAudit(
-        scope as "page" | "selection" | "file",
-        currentAbortToken,
-        (category, processed, total) => {
-          figma.ui.postMessage({
-            type: "a11y-progress",
-            category,
-            processed,
-            total,
-          });
-        }
-      );
-
-      if (currentAbortToken.cancelled) {
-        figma.ui.postMessage({ type: "scan-cancelled" });
-        return;
-      }
-
-      currentAbortToken = null;
-
-      // Store imageNodes for badge creation, send result without imageNodes
-      const { imageNodes, ...a11yResult } = result;
-      figma.ui.postMessage({ type: "a11y-result", result: a11yResult });
-    } catch (error: any) {
-      console.error("A11Y audit error:", error);
-      currentAbortToken = null;
-      figma.ui.postMessage({
-        type: "a11y-error",
-        message: error?.message || String(error),
-      });
-    }
-  },
-
-  "save-alt-text": async (msg) => {
-    try {
-      const nodeId = msg.nodeId || "";
-      const node = await figma.getNodeByIdAsync(nodeId);
-      if (node && node.type !== "DOCUMENT" && node.type !== "PAGE") {
-        setAltText(node as SceneNode, msg.altText || "");
-        figma.ui.postMessage({ type: "alt-text-saved", nodeId });
-      } else {
-        console.warn("save-alt-text: node not found", nodeId);
-      }
-    } catch (error: any) {
-      console.error("Save alt-text error:", error);
-    }
-  },
-
-  "get-alt-text": async (msg) => {
-    try {
-      const nodeId = msg.nodeId || "";
-      const node = await figma.getNodeByIdAsync(nodeId);
-      if (node && node.type !== "DOCUMENT" && node.type !== "PAGE") {
-        const altText = getAltText(node as SceneNode);
-        figma.ui.postMessage({ type: "alt-text-loaded", nodeId, altText });
-      }
-    } catch (error: any) {
-      console.error("Get alt-text error:", error);
-    }
-  },
-
-  "create-a11y-badges": async (msg) => {
-    try {
-      console.log("[a11y-badges] Step 1: running audit...");
-      const auditResult = await runAccessibilityAudit("page");
-      console.log("[a11y-badges] Step 2: audit done, imageNodes:", auditResult.imageNodes?.length);
-      const count = await createAltTextBadges(auditResult.imageNodes);
-      console.log("[a11y-badges] Step 3: badges created:", count);
-      figma.ui.postMessage({ type: "a11y-badges-created", count });
-    } catch (error: any) {
-      console.error("Create A11Y badges error:", error?.message || error, error?.stack || "no stack");
-      figma.ui.postMessage({
-        type: "a11y-error",
-        message: error?.message || String(error),
-      });
-    }
-  },
-
-  "cleanup-a11y-badges": (msg) => {
-    try {
-      cleanupBadges(figma.currentPage);
-      figma.ui.postMessage({ type: "a11y-badges-cleaned" });
-    } catch (error: any) {
-      console.error("Cleanup A11Y badges error:", error);
-    }
-  },
-
-  "simulate-color-blindness": async (msg) => {
-    try {
-      const cbScope = (msg.scope || "page") as "page" | "selection";
-      const cbPlacement = (msg.placement || "new-page") as "new-page" | "same-page";
-      const result = await simulateColorBlindness(cbScope, cbPlacement);
-      figma.ui.postMessage({ type: "color-blindness-simulated", pagesCreated: result.pagesCreated });
-    } catch (error: any) {
-      console.error("Color blindness simulation error:", error);
-      figma.ui.postMessage({
-        type: "a11y-error",
-        message: error?.message || String(error),
       });
     }
   },
