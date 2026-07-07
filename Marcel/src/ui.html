@@ -1256,6 +1256,25 @@
       .shell-alltools-btn:hover {
         color: var(--content-default);
       }
+      .hub-back-btn {
+        display: inline-flex;
+        align-items: center;
+        align-self: flex-start;
+        border: 1px solid transparent;
+        background: var(--bg-subtle);
+        cursor: pointer;
+        font-family: "Ubuntu", sans-serif;
+        font-size: 12px;
+        font-weight: 400;
+        color: var(--content-subtler);
+        padding: 2px 8px;
+        border-radius: var(--radius-s);
+        margin-bottom: var(--spacing-s);
+        transition: background 0.15s, color 0.15s;
+      }
+      .hub-back-btn:hover {
+        color: var(--content-default);
+      }
       .lang-picker {
         display: inline-flex;
         gap: 2px;
@@ -4293,6 +4312,7 @@
         <!-- HUB PANEL: Central Navigation                -->
         <!-- ═══════════════════════════════════════════ -->
         <div id="panel-hub" class="tab-panel active" role="tabpanel">
+          <button type="button" id="hub-back-moments" class="hub-back-btn" data-i18n="shell.back">← Retour aux moments</button>
           <div class="hub-hero">
             <div class="hub-hero-title-row">
               <span class="hub-header-title" data-i18n="hub.title">Marcel Toolbox</span>
@@ -6061,6 +6081,12 @@
       var backBtn = document.getElementById("sidebar-back-moments");
       if (backBtn)
         backBtn.addEventListener("click", function () {
+          switchMoment(lastActiveMoment || "build");
+        });
+
+      var hubBackBtn = document.getElementById("hub-back-moments");
+      if (hubBackBtn)
+        hubBackBtn.addEventListener("click", function () {
           switchMoment(lastActiveMoment || "build");
         });
 
