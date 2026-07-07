@@ -48,7 +48,7 @@ const NOTIF: Record<string, Record<string, string>> = {
     "cover.error": "Erreur lors de la mise à jour de la cover.",
     "deliver.stamp.done": "Tampon de livraison généré · Cover → Design Done ✅",
     "deliver.stamp.error": "Erreur lors de la génération du tampon de livraison.",
-    "deliver.stamp.noCover": "Aucune page Cover trouvée. Lance d'abord le Starter Kit (ou le mode audit « Je démarre ») pour créer la Cover.",
+    "deliver.stamp.noCoverSoft": "Carte de livraison posée — aucune Cover trouvée, statut projet non mis à jour.",
     "config.saved": "Paramètres sauvegardés ✅",
     "config.reset": "Paramètres réinitialisés",
     "ds.removed": "Style supprime",
@@ -82,7 +82,7 @@ const NOTIF: Record<string, Record<string, string>> = {
     "cover.error": "Error updating the cover.",
     "deliver.stamp.done": "Delivery stamp generated · Cover → Design Done ✅",
     "deliver.stamp.error": "Error generating the delivery stamp.",
-    "deliver.stamp.noCover": "No Cover page found. Run the Starter Kit first (or the “Je démarre” audit mode) to create the Cover.",
+    "deliver.stamp.noCoverSoft": "Delivery stamp placed — no Cover found, project status not updated.",
     "config.saved": "Settings saved ✅",
     "config.reset": "Settings reset",
     "ds.removed": "Style deleted",
@@ -116,7 +116,7 @@ const NOTIF: Record<string, Record<string, string>> = {
     "cover.error": "Erro ao atualizar a cover.",
     "deliver.stamp.done": "Carimbo de entrega gerado · Cover → Design Done ✅",
     "deliver.stamp.error": "Erro ao gerar o carimbo de entrega.",
-    "deliver.stamp.noCover": "Nenhuma página Cover encontrada. Execute primeiro o Starter Kit (ou o modo de auditoria “Je démarre”) para criar a Cover.",
+    "deliver.stamp.noCoverSoft": "Carimbo de entrega colocado — nenhuma Cover encontrada, status do projeto não atualizado.",
     "config.saved": "Configurações salvas ✅",
     "config.reset": "Configurações resetadas",
     "ds.removed": "Estilo excluído",
@@ -770,33 +770,37 @@ const handlers: Record<string, Handler> = {
   // flip goes through the existing validated generateOrUpdateCover path (T-052-12).
   "generate-delivery-stamp": async (msg) => {
     try {
-      // Flip the Cover to Design Done, preserving the persisted governed profile
-      // (saveCoverConfig + generateOrUpdateCover so status + profile persist together).
-      const coverCfg = await loadCoverConfig();
-      coverCfg.projectStatus = "Design Done";
-      await saveCoverConfig(coverCfg);
-      await generateOrUpdateCover(coverCfg);
-
-      // Build the in-file badge (aggregate-only) next to the project.
+      // STAMP FIRST (D-01/2): the badge is ALWAYS placed. Only a stamp failure
+      // is a hard error — the outer catch handles it below.
       await generateDeliveryStamp(msg.data);
 
-      figma.ui.postMessage({ type: "delivery-stamp-generated" });
-      figma.notify(nt("deliver.stamp.done"), { timeout: 3000 });
+      // Cover flip is best-effort (AUDIT-01 soft gate): flip the Cover to Design
+      // Done in its OWN try/catch so a missing/broken Cover never blocks delivery.
+      try {
+        var coverCfg = await loadCoverConfig();
+        coverCfg.projectStatus = "Design Done";
+        await saveCoverConfig(coverCfg);
+        await generateOrUpdateCover(coverCfg);
+
+        figma.ui.postMessage({ type: "delivery-stamp-generated" });
+        figma.notify(nt("deliver.stamp.done"), { timeout: 3000 });
+      } catch (coverErr: any) {
+        // No Cover (or any other Cover error): the stamp IS placed, so the
+        // "done" view must still show. Notify SOFTLY (no error:true) — the Cover
+        // flip is non-blocking; only the stamp itself is a hard gate.
+        if (coverErr?.code !== NO_COVER_ERROR_CODE) {
+          console.error("Delivery cover flip error:", coverErr);
+        }
+        figma.ui.postMessage({ type: "delivery-stamp-generated" });
+        figma.notify(nt("deliver.stamp.noCoverSoft"), { timeout: 4000 });
+      }
     } catch (error: any) {
       console.error("Delivery stamp error:", error);
-      // Mark Design Done is a SOFT gate (AUDIT-01): if the file has no Cover
-      // page/component, generateOrUpdateCover throws with NO_COVER_ERROR_CODE.
-      // Surface an actionable, i18n-correct message pointing the designer at the
-      // Starter Kit / Je démarre audit mode — never auto-create the Cover here.
-      var stampErrKey =
-        error?.code === NO_COVER_ERROR_CODE
-          ? "deliver.stamp.noCover"
-          : "deliver.stamp.error";
       figma.ui.postMessage({
         type: "delivery-stamp-error",
-        message: nt(stampErrKey),
+        message: nt("deliver.stamp.error"),
       });
-      figma.notify(nt(stampErrKey), { timeout: 4000, error: true });
+      figma.notify(nt("deliver.stamp.error"), { timeout: 4000, error: true });
     }
   },
 
