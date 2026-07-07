@@ -210,7 +210,7 @@ async function suggestAutoFix(node: SceneNode): Promise<AutoFixSuggestion | null
         var gct = grpChildren[g].type;
         grpCounts[gct] = (grpCounts[gct] || 0) + 1;
       }
-      var grpDominant = grpChildren[0].type;
+      var grpDominant: string = grpChildren[0].type;
       var grpMax = 0;
       for (var gk in grpCounts) {
         if (grpCounts[gk] > grpMax) {

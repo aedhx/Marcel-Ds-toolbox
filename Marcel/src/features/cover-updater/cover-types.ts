@@ -27,3 +27,15 @@ export const DEFAULT_COVER_CONFIG: CoverConfig = {
   projectStatus: "In Progress",
   projectProfile: DEFAULT_PROFILE_ID,
 };
+
+/**
+ * Optional display data threaded into the Cover page builder (`buildCover`).
+ * Every field is optional — the builder falls back to placeholder copy when a
+ * field is absent. Distinct from {@link CoverConfig} (persisted status/profile).
+ */
+export interface CoverData {
+  status?: string;
+  fileName?: string;
+  date?: string;
+  designer?: string;
+}

@@ -5,6 +5,7 @@
   "scripts": {
     "build": "node esbuild.config.mjs",
     "watch": "node esbuild.config.mjs --watch",
+    "typecheck": "tsc --noEmit",
     "check:dist": "node -e \"require('fs').existsSync('dist/main.js')||(console.error('\\n[Marcel] dist/main.js missing — run: npm run build\\n'),process.exit(1))\"",
     "postinstall": "node -e \"require('fs').existsSync('dist/main.js')||console.warn('[Marcel] No build yet — run: npm run build before loading the plugin in Figma.')\""
   },

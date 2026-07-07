@@ -150,17 +150,16 @@ export async function runQualityCheck(
       coverageInstanceIds.push(node.id);
     }
 
-    // Skip remote library instances (toolkit components) and their children.
-    // VERBATIM from hc-engine lines 81-90 — keeps the unified pass seeing the same node set
-    // the HC pass sees today under figma.skipInvisibleInstanceChildren (do NOT await/"fix").
+    // Skip every instance's children (toolkit / library internals are out of audit scope).
+    // traverseNodes' visitor is SYNCHRONOUS (NodeVisitor => void | false), so remote-ness
+    // cannot be resolved here via getMainComponentAsync: an inline `await` in the non-async
+    // visitor is a compile error (TS2311) and, once bundled, threw a ReferenceError that the
+    // former catch swallowed with `return false` — i.e. EVERY instance's children were already
+    // skipped at runtime. We express that same behavior synchronously. Instance coverage is
+    // still classified in the batched post-pass (classifyCoverageInstances) off the
+    // coverageInstanceIds collected just above.
     if (node.type === 'INSTANCE') {
-      try {
-        const main = await (node as InstanceNode).getMainComponentAsync();
-        if (main && main.remote) return false;
-      } catch (_) {
-        // dynamic-page access — skip this instance to be safe
-        return false;
-      }
+      return false;
     }
 
     // ── Naming (all nodes; six pure-sync rules — Plan 01) ──
@@ -183,11 +182,12 @@ export async function runQualityCheck(
     }
 
     // ── Spacing (auto-layout frames) ──
+    // INSTANCE is not listed: instances skip their subtree above (return false), so an
+    // INSTANCE node never reaches here — TS narrows it out of node.type at this point.
     if (
       node.type === 'FRAME' ||
       node.type === 'COMPONENT' ||
-      node.type === 'COMPONENT_SET' ||
-      node.type === 'INSTANCE'
+      node.type === 'COMPONENT_SET'
     ) {
       const spacingResult = checkNodeSpacing(node, path);
       if (spacingResult.length > 0 || isAutoLayout(node)) {
@@ -202,7 +202,9 @@ export async function runQualityCheck(
 
     const detached = checkDetachedInstances(node, path);
     componentViolations.push(...detached);
-    if (node.type === 'INSTANCE' || (node.type === 'FRAME' && detached.length > 0)) {
+    // Detached instances present as FRAMEs (real INSTANCE nodes skip their subtree above and
+    // never reach here — narrowed out of node.type), so we only count the FRAME-with-detached case.
+    if (node.type === 'FRAME' && detached.length > 0) {
       componentNodesChecked++;
     }
 
