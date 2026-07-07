@@ -3607,35 +3607,72 @@
                 <button class="btn-primary" id="qc-run-btn" data-i18n="qc.run">Run Quality Check</button>
               </div>
 
-              <!-- Secondary stub-launchers in Je construis (D-02) -->
-              <div class="qc-card" style="margin-top: var(--spacing-l);">
-                <button class="moment-secondary-btn" id="moment-import-cta" data-i18n="build.import">Import Toolkit</button>
-                <!-- D-01 / SC-5: clarify what the Import launcher inserts. Copy-only
-                     12px caption; behavior + hardcoded component key are untouched. -->
-                <div class="moment-meta" data-i18n="build.import.caption">Inserts the Design System handoff components (annotations, specs).</div>
-
-                <!-- BUILD-03 / D-05: NET-NEW 4-value cover-status picker.
-                     Distinct id (#build-cover-status) — does NOT touch the legacy
-                     5-value #cover-status-select. "Design Done" is OMITTED here;
-                     only the Je livre gate may set it. -->
-                <div style="margin-top: var(--spacing-s); display: flex; flex-direction: column; gap: var(--spacing-xs);">
-                  <label for="build-cover-status"
-                         style="font-size: 12px; font-weight: 400; color: var(--content-subtle);"
-                         data-i18n="build.cover.label">Cover status</label>
-                  <select id="build-cover-status" class="select">
-                    <option value="In Progress" data-i18n="cover.status.inprogress">In Progress</option>
-                    <option value="Playground" data-i18n="cover.status.playground">Playground</option>
-                    <option value="SOT" data-i18n="cover.status.sot">SOT</option>
-                    <option value="Archived" data-i18n="cover.status.archived">Archived</option>
-                  </select>
-                  <span id="build-cover-current" class="hidden"
-                        style="font-size: 12px; font-weight: 400; color: var(--content-subtle);"></span>
-                  <button class="moment-secondary-btn" id="build-cover-apply" data-i18n="build.cover.apply">Update Cover</button>
+              <!-- Secondary stub-launchers in Je construis (D-02) — QT-4: each
+                   functional block is its own full-width .moment-card (icon chip
+                   + title + desc), stacked inside #qc-empty. Ids/handlers/i18n
+                   keys unchanged; visible pre-scan only (state region preserved). -->
+              <div class="moment-card" style="margin-top: var(--spacing-l);">
+                <div class="moment-card-head">
+                  <div class="hub-card-icon tk">
+                    <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                      <path d="M9 2v10M5 8l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                      <path d="M3 14h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                    </svg>
+                  </div>
+                  <div>
+                    <div class="moment-card-title" data-i18n="build.import.title">Handoff Toolkit</div>
+                    <!-- D-01 / SC-5: clarify what the Import launcher inserts. -->
+                    <div class="moment-card-desc" data-i18n="build.import.caption">Inserts the Design System handoff components (annotations, specs).</div>
+                  </div>
                 </div>
+                <button class="moment-secondary-btn" id="moment-import-cta" data-i18n="build.import">Import Toolkit</button>
+              </div>
 
-                <!-- D-07 / SC-5: open the a11y plugin via the typed open-external
-                     message → figma.openExternal (Plan 01), NOT <a target=_blank>.
-                     Posts the single canonical A11Y_PLUGIN_URL the handler allowlists. -->
+              <!-- BUILD-03 / D-05: NET-NEW 4-value cover-status picker.
+                   Distinct id (#build-cover-status) — does NOT touch the legacy
+                   5-value #cover-status-select. "Design Done" is OMITTED here;
+                   only the Je livre gate may set it. -->
+              <div class="moment-card" style="margin-top: var(--spacing-l);">
+                <div class="moment-card-head">
+                  <div class="hub-card-icon cu">
+                    <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                      <rect x="2" y="3" width="14" height="12" rx="2" stroke="currentColor" stroke-width="1.5" fill="none" />
+                      <path d="M5 8h8M5 11h5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" />
+                    </svg>
+                  </div>
+                  <div>
+                    <div class="moment-card-title" data-i18n="build.cover.label">Cover status</div>
+                    <div class="moment-card-desc" data-i18n="build.cover.desc">Update the status shown on the Cover page.</div>
+                  </div>
+                </div>
+                <label for="build-cover-status" class="hidden"
+                       data-i18n="build.cover.label">Cover status</label>
+                <select id="build-cover-status" class="select">
+                  <option value="In Progress" data-i18n="cover.status.inprogress">In Progress</option>
+                  <option value="Playground" data-i18n="cover.status.playground">Playground</option>
+                  <option value="SOT" data-i18n="cover.status.sot">SOT</option>
+                  <option value="Archived" data-i18n="cover.status.archived">Archived</option>
+                </select>
+                <span id="build-cover-current" class="hidden"
+                      style="font-size: 12px; font-weight: 400; color: var(--content-subtle);"></span>
+                <button class="moment-secondary-btn" id="build-cover-apply" data-i18n="build.cover.apply">Update Cover</button>
+              </div>
+
+              <!-- D-07 / SC-5: open the a11y plugin via the typed open-external
+                   message → figma.openExternal (Plan 01), NOT <a target=_blank>.
+                   Posts the single canonical A11Y_PLUGIN_URL the handler allowlists. -->
+              <div class="moment-card" style="margin-top: var(--spacing-l);">
+                <div class="moment-card-head">
+                  <div class="hub-card-icon a11y">
+                    <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
+                      <path d="M10 4C5 4 1.7 7.1 0.5 10c1.2 2.9 4.5 6 9.5 6s8.3-3.1 9.5-6C18.3 7.1 15 4 10 4zm0 10a4 4 0 110-8 4 4 0 010 8zm0-6.5a2.5 2.5 0 100 5 2.5 2.5 0 000-5z" fill="currentColor" />
+                    </svg>
+                  </div>
+                  <div>
+                    <div class="moment-card-title" data-i18n="build.a11y.title">Accessibility</div>
+                    <div class="moment-card-desc" data-i18n="build.a11y.desc">Audit color contrast &amp; readability via the external plugin.</div>
+                  </div>
+                </div>
                 <button class="moment-secondary-btn" id="moment-a11y-link"
                    data-i18n="build.a11y.link">Accessibility — external plugin ↗</button>
               </div>
@@ -3733,8 +3770,8 @@
                The legacy V1 hub is permanent as the "Tous les outils" drawer,
                so the duplicated mini-scan engine surface is retired.
           ═════════════════════════════════════════════════════════════════ -->
-          <div class="qc-card" style="margin-top: var(--spacing-l);">
-            <div class="hub-card" onclick="switchTab('linter')">
+          <div style="margin-top: var(--spacing-l); display: flex; flex-direction: column; gap: var(--spacing-l);">
+            <div class="hub-card hub-card--full" onclick="switchTab('linter')">
               <div class="hub-card-icon li">
                 <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
                   <path
@@ -3764,7 +3801,7 @@
               </svg>
             </div>
 
-            <div class="hub-card" onclick="switchTab('dead-styles')">
+            <div class="hub-card hub-card--full" onclick="switchTab('dead-styles')">
               <div class="hub-card-icon ds">
                 <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
                   <path
@@ -3812,12 +3849,9 @@
           <!-- State: no scan this session (qcResult === null) — D-04, no persisted fallback -->
           <div
             id="deliver-noscan"
-            class="hidden"
+            class="moment-card hidden"
             style="
               border-left: 4px solid var(--error);
-              background: var(--bg-subtle);
-              border-radius: var(--radius-m);
-              padding: var(--spacing-l);
               margin-top: var(--spacing-l);
             "
           >
@@ -3852,13 +3886,7 @@
           >
             <div
               id="deliver-gate-card"
-              style="
-                background: var(--bg-default);
-                border: 1px solid var(--border-default);
-                border-left: 1px solid var(--border-default);
-                border-radius: var(--radius-m);
-                padding: var(--spacing-l);
-              "
+              class="moment-card"
             >
               <div
                 class="moment-heading"
@@ -4053,7 +4081,7 @@
               >
                 <div
                   style="
-                    font-size: 13px;
+                    font-size: 14px;
                     font-weight: 700;
                     line-height: 1.4;
                     color: #8a5f00;
@@ -4134,7 +4162,7 @@
               <div style="margin-top: var(--spacing-l);">
                 <div
                   style="
-                    font-size: 13px;
+                    font-size: 14px;
                     font-weight: 700;
                     line-height: 1.4;
                     margin-bottom: var(--spacing-xs);
@@ -4176,12 +4204,9 @@
           <!-- State: done (after generate-cover {status:"Design Done"} succeeds) -->
           <div
             id="deliver-done"
-            class="hidden"
+            class="moment-card hidden"
             style="
               border-left: 4px solid #2c815e;
-              background: var(--bg-subtle);
-              border-radius: var(--radius-m);
-              padding: var(--spacing-l);
               margin-top: var(--spacing-l);
             "
           >
@@ -5523,6 +5548,8 @@
           "nav.start.cta": "Open Starter Kit", "nav.build.import": "Import Toolkit", "nav.build.cover": "Update Cover",
           "start.cover.init": "Cover initialized to 'In Progress'.",
           "build.import": "Import Toolkit", "build.a11y.link": "Accessibility — external plugin ↗",
+          "build.import.title": "Handoff Toolkit", "build.cover.desc": "Update the status shown on the Cover page.",
+          "build.a11y.title": "Accessibility", "build.a11y.desc": "Audit color contrast & readability via the external plugin.",
           "build.cover.label": "Cover status", "build.cover.apply": "Update Cover",
           "build.cover.current": "Current: {status}",
           "cover.status.inprogress": "In Progress", "cover.status.playground": "Playground",
@@ -5704,6 +5731,8 @@
           "nav.start.cta": "Ouvrir le Starter Kit", "nav.build.import": "Importer la Toolkit", "nav.build.cover": "Mettre à jour la Cover",
           "start.cover.init": "Cover initialisée sur « En cours ».",
           "build.import": "Importer la Toolkit", "build.a11y.link": "Accessibilité (plugin externe) ↗",
+          "build.import.title": "Toolkit Handoff", "build.cover.desc": "Met à jour le statut affiché sur la page Cover.",
+          "build.a11y.title": "Accessibilité", "build.a11y.desc": "Audite le contraste et la lisibilité via le plugin externe.",
           "build.cover.label": "Statut de la Cover", "build.cover.apply": "Mettre à jour la Cover",
           "build.cover.current": "Actuel : {status}",
           "cover.status.inprogress": "En cours", "cover.status.playground": "Playground",
@@ -5802,6 +5831,8 @@
           "nav.start.cta": "Abrir o Starter Kit", "nav.build.import": "Importar a Toolkit", "nav.build.cover": "Atualizar a Cover",
           "start.cover.init": "Cover inicializada em « Em andamento ».",
           "build.import": "Importar a Toolkit", "build.a11y.link": "Acessibilidade (plugin externo) ↗",
+          "build.import.title": "Toolkit de Handoff", "build.cover.desc": "Atualiza o status exibido na página Cover.",
+          "build.a11y.title": "Acessibilidade", "build.a11y.desc": "Audita o contraste de cores e a legibilidade via plugin externo.",
           "build.cover.label": "Status da Cover", "build.cover.apply": "Atualizar a Cover",
           "build.cover.current": "Atual: {status}",
           "cover.status.inprogress": "Em andamento", "cover.status.playground": "Playground",
