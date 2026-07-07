@@ -1,6 +1,4 @@
-import type { HCResult } from '../features/health-check/hc-types';
 import type { DeadStylesResult, DeadItemType, StyleCleanerResult } from '../features/dead-styles/dead-styles-types';
-import type { A11YResult } from '../features/accessibility/a11y-types';
 import type { QualityCheckResult } from './quality-check-types';
 import type { Violation } from './violation-types';
 import type { DeliveryStampData } from '../features/delivery/delivery-stamp';
@@ -25,8 +23,6 @@ export type UIMessage =
   | { type: "fix-violation"; nodeId: string; suggestion?: string }
   | { type: "fix-all-violations"; violations: { nodeId: string; suggestion?: string }[] }
   | { type: "fix-by-category"; category: string; violations: { nodeId: string; suggestion?: string }[] }
-  // Health Check (placeholder — Phase 3)
-  | { type: "run-health-check"; scope: "page" | "selection" | "file" }
   // Unified Quality Check (hidden/dev trigger — Phase 2 wiring, D-06)
   | { type: "run-quality-check"; scope: "page" | "selection" | "file" }
   // Unified Quality Check fix-routing (Phase 4 — QC-08/QC-09)
@@ -70,14 +66,6 @@ export type UIMessage =
   | { type: "replace-foreign-item"; itemId?: string; nodeId: string; field: string; paintIndex?: number; itemType: DeadItemType; styleType?: "PAINT" | "TEXT" | "EFFECT"; suggestion: { tokenName: string; tokenHex?: string; variableKey?: string } }
   | { type: "batch-detach-foreign"; items: Array<{ nodeId: string; field: string; paintIndex?: number; itemType: DeadItemType; styleType?: "PAINT" | "TEXT" | "EFFECT" }> }
   | { type: "batch-replace-foreign"; items: Array<{ nodeId: string; field: string; paintIndex?: number; itemType: DeadItemType; suggestion: { tokenName: string; tokenHex?: string; variableKey?: string } }> }
-  // Accessibility Audit
-  | { type: "run-a11y-audit"; scope: "page" | "selection" | "file" }
-  | { type: "save-alt-text"; nodeId: string; altText: string }
-  | { type: "get-alt-text"; nodeId: string }
-  | { type: "create-a11y-badges" }
-  | { type: "cleanup-a11y-badges" }
-  | { type: "simulate-color-blindness"; scope: "page" | "selection"; placement: "new-page" | "same-page" }
-  | { type: "copy-a11y-report" }
   // Init
   | { type: "ui-ready" };
 
@@ -105,10 +93,6 @@ export type PluginMessage =
   | { type: "linter-error"; message: string }
   | { type: "fix-violation-result"; result: { success: boolean; newName: string } }
   | { type: "fix-all-violations-result"; result: { fixed: number; failed: number; fixedNodeIds: string[] }; updatedLintResult: unknown }
-  // Health Check
-  | { type: "health-check-result"; result: HCResult }
-  | { type: "health-check-error"; message: string }
-  | { type: "health-check-progress"; category: string; processed: number; total: number }
   // Unified Quality Check (hidden/dev trigger — Phase 2 wiring, D-06)
   | { type: "quality-check-result"; result: QualityCheckResult }
   | { type: "quality-check-error"; message: string }
@@ -148,14 +132,4 @@ export type PluginMessage =
   | { type: "style-cleaner-result"; result: StyleCleanerResult }
   | { type: "style-cleaner-error"; message: string }
   | { type: "foreign-item-fixed"; itemId: string; action: "detach" | "replace"; success: boolean; error?: string }
-  | { type: "batch-foreign-result"; action: "detach" | "replace"; result: { count: number; failed: number } }
-  // Accessibility Audit
-  | { type: "a11y-result"; result: A11YResult }
-  | { type: "a11y-error"; message: string }
-  | { type: "a11y-progress"; category: string; processed: number; total: number }
-  | { type: "alt-text-saved"; nodeId: string }
-  | { type: "alt-text-loaded"; nodeId: string; altText: string }
-  | { type: "a11y-badges-created"; count: number }
-  | { type: "a11y-badges-cleaned" }
-  | { type: "color-blindness-simulated"; pagesCreated: string[] }
-  | { type: "a11y-report-copied" };
+  | { type: "batch-foreign-result"; action: "detach" | "replace"; result: { count: number; failed: number } };
