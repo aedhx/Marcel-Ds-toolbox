@@ -1326,6 +1326,60 @@
         flex-direction: column;
         gap: var(--spacing-s);
       }
+      /* ── Moment card grammar (QT-4) — shared full-width content card reused
+         across the 3 moments (Je démarre / Je construis / Je livre). Icon chip
+         + title + description, DS tokens only. Additive: distinct from .qc-card
+         (QC engine) and .hub-card (hub drawer) — those are left untouched. ── */
+      .moment-card {
+        display: flex;
+        flex-direction: column;
+        gap: var(--spacing-s);
+        padding: var(--spacing-l);
+        background: var(--bg-subtle);
+        border: 1px solid var(--border-default);
+        border-radius: var(--radius-m);
+      }
+      .moment-card-head {
+        display: flex;
+        align-items: flex-start;
+        gap: var(--spacing-s);
+      }
+      .moment-card-title {
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--content-default);
+        line-height: 1.4;
+      }
+      .moment-card-desc {
+        font-size: 12px;
+        font-weight: 400;
+        color: var(--content-subtler);
+        line-height: 1.4;
+        margin-top: 2px;
+      }
+      /* Full-width horizontal link-card modifier on .hub-card (harmonizes the
+         QT-3 Linter / Dead-Styles link-cards into the moment card grammar). */
+      .hub-card--full {
+        flex-direction: row;
+        align-items: center;
+        text-align: left;
+        gap: var(--spacing-m);
+        padding: var(--spacing-m) var(--spacing-l);
+      }
+      .hub-card--full .hub-card-body {
+        flex: 1;
+      }
+      .hub-card--full .hub-card-name {
+        font-size: 14px;
+      }
+      .hub-card--full .hub-card-desc {
+        font-size: 12px;
+        margin-top: 2px;
+      }
+      .hub-card--full .hub-card-arrow {
+        display: block;
+        color: var(--content-subtler);
+      }
       /* Phase 05.1 — shared status-badge grammar (idle/done, neutral/success).
          ONE badge component reused across all 3 moments (Plans 03/04 call statusBadge()).
          Pill, --radius-s, 2px/spacing-s padding, --bg-subtle + --border-default.
@@ -3440,6 +3494,18 @@
           <div class="moment-body" data-i18n="nav.start.body">Start a new file with the right structure.</div>
           <!-- Door A · blank file → Starter Kit (default; toggled by init-context.hasProjectPages) -->
           <div id="start-blank-door">
+          <div class="moment-card">
+          <div class="moment-card-head">
+            <div class="hub-card-icon sk">
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                <path d="M3 3h12v2H3V3zm0 5h12v2H3V8zm0 5h8v2H3v-2z" fill="currentColor" />
+              </svg>
+            </div>
+            <div>
+              <div class="moment-card-title" data-i18n="feature.starter-kit">Starter Kit</div>
+              <div class="moment-card-desc" data-i18n="feature.starter-kit.desc">Create standardized templates</div>
+            </div>
+          </div>
           <button class="btn-primary" id="moment-start-cta" data-i18n="nav.start.cta">Open Starter Kit</button>
           <!-- D-06 / START-04: DS-Library template re-surfaced as a SUBORDINATE secondary
                action below the prd primary (never a 2nd brand button). Posts
@@ -3474,14 +3540,26 @@
               >Cover initialized to 'In Progress'.</span
             >
           </div>
+          </div><!-- /.moment-card -->
           </div><!-- /start-blank-door -->
 
           <!-- ── Door B · existing file → Audit mode (AUDIT-01, spec §3) ──
                Non-destructive, opt-in: diagnose → tick fixes → Apply → baseline QC.
                Revealed by init-context.hasProjectPages; hidden for blank files. -->
           <div id="start-audit-panel" class="hidden">
-            <div class="moment-body" data-i18n="start.audit.intro"
-              >This file already has content. Run an audit to check its structure — nothing is changed without your consent.</div>
+            <div class="moment-card">
+            <div class="moment-card-head">
+              <div class="hub-card-icon li">
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                  <path d="M7 12.17L3.83 9l-1.42 1.41L7 15 16.59 5.41 15.17 4 7 12.17z" fill="currentColor" />
+                </svg>
+              </div>
+              <div>
+                <div class="moment-card-title" data-i18n="start.audit.card.title">Audit this file</div>
+                <div class="moment-card-desc" data-i18n="start.audit.intro"
+                  >This file already has content. Run an audit to check its structure — nothing is changed without your consent.</div>
+              </div>
+            </div>
             <button class="btn-primary" id="start-audit-diagnose" data-i18n="start.audit.diagnose"
               >Diagnose the file</button>
             <div id="start-audit-result" class="hidden" style="margin-top: var(--spacing-l);">
@@ -3499,6 +3577,7 @@
               <div class="moment-meta" style="margin-top: var(--spacing-xs);" data-i18n="start.audit.qc.caption"
                 >Get a starting score for this file.</div>
             </div>
+            </div><!-- /.moment-card -->
           </div>
         </div>
 
@@ -5593,6 +5672,7 @@
           "start.dslib.caption": "Creates a file from the DS Library template.",
           "start.audit.intro": "This file already has content. Run an audit to check its structure — nothing is changed without your consent.",
           "start.audit.diagnose": "Diagnose the file",
+          "start.audit.card.title": "Audit this file",
           "start.audit.result.title": "Structure diagnosis",
           "start.audit.apply": "Apply selected fixes",
           "start.audit.optin": "Nothing is applied until you tick a box and click Apply.",
@@ -5692,6 +5772,7 @@
           "start.dslib.caption": "Crée un fichier basé sur le template Librairie DS.",
           "start.audit.intro": "Ce fichier contient déjà du contenu. Lancez un audit pour vérifier sa structure — rien n'est modifié sans votre consentement.",
           "start.audit.diagnose": "Diagnostiquer le fichier",
+          "start.audit.card.title": "Auditer ce fichier",
           "start.audit.result.title": "Diagnostic de la structure",
           "start.audit.apply": "Appliquer les correctifs cochés",
           "start.audit.optin": "Rien n'est appliqué tant que vous ne cochez pas une case et cliquez sur Appliquer.",
@@ -5789,6 +5870,7 @@
           "start.dslib.caption": "Cria um arquivo a partir do modelo da biblioteca DS.",
           "start.audit.intro": "Este arquivo já tem conteúdo. Faça uma auditoria para verificar sua estrutura — nada é alterado sem o seu consentimento.",
           "start.audit.diagnose": "Diagnosticar o arquivo",
+          "start.audit.card.title": "Auditar este arquivo",
           "start.audit.result.title": "Diagnóstico da estrutura",
           "start.audit.apply": "Aplicar as correções marcadas",
           "start.audit.optin": "Nada é aplicado até você marcar uma caixa e clicar em Aplicar.",
