@@ -5148,7 +5148,7 @@
             >
               <div class="bulk-fix-preview-header">
                 <span class="bulk-fix-preview-title"
-                   data-i18n="linter.fix.preview" data-i18n="hc.fix.preview">Preview fixes</span
+                   data-i18n="linter.fix.preview">Preview fixes</span
                 >
                 <span id="bulk-fix-count" class="bulk-fix-count"></span>
               </div>
@@ -5560,6 +5560,7 @@
           "qc.cancelled": "Scan cancelled — no result kept.",
           "qc.threshold.label": "Confidence threshold",
           "qc.fix.category": "Fix this category", "qc.fix.all": "Fix all", "qc.ignore": "Ignore",
+          "qc.navigate": "Click to navigate to this element",
           "qc.cat.naming": "Naming", "qc.cat.colors": "Colors", "qc.cat.typography": "Typography",
           "qc.cat.spacing": "Spacing", "qc.cat.coverage": "Coverage",
           "qc.deadstyles.note": "Informational — does not affect the score",
@@ -5570,7 +5571,6 @@
           "feature.starter-kit": "Starter Kit", "feature.starter-kit.desc": "Create standardized templates",
           "feature.import-toolkit": "Import Toolkit", "feature.import-toolkit.desc": "Import Handoff components from DS",
           "feature.linter": "Layer Linter", "feature.linter.desc": "Audit layer naming quality",
-          "feature.health-check": "Health Check", "feature.health-check.desc": "DS conformity audit",
           "feature.dead-styles": "Dead Styles", "feature.dead-styles.desc": "Detect & remove unused styles",
           "feature.coverage": "Coverage Report", "feature.coverage.desc": "DS adoption metrics",
           "feature.statut-manager": "Statut Manager", "feature.statut-manager.desc": "Track component status",
@@ -5624,27 +5624,6 @@
           "rule.detached-styles": "Detached styles",
           "cat.naming": "Naming", "cat.structure": "Structure", "cat.style": "Style",
           "score.excellent": "Excellent", "score.good": "Good", "score.improve": "Needs improvement", "score.critical": "Critical",
-          "hc.title": "Health Check", "hc.scope.page": "Current page", "hc.scope.selection": "Selection",
-          "hc.scope.file": "Entire file", "hc.run": "Run Health Check",
-          "hc.desc": "Audits your file's conformity to the Marcel Design System.",
-          "hc.about": "What is checked",
-          "hc.about.color": "<strong>Colors</strong> — Detects fills and strokes outside DS tokens, suggests the closest token",
-          "hc.about.typo": "<strong>Typography</strong> — Checks the font (Ubuntu) and text style bindings",
-          "hc.about.spacing": "<strong>Spacing</strong> — Checks paddings and gaps of auto-layout frames vs the DS scale",
-          "hc.about.component": "<strong>Components</strong> — Finds detached instances, broken components and excessive overrides",
-          "hc.scanning": "Scanning...", "hc.cancel": "Cancel scan", "hc.rerun": "Rerun scan",
-          "hc.back": "← Back", "hc.violations": "Violations",
-          "hc.fix.all": "Fix all", "hc.fix.preview": "Preview fixes",
-          "hc.fix.cancel": "Cancel", "hc.fix.confirm": "Apply",
-          "hc.error": "An error occurred during the scan.",
-          "hc.navigate": "Click to navigate to this element",
-          "hc.no.violations": "No violations in this category.",
-          "hc.score.global": "Overall score: {score}/100",
-          "hc.meta": "{nodes} nodes scanned in {duration}ms — {scope}",
-          "hc.scope.label.page": "current page", "hc.scope.label.selection": "selection", "hc.scope.label.file": "entire file",
-          "hc.progress.color": "Scanning colors...", "hc.progress.typography": "Scanning typography...",
-          "hc.progress.spacing": "Scanning spacing...", "hc.progress.component": "Scanning components...",
-          "hc.cat.color": "Colors", "hc.cat.typography": "Typography", "hc.cat.spacing": "Spacing", "hc.cat.component": "Components", "hc.cat.coverage": "Coverage",
           "cover.title": "Cover Updater", "cover.desc": "Change your Cover page status in one click.",
           "cover.status": "Project status", "cover.update": "Update Cover",
           "cover.updating": "Updating...", "cover.success": "Cover updated",
@@ -5778,6 +5757,7 @@
           "qc.cancelled": "Analyse annulée — aucun résultat enregistré.",
           "qc.threshold.label": "Seuil de confiance",
           "qc.fix.category": "Corriger cette catégorie", "qc.fix.all": "Tout corriger", "qc.ignore": "Ignorer",
+          "qc.navigate": "Cliquez pour naviguer vers cet élément",
           "qc.cat.naming": "Nommage", "qc.cat.colors": "Couleurs", "qc.cat.typography": "Typographie",
           "qc.cat.spacing": "Espacement", "qc.cat.coverage": "Couverture",
           "qc.deadstyles.note": "Informatif — n'affecte pas le score",
@@ -5887,6 +5867,7 @@
           "qc.cancelled": "Análise cancelada — nenhum resultado salvo.",
           "qc.threshold.label": "Limite de confiança",
           "qc.fix.category": "Corrigir esta categoria", "qc.fix.all": "Corrigir tudo", "qc.ignore": "Ignorar",
+          "qc.navigate": "Clique para navegar até este elemento",
           "qc.cat.naming": "Nomenclatura", "qc.cat.colors": "Cores", "qc.cat.typography": "Tipografia",
           "qc.cat.spacing": "Espaçamento", "qc.cat.coverage": "Cobertura",
           "qc.deadstyles.note": "Informativo — não afeta a pontuação",
@@ -9309,7 +9290,7 @@
 
         return (
           '<div class="qc-violation-row" data-action="navigate" data-node-id="' + nodeId +
-          '" title="' + escapeAttr(t("hc.navigate") || "") + '">' +
+          '" title="' + escapeAttr(t("qc.navigate") || "") + '">' +
           '<span class="qc-sev-dot" style="background:' + sevColor + '"></span>' +
           '<div class="qc-violation-info">' +
           '<div class="qc-violation-name">' + escapeHtml(nodeName) + "</div>" +
