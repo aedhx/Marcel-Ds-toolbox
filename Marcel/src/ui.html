@@ -3586,6 +3586,7 @@
                     <input type="radio" name="qc-scope" value="file" />
                     <span data-i18n="qc.scope.file">Entire file</span></label>
                 </div>
+                <div class="moment-meta" data-i18n="qc.scope.hint">Scanning the entire file can be slow on large files — the Page scan is enough day-to-day.</div>
                 <button class="btn-primary" id="qc-run-btn" data-i18n="qc.run">Run Quality Check</button>
               </div>
 
@@ -3633,6 +3634,21 @@
 
             <!-- State: dashboard -->
             <div id="qc-dashboard" class="hidden">
+              <!-- Results-view scope control: mirrors the empty-view picker via
+                   qcScope so re-scans keep the chosen scope (name="qc-scope-dash"
+                   to avoid clashing with the empty-view "qc-scope" group). -->
+              <div class="hc-scope-select" id="qc-scope-select-dash">
+                <label>
+                  <input type="radio" name="qc-scope-dash" value="page" checked />
+                  <span data-i18n="qc.scope.page">Page</span></label>
+                <label>
+                  <input type="radio" name="qc-scope-dash" value="selection" />
+                  <span data-i18n="qc.scope.selection">Selection</span></label>
+                <label>
+                  <input type="radio" name="qc-scope-dash" value="file" />
+                  <span data-i18n="qc.scope.file">Entire file</span></label>
+              </div>
+              <div class="moment-meta" data-i18n="qc.scope.hint" style="margin-bottom: var(--spacing-s);">Scanning the entire file can be slow on large files — the Page scan is enough day-to-day.</div>
               <button class="btn-primary" id="qc-rescan-btn" data-i18n="qc.rescan" style="margin-bottom: var(--spacing-l);">Rescan</button>
               <div class="qc-score-global" id="qc-global-score"><!-- ring injected --></div>
               <div class="qc-categories-grid" id="qc-categories-grid"><!-- cards injected --></div>
@@ -5572,7 +5588,8 @@
           "deliver.a11y.launch": "Launch the accessibility plugin ↗",
           "qc.run": "Run Quality Check", "qc.rescan": "Rescan", "qc.cancel": "Cancel",
           "qc.scope.page": "Page", "qc.scope.selection": "Selection", "qc.scope.file": "Entire file",
-          "qc.scanning": "Scanning…",
+          "qc.scope.hint": "Scanning the entire file can be slow on large files — the Page scan is enough day-to-day.",
+          "qc.scanning": "Scanning…", "qc.scanning.nodes": "nodes",
           "qc.empty.title": "Check your file's quality",
           "qc.empty.body": "Pick a scope and run a scan to get a score and an actionable list.",
           "qc.clean": "No violations — nice work!",
@@ -5769,7 +5786,8 @@
           "deliver.a11y.launch": "Lancer le plugin d'accessibilité ↗",
           "qc.run": "Lancer le Quality Check", "qc.rescan": "Relancer l'analyse", "qc.cancel": "Annuler",
           "qc.scope.page": "Page", "qc.scope.selection": "Sélection", "qc.scope.file": "Fichier entier",
-          "qc.scanning": "Analyse en cours…",
+          "qc.scope.hint": "Scanner le fichier entier peut être long sur les gros fichiers — le scan Page suffit au quotidien.",
+          "qc.scanning": "Analyse en cours…", "qc.scanning.nodes": "nœuds",
           "qc.empty.title": "Vérifiez la qualité de votre fichier",
           "qc.empty.body": "Choisissez une portée et lancez une analyse pour obtenir un score et une liste d'actions.",
           "qc.clean": "Aucune violation — beau travail !",
@@ -5879,7 +5897,8 @@
           "deliver.a11y.launch": "Abrir o plugin de acessibilidade ↗",
           "qc.run": "Executar o Quality Check", "qc.rescan": "Refazer a análise", "qc.cancel": "Cancelar",
           "qc.scope.page": "Página", "qc.scope.selection": "Seleção", "qc.scope.file": "Arquivo inteiro",
-          "qc.scanning": "Analisando…",
+          "qc.scope.hint": "Escanear o arquivo inteiro pode ser lento em arquivos grandes — o escopo Página basta no dia a dia.",
+          "qc.scanning": "Analisando…", "qc.scanning.nodes": "nós",
           "qc.empty.title": "Verifique a qualidade do seu arquivo",
           "qc.empty.body": "Escolha um escopo e execute uma análise para obter uma pontuação e uma lista de ações.",
           "qc.clean": "Nenhuma violação — bom trabalho!",
@@ -6294,10 +6313,11 @@
       var auditQcBtn = document.getElementById("start-audit-qc");
       if (auditQcBtn)
         auditQcBtn.addEventListener("click", function () {
-          // Baseline Quality Check on the current page — shown in Je construis.
+          // Baseline Quality Check — shown in Je construis. Honors the last-chosen
+          // scope (qcScope) rather than forcing Page, so re-scans never silently revert.
           switchMoment("build");
           parent.postMessage(
-            { pluginMessage: { type: "run-quality-check", scope: "page" } },
+            { pluginMessage: { type: "run-quality-check", scope: getQcScope() } },
             "*",
           );
           if (typeof qcShowView === "function") qcShowView("scanning");
@@ -8708,6 +8728,9 @@
       var qcView = "empty";         // empty|scanning|dashboard|drilldown|error|cancelled|clean
       var qcDrillCategory = null;   // currently drilled category key
       var qcThreshold = "high";     // confidence threshold (high|medium|low)
+      var qcScope = "page";         // SINGLE source of truth for scan scope (page|selection|file)
+      var qcTimerId = null;         // elapsed-scan interval id (exactly one, cleared on every scanning exit)
+      var qcScanStart = 0;          // scan start timestamp (ms) for the mm:ss elapsed timer
 
       // The 5 scored category cards (engine scores "colors"; coverage may be N/A).
       var QC_CATEGORY_ORDER = ["naming", "colors", "typography", "spacing", "coverage"];
@@ -8793,12 +8816,29 @@
         });
       }
 
+      // qcScope is the single source of truth (both pickers write to it via
+      // qcSetScope). Reading a DOM radio group broke once two same-named groups
+      // (empty + dashboard) coexisted, so getQcScope() is now a plain accessor.
       function getQcScope() {
-        var radios = document.querySelectorAll('input[name="qc-scope"]');
-        for (var i = 0; i < radios.length; i++) {
-          if (radios[i].checked) return radios[i].value;
-        }
-        return "page";
+        return qcScope;
+      }
+
+      // Reflect the current qcScope into BOTH radio groups so the empty-view and
+      // dashboard-view pickers always agree (used on every scope change + on
+      // entering the dashboard).
+      function qcSyncScopeRadios() {
+        ["qc-scope", "qc-scope-dash"].forEach(function (name) {
+          var radios = document.querySelectorAll('input[name="' + name + '"]');
+          for (var i = 0; i < radios.length; i++) {
+            radios[i].checked = radios[i].value === qcScope;
+          }
+        });
+      }
+
+      // Single setter for scope: update state, then mirror into both pickers.
+      function qcSetScope(value) {
+        qcScope = value;
+        qcSyncScopeRadios();
       }
 
       // ── Outils rapides (quick-tools) — Page/Selection scope reader (D-03) ──
@@ -9127,6 +9167,8 @@
       // ── Render: dashboard (ring + 5 cards) ──
       function renderQCDashboard() {
         if (!qcResult) return;
+        // Reflect the persisted scope into the dashboard picker on every render.
+        qcSyncScopeRadios();
         var overall = qcResult.overall;
 
         // Bucket the flat violations[] by canonical category ("color"→"colors").
@@ -9422,6 +9464,16 @@
         var cancelBtn = document.getElementById("qc-cancel-btn");
         if (cancelBtn) cancelBtn.addEventListener("click", function () {
           parent.postMessage({ pluginMessage: { type: "cancel-scan" } }, "*");
+        });
+        // Keep qcScope in sync from BOTH pickers (empty + dashboard). Each change
+        // writes qcScope and mirrors into the other group via qcSetScope.
+        ["qc-scope", "qc-scope-dash"].forEach(function (name) {
+          var radios = document.querySelectorAll('input[name="' + name + '"]');
+          for (var i = 0; i < radios.length; i++) {
+            radios[i].addEventListener("change", function () {
+              if (this.checked) qcSetScope(this.value);
+            });
+          }
         });
         var backBtn = document.getElementById("qc-back-btn");
         if (backBtn) backBtn.addEventListener("click", qcBackToDashboard);
