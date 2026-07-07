@@ -3648,59 +3648,80 @@
           </div>
 
           <!-- ════════════════════════════════════════════════════════════════
-               Outils rapides (SC-3/SC-4, D-02/D-04) — lightweight quick-tools
-               BELOW the QC headline. QC (#qc-run-btn) stays the only brand
-               button in the moment; every launcher/action here is a
-               .moment-secondary-btn (or .btn-danger for the destructive one).
-               NO per-item list rendered in the moment (D-02): scan → count →
-               bulk actions only; the full legacy panels stay reachable via the
-               "Ouvrir l'outil complet ↗" fallback links.
+               QT-3 (supersedes SC-3/SC-4 D-02/D-04): the custom mini-scan
+               quick-tools were replaced by two hub-style link-cards that open
+               the full legacy Linter and Dead Styles tools via switchTab().
+               The legacy V1 hub is permanent as the "Tous les outils" drawer,
+               so the duplicated mini-scan engine surface is retired.
           ═════════════════════════════════════════════════════════════════ -->
           <div class="qc-card" style="margin-top: var(--spacing-l);">
-            <div class="moment-heading" data-i18n="build.tools.title">Quick tools</div>
-            <div class="moment-meta" data-i18n="build.tools.caption">Targeted fixes without running a full Quality Check.</div>
-
-            <!-- ── Quick-tool: Vérifier le nommage (Linter; genuinely honors scope) ── -->
-            <div class="qc-card" style="margin-top: var(--spacing-s);">
-              <button class="moment-secondary-btn" id="qt-naming-scan-btn" data-i18n="build.tool.naming">Check naming</button>
-              <!-- D-03: Page/Selection ONLY (no file radio) — run-linter genuinely
-                   honors scope. Distinct name="naming-scope", default = Page. -->
-              <div class="hc-scope-select" id="qt-naming-scope">
-                <label>
-                  <input type="radio" name="naming-scope" value="page" checked />
-                  <span data-i18n="qc.scope.page">Page</span></label>
-                <label>
-                  <input type="radio" name="naming-scope" value="selection" />
-                  <span data-i18n="qc.scope.selection">Selection</span></label>
+            <div class="hub-card" onclick="switchTab('linter')">
+              <div class="hub-card-icon li">
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                  <path
+                    d="M7 12.17L3.83 9l-1.42 1.41L7 15 16.59 5.41 15.17 4 7 12.17z"
+                    fill="currentColor"
+                  />
+                </svg>
               </div>
-              <div id="qt-naming-badge"><!-- statusBadge injected --></div>
-              <div class="moment-meta hidden" id="qt-naming-result"><!-- count line --></div>
-              <button class="moment-secondary-btn hidden" id="qt-naming-fix-btn" data-i18n="build.tool.naming.fix">Fix naming</button>
+              <div class="hub-card-body">
+                <div class="hub-card-name" data-i18n="feature.linter">Layer Linter</div>
+                <div class="hub-card-desc" data-i18n="feature.linter.desc">Audit layer naming quality</div>
+              </div>
+              <svg
+                class="hub-card-arrow"
+                width="16"
+                height="16"
+                viewBox="0 0 16 16"
+                fill="none"
+              >
+                <path
+                  d="M6 3l5 5-5 5"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
             </div>
 
-            <!-- ── Quick-tool: Nettoyer les styles (Dead Styles) ── -->
-            <div class="qc-card" style="margin-top: var(--spacing-s);">
-              <button class="moment-secondary-btn" id="qt-clean-scan-btn" data-i18n="build.tool.cleanstyles">Clean styles</button>
-              <!-- D-03 HONEST SCOPE: scanStyleCleaner takes NO scope arg and scans
-                   FILE-WIDE. We render NO interactive Page/Selection radio here
-                   (it would do nothing) — only an informational 12px caption. -->
-              <div class="moment-meta" data-i18n="build.tool.cleanstyles.scope">Page / Selection</div>
-              <div id="qt-clean-badge"><!-- statusBadge injected --></div>
-              <div class="moment-meta hidden" id="qt-clean-result"><!-- count line --></div>
-
-              <!-- Destructive: Supprimer les styles inutilisés — .btn-danger with an
-                   INLINE confirm row (D-05), NOT the legacy showCleanerConfirm modal. -->
-              <button class="btn-danger hidden" id="qt-clean-remove-btn" data-i18n="build.tool.cleanstyles.remove">Remove unused styles</button>
-              <div class="qc-card hidden" id="qt-clean-confirm-row" style="margin-top: var(--spacing-s);">
-                <div class="moment-meta" id="qt-clean-confirm-label"><!-- "Confirmer la suppression (n)" --></div>
-                <div style="display: flex; gap: var(--spacing-s);">
-                  <button class="btn-danger" id="qt-clean-confirm-btn" data-i18n="ds.confirm.delete">Delete</button>
-                  <button class="moment-secondary-btn" id="qt-clean-cancel-btn" data-i18n="ds.confirm.cancel">Cancel</button>
-                </div>
+            <div class="hub-card" onclick="switchTab('dead-styles')">
+              <div class="hub-card-icon ds">
+                <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
+                  <path
+                    d="M6 4V3a2 2 0 012-2h4a2 2 0 012 2v1m-10 0h14m-1 0v11a2 2 0 01-2 2H7a2 2 0 01-2-2V4"
+                    stroke="currentColor"
+                    stroke-width="1.5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                  <path
+                    d="M9 8v5m2-5v5"
+                    stroke="currentColor"
+                    stroke-width="1.5"
+                    stroke-linecap="round"
+                  />
+                </svg>
               </div>
-
-              <!-- Non-destructive: Détacher les styles externes — no confirm. -->
-              <button class="moment-secondary-btn hidden" id="qt-clean-detach-btn" data-i18n="build.tool.cleanstyles.detach">Detach foreign styles</button>
+              <div class="hub-card-body">
+                <div class="hub-card-name" data-i18n="feature.dead-styles">Dead Styles</div>
+                <div class="hub-card-desc" data-i18n="feature.dead-styles.desc">Detect &amp; remove unused styles</div>
+              </div>
+              <svg
+                class="hub-card-arrow"
+                width="16"
+                height="16"
+                viewBox="0 0 16 16"
+                fill="none"
+              >
+                <path
+                  d="M6 3l5 5-5 5"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
             </div>
           </div>
         </div>
@@ -5566,20 +5587,6 @@
           "dialog.pages.deleted": "All pages have been deleted.",
           "dialog.reset.error": "Error during reset.",
           // ── Phase 05.1 — shared grammar + re-integration (NEW) ──
-          "build.tools.title": "Quick tools",
-          "build.tools.caption": "Targeted fixes without running a full Quality Check.",
-          "build.tool.cleanstyles": "Clean styles",
-          "build.tool.cleanstyles.scope": "Page / Selection",
-          "build.tool.cleanstyles.found": "{count} unused style(s) found",
-          "build.tool.cleanstyles.clean": "No unused styles.",
-          "build.tool.cleanstyles.remove": "Remove unused styles",
-          "build.tool.cleanstyles.detach": "Detach foreign styles",
-          "build.tool.naming": "Check naming",
-          "build.tool.naming.scope": "Page / Selection",
-          "build.tool.naming.found": "{count} naming issue(s)",
-          "build.tool.naming.clean": "Naming is clean.",
-          "build.tool.naming.fix": "Fix naming",
-          "build.tool.fullpanel": "Open full tool ↗",
           "shell.back": "← Back to moments",
           "shell.alltools": "All tools",
           "start.dslib": "Start from the DS Library",
@@ -5679,20 +5686,6 @@
           "hub.doc": "Documentation", "hub.support": "Support", "hub.features": "Fonctionnalités",
           "sidebar.settings": "Paramètres",
           // ── Phase 05.1 — shared grammar + re-integration (NEW) ──
-          "build.tools.title": "Outils rapides",
-          "build.tools.caption": "Corrections ciblées sans lancer un Quality Check complet.",
-          "build.tool.cleanstyles": "Nettoyer les styles",
-          "build.tool.cleanstyles.scope": "Page / Sélection",
-          "build.tool.cleanstyles.found": "{count} style(s) inutilisé(s) trouvé(s)",
-          "build.tool.cleanstyles.clean": "Aucun style inutilisé.",
-          "build.tool.cleanstyles.remove": "Supprimer les styles inutilisés",
-          "build.tool.cleanstyles.detach": "Détacher les styles externes",
-          "build.tool.naming": "Vérifier le nommage",
-          "build.tool.naming.scope": "Page / Sélection",
-          "build.tool.naming.found": "{count} problème(s) de nommage",
-          "build.tool.naming.clean": "Nommage conforme.",
-          "build.tool.naming.fix": "Corriger le nommage",
-          "build.tool.fullpanel": "Ouvrir l'outil complet ↗",
           "shell.back": "← Retour aux moments",
           "shell.alltools": "Tous les outils",
           "start.dslib": "Démarrer depuis la librairie DS",
@@ -5790,20 +5783,6 @@
           "hub.doc": "Documentação", "hub.support": "Suporte", "hub.features": "Funcionalidades",
           "sidebar.settings": "Configurações",
           // ── Phase 05.1 — shared grammar + re-integration (NEW) ──
-          "build.tools.title": "Ferramentas rápidas",
-          "build.tools.caption": "Correções específicas sem executar um Quality Check completo.",
-          "build.tool.cleanstyles": "Limpar estilos",
-          "build.tool.cleanstyles.scope": "Página / Seleção",
-          "build.tool.cleanstyles.found": "{count} estilo(s) não utilizado(s) encontrado(s)",
-          "build.tool.cleanstyles.clean": "Nenhum estilo não utilizado.",
-          "build.tool.cleanstyles.remove": "Remover estilos não utilizados",
-          "build.tool.cleanstyles.detach": "Desanexar estilos externos",
-          "build.tool.naming": "Verificar a nomenclatura",
-          "build.tool.naming.scope": "Página / Seleção",
-          "build.tool.naming.found": "{count} problema(s) de nomenclatura",
-          "build.tool.naming.clean": "Nomenclatura em conformidade.",
-          "build.tool.naming.fix": "Corrigir a nomenclatura",
-          "build.tool.fullpanel": "Abrir a ferramenta completa ↗",
           "shell.back": "← Voltar aos momentos",
           "shell.alltools": "Todas as ferramentas",
           "start.dslib": "Começar a partir da biblioteca DS",
@@ -6341,202 +6320,6 @@
         deliverDoneBackBtn.addEventListener("click", function () {
           renderDeliverGate();
         });
-
-      // ══════════════════════════════════════════════
-      //  Outils rapides — quick-tools wiring (SC-3/SC-4, D-02/D-04)
-      // ══════════════════════════════════════════════
-      // Session-only state, ISOLATED from the legacy linter/dead-styles panels
-      // so the quick-tools never disturb (or get disturbed by) the full tabs.
-      // qtNamingViolations holds the last naming scan; qtNamingActive routes the
-      // shared linter-result/fix-all messages to the quick-tool UI only when WE
-      // launched the scan (the legacy handler still runs, harmlessly, on its
-      // hidden panel).
-      var qtNamingViolations = [];
-      var qtNamingActive = false;
-
-      // Paint the idle "Pas encore scanné" badge on both quick-tools at startup.
-      function qtInitBadges() {
-        var nb = document.getElementById("qt-naming-badge");
-        if (nb) nb.innerHTML = statusBadge("none");
-        var cb = document.getElementById("qt-clean-badge");
-        if (cb) cb.innerHTML = statusBadge("none");
-      }
-      qtInitBadges();
-
-      // ── Vérifier le nommage (Linter quick-check) ──
-      var qtNamingScanBtn = document.getElementById("qt-naming-scan-btn");
-      if (qtNamingScanBtn)
-        qtNamingScanBtn.addEventListener("click", function () {
-          qtNamingActive = true;
-          parent.postMessage(
-            { pluginMessage: { type: "run-linter", scope: getNamingScope() } },
-            "*",
-          );
-        });
-
-      // Corriger le nommage — fix-all (reversible by undo, no confirm — UI-SPEC).
-      var qtNamingFixBtn = document.getElementById("qt-naming-fix-btn");
-      if (qtNamingFixBtn)
-        qtNamingFixBtn.addEventListener("click", function () {
-          qtNamingActive = true;
-          var violations = qtNamingViolations.map(function (v) {
-            return { nodeId: v.nodeId, suggestion: v.suggestion };
-          });
-          parent.postMessage(
-            { pluginMessage: { type: "fix-all-violations", violations: violations } },
-            "*",
-          );
-        });
-
-      // D-04 (07-01): the "Open full tool" button + its legacy Linter-tab coupling
-      // were REMOVED — the naming quick-tool self-serves scan (run-linter) + fix
-      // (fix-all-violations), and the legacy Linter panel is deleted in 07-04.
-
-      // Render the naming quick-tool result (count + badge), LIGHTWEIGHT (D-02):
-      // NO renderViolationGroups call from this path.
-      function qtRenderNaming(violations) {
-        qtNamingViolations = violations || [];
-        var count = qtNamingViolations.length;
-        var badge = document.getElementById("qt-naming-badge");
-        var line = document.getElementById("qt-naming-result");
-        var fix = document.getElementById("qt-naming-fix-btn");
-        if (badge) badge.innerHTML = statusBadge("done");
-        if (line) {
-          line.textContent = count === 0
-            ? t("build.tool.naming.clean")
-            : t("build.tool.naming.found", { count: count });
-          line.classList.remove("hidden");
-        }
-        // Fix-all only offered when there is something to fix.
-        if (fix) fix.classList.toggle("hidden", count === 0);
-      }
-
-      // ── Nettoyer les styles (Dead Styles quick-clean) ──
-      // ISOLATED state (NOT the legacy currentCleanerResult / dsPendingBatchIds).
-      // scan-style-cleaner surfaces BOTH unused (deadStyles) + foreign
-      // (foreignItems). File-wide (no scope — D-03). qtCleanActive routes the
-      // shared result messages to the quick-tool UI only when WE launched it.
-      var qtCleanResult = null;
-      var qtCleanActive = false;
-
-      var qtCleanScanBtn = document.getElementById("qt-clean-scan-btn");
-      if (qtCleanScanBtn)
-        qtCleanScanBtn.addEventListener("click", function () {
-          qtCleanActive = true;
-          parent.postMessage(
-            { pluginMessage: { type: "scan-style-cleaner" } },
-            "*",
-          );
-        });
-
-      // Supprimer les styles inutilisés — reveal the INLINE confirm row (D-05),
-      // NOT the legacy showCleanerConfirm modal.
-      var qtCleanRemoveBtn = document.getElementById("qt-clean-remove-btn");
-      if (qtCleanRemoveBtn)
-        qtCleanRemoveBtn.addEventListener("click", function () {
-          var n = qtCleanResult ? (qtCleanResult.deadStyles || []).length : 0;
-          if (n === 0) return;
-          var label = document.getElementById("qt-clean-confirm-label");
-          if (label) label.textContent = t("ds.confirm.deleteMsg").replace("{n}", n);
-          var row = document.getElementById("qt-clean-confirm-row");
-          if (row) row.classList.remove("hidden");
-          qtCleanRemoveBtn.classList.add("hidden");
-        });
-
-      // Inline confirm — second click actually posts remove-all-dead-styles.
-      var qtCleanConfirmBtn = document.getElementById("qt-clean-confirm-btn");
-      if (qtCleanConfirmBtn)
-        qtCleanConfirmBtn.addEventListener("click", function () {
-          if (!qtCleanResult) return;
-          var deadStyles = qtCleanResult.deadStyles || [];
-          if (deadStyles.length === 0) return;
-          qtCleanActive = true;
-          parent.postMessage(
-            {
-              pluginMessage: {
-                type: "remove-all-dead-styles",
-                items: deadStyles.map(function (d) {
-                  return { id: d.id, itemType: d.itemType };
-                }),
-              },
-            },
-            "*",
-          );
-          var row = document.getElementById("qt-clean-confirm-row");
-          if (row) row.classList.add("hidden");
-        });
-
-      var qtCleanCancelBtn = document.getElementById("qt-clean-cancel-btn");
-      if (qtCleanCancelBtn)
-        qtCleanCancelBtn.addEventListener("click", function () {
-          var row = document.getElementById("qt-clean-confirm-row");
-          if (row) row.classList.add("hidden");
-          var rm = document.getElementById("qt-clean-remove-btn");
-          if (rm && qtCleanResult && (qtCleanResult.deadStyles || []).length > 0) {
-            rm.classList.remove("hidden");
-          }
-        });
-
-      // Détacher les styles externes — non-destructive, no confirm.
-      var qtCleanDetachBtn = document.getElementById("qt-clean-detach-btn");
-      if (qtCleanDetachBtn)
-        qtCleanDetachBtn.addEventListener("click", function () {
-          if (!qtCleanResult) return;
-          var foreignItems = qtCleanResult.foreignItems || [];
-          if (foreignItems.length === 0) return;
-          qtCleanActive = true;
-          parent.postMessage(
-            {
-              pluginMessage: {
-                type: "batch-detach-foreign",
-                items: foreignItems.map(function (fi) {
-                  return {
-                    nodeId: fi.nodeId,
-                    field: fi.bindingField,
-                    paintIndex: fi.paintIndex,
-                    itemType: fi.itemType,
-                    styleType: fi.itemType !== "VARIABLE" ? fi.itemType : undefined,
-                  };
-                }),
-              },
-            },
-            "*",
-          );
-        });
-
-      // D-04 (07-01): the "Open full tool" button + its legacy Dead-Styles-tab
-      // coupling were REMOVED — the clean quick-tool self-serves scan
-      // (scan-style-cleaner) + remove-all-dead-styles + batch-detach-foreign, and the
-      // legacy Dead Styles panel is deleted in 07-04.
-
-      // Render the clean-styles quick-tool result (count + badge + bulk actions),
-      // LIGHTWEIGHT (D-02): NO renderCleanerList call from this path.
-      function qtRenderClean(result) {
-        qtCleanResult = result;
-        var unused = result ? (result.deadStyles || []).length : 0;
-        var foreign = result ? (result.foreignItems || []).length : 0;
-        var badge = document.getElementById("qt-clean-badge");
-        var line = document.getElementById("qt-clean-result");
-        var removeBtn = document.getElementById("qt-clean-remove-btn");
-        var detachBtn = document.getElementById("qt-clean-detach-btn");
-        var confirmRow = document.getElementById("qt-clean-confirm-row");
-        if (badge) badge.innerHTML = statusBadge("done");
-        if (confirmRow) confirmRow.classList.add("hidden");
-        if (line) {
-          if (unused === 0 && foreign === 0) {
-            line.textContent = t("build.tool.cleanstyles.clean");
-          } else {
-            // Surface unused (the *.found copy) + the foreign count appended.
-            line.textContent =
-              t("build.tool.cleanstyles.found", { count: unused }) +
-              " · " + foreign + " foreign";
-          }
-          line.classList.remove("hidden");
-        }
-        // Bulk actions only shown when there is something to act on.
-        if (removeBtn) removeBtn.classList.toggle("hidden", unused === 0);
-        if (detachBtn) detachBtn.classList.toggle("hidden", foreign === 0);
-      }
 
       // ══════════════════════════════════════════════
       //  Starter Kit logic
@@ -7768,17 +7551,6 @@
             );
             renderViolationGroups(currentViolations);
           }
-          // Quick-tool naming path (D-02): if WE launched it, update the count +
-          // badge only. The legacy render above ran on its own hidden panel.
-          if (qtNamingActive) {
-            qtNamingActive = false;
-            var qtRes = (msg.scope === "file" && Array.isArray(msg.result))
-              ? msg.result.reduce(function (acc, r) {
-                  return acc.concat((r.result && r.result.violations) || []);
-                }, [])
-              : ((msg.result && msg.result.violations) || []);
-            qtRenderNaming(qtRes);
-          }
         }
 
         if (msg.type === "traversal-progress") {
@@ -7831,20 +7603,6 @@
             });
             recalculateAndRenderScore();
             renderViolationGroups(currentViolations);
-          }
-          // Quick-tool naming fix: drop fixed nodes from the quick-tool count and
-          // re-render the (lightweight) result line.
-          if (qtNamingActive) {
-            qtNamingActive = false;
-            if (msg.result && msg.result.fixedNodeIds) {
-              var qtFixedSet = {};
-              for (var qfi = 0; qfi < msg.result.fixedNodeIds.length; qfi++) {
-                qtFixedSet[msg.result.fixedNodeIds[qfi]] = true;
-              }
-              qtRenderNaming(qtNamingViolations.filter(function (v) {
-                return !qtFixedSet[v.nodeId];
-              }));
-            }
           }
         }
 
@@ -7992,11 +7750,6 @@
           document.getElementById("ds-progress").style.display = "none";
           document.getElementById("ds-scan-btn").disabled = false;
           renderCleanerResults(currentCleanerResult);
-          // Quick-tool clean-styles path (D-02): count + badge only, no list.
-          if (qtCleanActive) {
-            qtCleanActive = false;
-            qtRenderClean(msg.result);
-          }
         }
 
         if (msg.type === "style-cleaner-error") {
@@ -8032,14 +7785,6 @@
             renderCleanerList();
             updateCleanerBatchBar();
           }
-          // Quick-tool detach: clear the foreign set + re-render the count line.
-          if (qtCleanActive) {
-            qtCleanActive = false;
-            if (qtCleanResult) {
-              qtCleanResult.foreignItems = [];
-              qtRenderClean(qtCleanResult);
-            }
-          }
         }
 
         if (msg.type === "dead-style-removed") {
@@ -8064,14 +7809,6 @@
             renderCleanerSummary();
             renderCleanerList();
             updateCleanerBatchBar();
-          }
-          // Quick-tool remove-unused: clear the dead set + re-render the count line.
-          if (qtCleanActive) {
-            qtCleanActive = false;
-            if (qtCleanResult) {
-              qtCleanResult.deadStyles = [];
-              qtRenderClean(qtCleanResult);
-            }
           }
         }
 
@@ -8763,18 +8500,6 @@
       function qcSetScope(value) {
         qcScope = value;
         qcSyncScopeRadios();
-      }
-
-      // ── Outils rapides (quick-tools) — Page/Selection scope reader (D-03) ──
-      // Mirrors getQcScope(); reads the naming tool's own radio group. The Linter
-      // genuinely honors this; the clean-styles tool is intentionally scope-less
-      // (scanStyleCleaner scans file-wide — no cosmetic toggle is rendered there).
-      function getNamingScope() {
-        var radios = document.querySelectorAll('input[name="naming-scope"]');
-        for (var i = 0; i < radios.length; i++) {
-          if (radios[i].checked) return radios[i].value;
-        }
-        return "page";
       }
 
       function runQualityCheck() {
