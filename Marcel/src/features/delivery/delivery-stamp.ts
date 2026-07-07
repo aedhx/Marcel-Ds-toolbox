@@ -17,9 +17,6 @@ import {
   addShadow,
   loadAllFonts,
 } from "../../shared/figma-helpers";
-import { STARTER_KIT_PAGES } from "../starter-kit/config";
-
-const COVER_PAGE_NAME = STARTER_KIT_PAGES[0].name;
 
 // Standard name of the generated badge frame. Also used to find + replace a
 // previous stamp so re-delivering does not stack duplicate badges.
@@ -37,33 +34,6 @@ export interface DeliveryStampData {
   fileName: string;
   pageName: string;
   date: string;
-}
-
-/**
- * Resolve the page the stamp should live on: a "Livraison"/"Delivery" page if
- * present, else the Cover page, else the current page. The target page is loaded
- * async first (dynamic-page manifest) before its children are read.
- */
-async function resolveStampPage(): Promise<PageNode> {
-  const pages = figma.root.children;
-
-  const deliveryPage = pages.find((p) => {
-    const n = p.name.toLowerCase();
-    return n.indexOf("livraison") !== -1 || n.indexOf("delivery") !== -1;
-  });
-  if (deliveryPage) {
-    await deliveryPage.loadAsync();
-    return deliveryPage;
-  }
-
-  const coverPage = pages.find((p) => p.name === COVER_PAGE_NAME);
-  if (coverPage) {
-    await coverPage.loadAsync();
-    return coverPage;
-  }
-
-  await figma.currentPage.loadAsync();
-  return figma.currentPage;
 }
 
 /** One "label : value" row inside the badge body. */
@@ -106,10 +76,13 @@ function createStampRow(label: string, value: string): FrameNode {
 export async function generateDeliveryStamp(data: DeliveryStampData): Promise<void> {
   await loadAllFonts();
 
-  const page = await resolveStampPage();
+  // D-01/1: place the stamp where the designer is working — on the CURRENT page,
+  // next to the selection if any, else at the top-left of the page. Capture the
+  // selection BEFORE removing a stale stamp so an old badge isn't targeted.
+  const selection = figma.currentPage.selection;
 
   // Replace any previous stamp so re-delivering updates in place (no stacking).
-  const previous = page.findChild((n) => n.name === STAMP_FRAME_NAME);
+  const previous = figma.currentPage.findChild((n) => n.name === STAMP_FRAME_NAME);
   if (previous) previous.remove();
 
   const accent = data.pass ? colors.success : colors.error;
@@ -219,27 +192,35 @@ export async function generateDeliveryStamp(data: DeliveryStampData): Promise<vo
 
   badge.appendChild(body);
 
-  // ── Position near the top-left of the page, offset from existing content ──
-  const others = page.children.filter((n) => n !== badge);
-  if (others.length > 0) {
-    let minX = Infinity;
-    let minY = Infinity;
-    for (const n of others) {
-      if (n.x < minX) minX = n.x;
-      if (n.y < minY) minY = n.y;
-    }
-    badge.x = minX;
-    badge.y = minY - badge.height - spacing["4xl"];
+  // Append first so the badge is a top-level page child — its .x/.y are then
+  // page-absolute and align with absoluteBoundingBox for selection placement.
+  figma.currentPage.appendChild(badge);
+
+  // ── Position (D-01/1) ──
+  const margin = spacing["4xl"];
+  if (selection.length > 0 && selection[0].absoluteBoundingBox) {
+    // Next to the selected frame: to its RIGHT, top-aligned.
+    const box = selection[0].absoluteBoundingBox;
+    badge.x = box.x + box.width + margin;
+    badge.y = box.y;
   } else {
-    badge.x = 0;
-    badge.y = 0;
+    // No usable selection: top-left, above existing content on the current page.
+    const others = figma.currentPage.children.filter((n) => n !== badge);
+    if (others.length > 0) {
+      let minX = Infinity;
+      let minY = Infinity;
+      for (const n of others) {
+        if (n.x < minX) minX = n.x;
+        if (n.y < minY) minY = n.y;
+      }
+      badge.x = minX;
+      badge.y = minY - badge.height - margin;
+    } else {
+      badge.x = 0;
+      badge.y = 0;
+    }
   }
 
-  page.appendChild(badge);
-
-  // Surface it so the designer sees the result immediately. Under
-  // documentAccess: dynamic-page, figma.currentPage is read-only — navigation
-  // must go through setCurrentPageAsync (matches main.ts / starter-kit.ts).
-  await figma.setCurrentPageAsync(page);
+  // Already on the current page — just surface it to the designer.
   figma.viewport.scrollAndZoomIntoView([badge]);
 }
