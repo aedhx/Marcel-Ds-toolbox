@@ -961,16 +961,6 @@
         color: var(--content-default);
       }
 
-      .hub-header-version {
-        font-size: 10px;
-        font-weight: 600;
-        padding: 2px 8px;
-        border-radius: 100px;
-        background: color-mix(in srgb, var(--brand) 12%, transparent);
-        color: var(--brand);
-        letter-spacing: 0.3px;
-      }
-
       .hub-hero-desc {
         font-size: 11px;
         color: var(--content-subtle);
@@ -1010,15 +1000,6 @@
 
 
 
-      /* Dark badge disabled — light mode forced
-      [data-figma-theme="dark"] .hub-card-badge--soon,
-      .figma-dark .hub-card-badge--soon {
-        color: #fbbf24;
-        background: color-mix(in srgb, #f59e0b 15%, transparent);
-        border-color: color-mix(in srgb, #f59e0b 30%, transparent);
-      }
-      */
-
       .hub-section-label {
         font-size: 11px;
         font-weight: 600;
@@ -1034,11 +1015,6 @@
         grid-template-columns: 1fr 1fr;
         gap: var(--spacing-s);
         padding: 0 var(--spacing-xl) var(--spacing-xl);
-      }
-
-      .hub-cards--soon {
-        grid-template-columns: 1fr 1fr 1fr 1fr;
-        gap: var(--spacing-xs);
       }
 
       .hub-card {
@@ -1068,38 +1044,6 @@
 
       .hub-card:active {
         transform: scale(0.995);
-      }
-
-      .hub-card--disabled {
-        opacity: 0.45;
-        cursor: not-allowed;
-        pointer-events: none;
-        padding: var(--spacing-xs) var(--spacing-xs);
-        gap: 3px;
-      }
-
-      .hub-card--disabled .hub-card-icon {
-        width: 22px;
-        height: 22px;
-      }
-
-      .hub-card--disabled .hub-card-icon svg {
-        width: 12px;
-        height: 12px;
-      }
-
-      .hub-card--disabled .hub-card-name {
-        font-size: 10px;
-      }
-
-      .hub-card--disabled .hub-card-desc {
-        display: none;
-      }
-
-      .hub-card--disabled:hover {
-        border-color: var(--border-default);
-        background: var(--bg-subtle);
-        box-shadow: none;
       }
 
       .hub-card-icon {
@@ -1170,12 +1114,6 @@
         color: var(--content-subtler);
         border: 1px solid var(--border-default);
         white-space: nowrap;
-      }
-
-      .hub-card-badge--soon {
-        background: color-mix(in srgb, #f59e0b 12%, transparent);
-        color: #b45309;
-        border-color: color-mix(in srgb, #f59e0b 24%, transparent);
       }
 
       .hub-card-badge--wip {
@@ -4338,10 +4276,9 @@
           <button type="button" id="hub-back-moments" class="hub-back-btn" data-i18n="shell.back">← Retour aux moments</button>
           <div class="hub-hero">
             <div class="hub-hero-title-row">
-              <span class="hub-header-title" data-i18n="hub.title">Marcel Toolbox</span>
-              <span class="hub-header-version" data-i18n="hub.badge">Beta</span>
+              <span class="hub-header-title" data-i18n="hub.title">Tous les outils</span>
             </div>
-            <p class="hub-hero-desc" data-i18n="hub.desc">Welcome to the ultimate Marcel Toolbox. Your all-in-one design ops companion for Figma.</p>
+            <p class="hub-hero-desc" data-i18n="hub.desc">Accédez à tous les outils Marcel — audits détaillés, imports et utilitaires.</p>
             <div class="hub-links">
               <a
                 class="hub-link"
@@ -4565,73 +4502,6 @@
             </div>
           </div>
 
-          <!-- Coming soon -->
-          <div class="hub-section-label" data-i18n="hub.coming-soon">Coming soon</div>
-          <div class="hub-cards hub-cards--soon">
-            <div class="hub-card hub-card--disabled">
-              <div class="hub-card-icon lock">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                  <path
-                    d="M12 7H4a1 1 0 00-1 1v5a1 1 0 001 1h8a1 1 0 001-1V8a1 1 0 00-1-1zm-1-2V4a3 3 0 00-6 0v1H4v1h8V5h-1zm-5-1a2 2 0 014 0v1H6V4z"
-                    fill="currentColor"
-                  />
-                </svg>
-              </div>
-              <div class="hub-card-body">
-                <div class="hub-card-name" data-i18n="feature.coverage">Coverage Report</div>
-                <div class="hub-card-desc" data-i18n="feature.coverage.desc">DS adoption metrics</div>
-              </div>
-              <span class="hub-card-badge hub-card-badge--soon">SOON</span>
-            </div>
-
-            <div class="hub-card hub-card--disabled">
-              <div class="hub-card-icon lock">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                  <path
-                    d="M12 7H4a1 1 0 00-1 1v5a1 1 0 001 1h8a1 1 0 001-1V8a1 1 0 00-1-1zm-1-2V4a3 3 0 00-6 0v1H4v1h8V5h-1zm-5-1a2 2 0 014 0v1H6V4z"
-                    fill="currentColor"
-                  />
-                </svg>
-              </div>
-              <div class="hub-card-body">
-                <div class="hub-card-name" data-i18n="feature.statut-manager">Statut Manager</div>
-                <div class="hub-card-desc" data-i18n="feature.statut-manager.desc">Track component status</div>
-              </div>
-              <span class="hub-card-badge hub-card-badge--soon">SOON</span>
-            </div>
-
-            <div class="hub-card hub-card--disabled">
-              <div class="hub-card-icon lock">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                  <path
-                    d="M12 7H4a1 1 0 00-1 1v5a1 1 0 001 1h8a1 1 0 001-1V8a1 1 0 00-1-1zm-1-2V4a3 3 0 00-6 0v1H4v1h8V5h-1zm-5-1a2 2 0 014 0v1H6V4z"
-                    fill="currentColor"
-                  />
-                </svg>
-              </div>
-              <div class="hub-card-body">
-                <div class="hub-card-name" data-i18n="feature.handoff">Handoff Checklist</div>
-                <div class="hub-card-desc" data-i18n="feature.handoff.desc">Validate delivery readiness</div>
-              </div>
-              <span class="hub-card-badge hub-card-badge--soon">SOON</span>
-            </div>
-
-            <div class="hub-card hub-card--disabled">
-              <div class="hub-card-icon lock">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                  <path
-                    d="M12 7H4a1 1 0 00-1 1v5a1 1 0 001 1h8a1 1 0 001-1V8a1 1 0 00-1-1zm-1-2V4a3 3 0 00-6 0v1H4v1h8V5h-1zm-5-1a2 2 0 014 0v1H6V4z"
-                    fill="currentColor"
-                  />
-                </svg>
-              </div>
-              <div class="hub-card-body">
-                <div class="hub-card-name" data-i18n="feature.token-inspector">Token Inspector</div>
-                <div class="hub-card-desc" data-i18n="feature.token-inspector.desc">Browse &amp; debug tokens</div>
-              </div>
-              <span class="hub-card-badge hub-card-badge--soon">SOON</span>
-            </div>
-          </div>
         </div>
 
         <!-- ═══════════════════════════════════════════ -->
@@ -5609,17 +5479,13 @@
           "qc.cat.spacing": "Spacing", "qc.cat.coverage": "Coverage",
           "qc.deadstyles.note": "Informational — does not affect the score",
           "qc.back": "← Back",
-          "hub.title": "Marcel Toolbox", "hub.badge": "Beta",
-          "hub.desc": "Welcome to the ultimate Marcel Toolbox. Your all-in-one design ops companion for Figma.",
-          "hub.doc": "Documentation", "hub.support": "Support", "hub.features": "Features", "hub.coming-soon": "Coming soon",
+          "hub.title": "All tools",
+          "hub.desc": "Access every Marcel tool — detailed audits, imports and utilities.",
+          "hub.doc": "Documentation", "hub.support": "Support", "hub.features": "Features",
           "feature.starter-kit": "Starter Kit", "feature.starter-kit.desc": "Create standardized templates",
           "feature.import-toolkit": "Import Toolkit", "feature.import-toolkit.desc": "Import Handoff components from DS",
           "feature.linter": "Layer Linter", "feature.linter.desc": "Audit layer naming quality",
           "feature.dead-styles": "Dead Styles", "feature.dead-styles.desc": "Detect & remove unused styles",
-          "feature.coverage": "Coverage Report", "feature.coverage.desc": "DS adoption metrics",
-          "feature.statut-manager": "Statut Manager", "feature.statut-manager.desc": "Track component status",
-          "feature.handoff": "Handoff Checklist", "feature.handoff.desc": "Validate delivery readiness",
-          "feature.token-inspector": "Token Inspector", "feature.token-inspector.desc": "Browse & debug tokens",
           "feature.cover-updater": "Cover Updater", "feature.cover-updater.desc": "Generate & update cover pages",
           "sidebar.settings": "Settings",
           "sk.title": "Starter Kit", "sk.prd.title": "Project Starter Kit", "sk.prd.tag": "PRD",
@@ -5808,9 +5674,9 @@
           "qc.deadstyles.note": "Informatif — n'affecte pas le score",
           "qc.back": "← Retour",
           "settings.language": "Langue",
-          "hub.title": "Marcel Toolbox", "hub.badge": "Bêta",
-          "hub.desc": "Bienvenue dans le Marcel Toolbox. Votre compagnon design ops tout-en-un pour Figma.",
-          "hub.doc": "Documentation", "hub.support": "Support", "hub.features": "Fonctionnalités", "hub.coming-soon": "Bientôt disponible",
+          "hub.title": "Tous les outils",
+          "hub.desc": "Accédez à tous les outils Marcel — audits détaillés, imports et utilitaires.",
+          "hub.doc": "Documentation", "hub.support": "Support", "hub.features": "Fonctionnalités",
           "sidebar.settings": "Paramètres",
           // ── Phase 05.1 — shared grammar + re-integration (NEW) ──
           "build.tools.title": "Outils rapides",
@@ -5919,9 +5785,9 @@
           "qc.deadstyles.note": "Informativo — não afeta a pontuação",
           "qc.back": "← Voltar",
           "settings.language": "Idioma",
-          "hub.title": "Marcel Toolbox", "hub.badge": "Beta",
-          "hub.desc": "Bem-vindo ao Marcel Toolbox. Seu companheiro de design ops tudo-em-um para o Figma.",
-          "hub.doc": "Documentação", "hub.support": "Suporte", "hub.features": "Funcionalidades", "hub.coming-soon": "Em breve",
+          "hub.title": "Todas as ferramentas",
+          "hub.desc": "Acesse todas as ferramentas Marcel — auditorias detalhadas, importações e utilitários.",
+          "hub.doc": "Documentação", "hub.support": "Suporte", "hub.features": "Funcionalidades",
           "sidebar.settings": "Configurações",
           // ── Phase 05.1 — shared grammar + re-integration (NEW) ──
           "build.tools.title": "Ferramentas rápidas",
