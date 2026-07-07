@@ -3624,11 +3624,18 @@
               </div>
             </div>
 
-            <!-- State: scanning (indeterminate, NO %) -->
+            <!-- State: scanning (determinate — percent/counter/phase/timer/bar) -->
             <div id="qc-scanning" class="hidden">
               <div class="qc-card">
                 <div class="moment-body" id="qc-scanning-label" data-i18n="qc.scanning">Scanning…</div>
-                <button class="moment-secondary-btn" id="qc-cancel-btn" data-i18n="qc.cancel">Cancel</button>
+                <div id="qc-progress-track" style="width: 100%; height: 6px; border-radius: 3px; background: var(--border-subtle); overflow: hidden; margin: var(--spacing-s) 0;">
+                  <div id="qc-progress-fill" style="width: 0%; height: 100%; background: var(--brand); border-radius: 3px; transition: width 0.2s ease;"></div>
+                </div>
+                <div id="qc-progress-pct" style="font-size: 18px; font-weight: 600; color: var(--content-primary);">0%</div>
+                <div id="qc-progress-count" class="moment-meta"></div>
+                <div id="qc-progress-phase" class="moment-meta"></div>
+                <div id="qc-progress-timer" class="moment-meta">00:00</div>
+                <button class="moment-secondary-btn" id="qc-cancel-btn" data-i18n="qc.cancel" style="margin-top: var(--spacing-s);">Cancel</button>
               </div>
             </div>
 
@@ -6141,6 +6148,10 @@
         var target = document.getElementById("panel-" + momentId);
         if (target) target.classList.add("active");
 
+        // Timer hygiene: the scanning view lives only inside Je construis, so
+        // leaving that moment must clear the elapsed interval (no runaway ticks).
+        if (momentId !== "build" && typeof qcStopTimer === "function") qcStopTimer();
+
         // BUILD-03: hydrate the Je construis 4-value cover picker on entry.
         // Read-only side effect — does NOT touch qcResult / qcView (NAV-03).
         if (momentId === "build") {
@@ -7713,8 +7724,20 @@
 
         // ── Quality Check (Phase 4 — QC-01/06/07/08/09) ──
         if (msg.type === "quality-check-progress") {
-          // Indeterminate scanning state — NO determinate % (D-10).
+          // Determinate scanning state driven by {phase, processed, total}.
           if (qcView !== "scanning") qcShowView("scanning");
+          var total = (typeof msg.total === "number" && msg.total > 0) ? msg.total : 0;
+          var processed = (typeof msg.processed === "number") ? msg.processed : 0;
+          var pct = total > 0 ? Math.round((processed / total) * 100) : 0;
+          if (pct < 0) pct = 0; if (pct > 100) pct = 100;
+          var fillEl = document.getElementById("qc-progress-fill");
+          if (fillEl) fillEl.style.width = pct + "%";
+          var pctEl = document.getElementById("qc-progress-pct");
+          if (pctEl) pctEl.textContent = pct + "%";
+          var countEl = document.getElementById("qc-progress-count");
+          if (countEl) countEl.textContent = processed + " / " + total + " " + t("qc.scanning.nodes");
+          var phaseEl = document.getElementById("qc-progress-phase");
+          if (phaseEl) phaseEl.textContent = msg.phase || "";
         }
         if (msg.type === "quality-check-result") {
           qcResult = msg.result;
@@ -8802,6 +8825,33 @@
         return out;
       }
 
+      // ── Elapsed-scan timer (exactly one interval) ──
+      // Format ms → mm:ss and paint #qc-progress-timer.
+      function qcRenderTimer() {
+        var el = document.getElementById("qc-progress-timer");
+        if (!el) return;
+        var secs = Math.floor((Date.now() - qcScanStart) / 1000);
+        if (secs < 0) secs = 0;
+        var mm = Math.floor(secs / 60);
+        var ss = secs % 60;
+        el.textContent = (mm < 10 ? "0" : "") + mm + ":" + (ss < 10 ? "0" : "") + ss;
+      }
+      // Start (or restart) the single elapsed interval — always clears any prior
+      // interval first so repeated scans never stack duplicate tickers.
+      function qcStartTimer() {
+        qcStopTimer();
+        qcScanStart = Date.now();
+        qcRenderTimer();
+        qcTimerId = setInterval(qcRenderTimer, 1000);
+      }
+      // Clear the single elapsed interval (idempotent).
+      function qcStopTimer() {
+        if (qcTimerId !== null) {
+          clearInterval(qcTimerId);
+          qcTimerId = null;
+        }
+      }
+
       // ── View switcher ──
       function qcShowView(view) {
         qcView = view;
@@ -8814,6 +8864,14 @@
           var el = document.getElementById(ids[k]);
           if (el) el.classList.toggle("hidden", k !== view);
         });
+        // Timer hygiene: the interval lives ONLY while the scanning view is shown.
+        // Every non-scanning view (result/error/cancelled/clean/empty + moment
+        // switches that route through here) clears it.
+        if (view === "scanning") {
+          qcStartTimer();
+        } else {
+          qcStopTimer();
+        }
       }
 
       // qcScope is the single source of truth (both pickers write to it via
