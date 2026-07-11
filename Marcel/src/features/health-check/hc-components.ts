@@ -63,6 +63,19 @@ export async function resolveComponentViolations(instanceIds: string[]): Promise
     const slice = instanceIds.slice(i, i + CHUNK);
     const nodes = await Promise.all(slice.map((id) => figma.getNodeByIdAsync(id)));
 
+    // PERF (qc-scan-slow-vs-legacy): resolve every instance's main component for the WHOLE
+    // chunk concurrently, instead of one sequential `await getMainComponentAsync()` per node.
+    // The former per-node await made this O(n) serial round-trips — the dominant QC cost over
+    // the (large) instance set. Promise.all preserves slice order, so violation IDs/severities/
+    // ordering are byte-for-byte identical to the sequential loop (behavior-preserving, D-05).
+    const mains = await Promise.all(
+      nodes.map((node) =>
+        node && node.type === 'INSTANCE'
+          ? (node as InstanceNode).getMainComponentAsync()
+          : Promise.resolve(null)
+      )
+    );
+
     for (let j = 0; j < nodes.length; j++) {
       const node = nodes[j];
       const nodeId = slice[j];
@@ -71,7 +84,7 @@ export async function resolveComponentViolations(instanceIds: string[]): Promise
       const instance = node as InstanceNode;
 
       // Sub-rule 1: Broken component — main component is null
-      const main = await instance.getMainComponentAsync();
+      const main = mains[j];
 
       // Skip remote library instances (toolkit components)
       if (main && main.remote) continue;

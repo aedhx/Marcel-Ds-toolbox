@@ -40,19 +40,27 @@ export async function classifyCoverageInstances(instanceIds: string[]): Promise<
     const slice = instanceIds.slice(i, i + CHUNK);
     const nodes = await Promise.all(slice.map((id) => figma.getNodeByIdAsync(id)));
 
+    // PERF (qc-scan-slow-vs-legacy): resolve every instance's main component for the WHOLE
+    // chunk concurrently, instead of one sequential `await getMainComponentAsync()` per node.
+    // The former per-node await made this O(n) serial round-trips — a dominant QC cost over the
+    // (large) instance set. Each resolution keeps its own try→null fallback (dynamic-page access
+    // → treated as custom), and Promise.all preserves slice order, so customGroups insertion
+    // order — and thus violation IDs/ordering — is identical to the sequential loop (D-05).
+    const mains = await Promise.all(
+      nodes.map((node) =>
+        node && node.type === 'INSTANCE'
+          ? (node as InstanceNode).getMainComponentAsync().catch(() => null)
+          : Promise.resolve(null)
+      )
+    );
+
     for (let j = 0; j < nodes.length; j++) {
       const node = nodes[j];
       const nodeId = slice[j];
       if (!node || node.type !== 'INSTANCE') continue;
 
       const instance = node as InstanceNode;
-    let main: ComponentNode | null = null;
-    try {
-      main = await instance.getMainComponentAsync();
-    } catch (_) {
-      // dynamic-page access — treat as custom
-      main = null;
-    }
+    const main: ComponentNode | null = mains[j];
 
     if (main === null) {
       // Broken reference — count as custom
