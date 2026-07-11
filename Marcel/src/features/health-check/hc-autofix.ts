@@ -92,8 +92,12 @@ async function resolveTextStyle(textNode: TextNode): Promise<TextStyle | null> {
 
     // Also fetch from team library (requires "teamlibrary" permission)
     try {
+      // `getAvailableLibraryTextStylesAsync` is a runtime figma.teamLibrary method that the
+      // installed @figma/plugin-typings do not declare (TeamLibraryAPI only types the
+      // variable-collection methods) — a genuine typings gap. Cast through `any`; the call is
+      // already wrapped in try/catch so a missing method degrades to local-only styles.
       var libStyles =
-        await figma.teamLibrary.getAvailableLibraryTextStylesAsync();
+        await (figma.teamLibrary as any).getAvailableLibraryTextStylesAsync();
       for (var ls = 0; ls < libStyles.length; ls++) {
         var libStyle = libStyles[ls];
         // Only import from Marcel DS library

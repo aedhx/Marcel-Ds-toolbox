@@ -1,4 +1,4 @@
-import { createStarterKit, checkTemplateExists, resetAllPages } from "./features/starter-kit/starter-kit";
+import { createStarterKit, checkTemplateExists, resetAllPages, type TemplateType } from "./features/starter-kit/starter-kit";
 import { diagnoseFileStructure, applyStructureUpgrade } from "./features/starter-kit/audit-mode";
 import { runLintAsync, runLintFile, LintResult } from "./features/linter/linter-engine";
 import { Violation } from "./shared/violation-types";
@@ -13,6 +13,7 @@ import { loadCoverConfig, saveCoverConfig } from "./features/cover-updater/cover
 import type { CoverConfig } from "./features/cover-updater/cover-types";
 import { PROJECT_PROFILES, DEFAULT_PROFILE_ID } from "./shared/scoring-config";
 import { generateDeliveryStamp } from "./features/delivery/delivery-stamp";
+import type { DeliveryStampData } from "./features/delivery/delivery-stamp";
 import { scanDeadStyles, scanStyleCleaner } from "./features/dead-styles/dead-styles-engine";
 import { removeDeadStyle, removeAllDeadStyles } from "./features/dead-styles/dead-styles-actions";
 import { detachVariableBinding, detachStyleBinding, replaceVariableBinding, batchDetachForeign, batchReplaceForeign } from "./features/dead-styles/dead-styles-fix";
@@ -211,6 +212,7 @@ type UiMsg = {
   url?: string;
   profileId?: string;
   selections?: { generateCover: boolean; replaceLegacyCover: boolean; addMissingPages: string[] };
+  data?: DeliveryStampData;
 };
 
 type Handler = (msg: UiMsg) => void | Promise<void>;
@@ -229,7 +231,7 @@ const handlers: Record<string, Handler> = {
 
   "create-starter-kit": async (msg) => {
     try {
-      var template = (msg.template === "ds-library") ? "ds-library" : "prd";
+      var template: TemplateType = (msg.template === "ds-library") ? "ds-library" : "prd";
       // Default unknown source to "moment" (T-053-03-INJ — closed-enum guard).
       var source = (msg.source === "sk-tab") ? "sk-tab" : "moment";
       await createStarterKit(template);
@@ -250,7 +252,7 @@ const handlers: Record<string, Handler> = {
   },
 
   "check-template-exists": (msg) => {
-    var tpl = (msg.template === "ds-library") ? "ds-library" : "prd";
+    var tpl: TemplateType = (msg.template === "ds-library") ? "ds-library" : "prd";
     var result = checkTemplateExists(tpl);
     figma.ui.postMessage({
       type: "template-exists-result",
@@ -772,7 +774,7 @@ const handlers: Record<string, Handler> = {
     try {
       // STAMP FIRST (D-01/2): the badge is ALWAYS placed. Only a stamp failure
       // is a hard error — the outer catch handles it below.
-      await generateDeliveryStamp(msg.data);
+      await generateDeliveryStamp(msg.data as DeliveryStampData);
 
       // Cover flip is best-effort (AUDIT-01 soft gate): flip the Cover to Design
       // Done in its OWN try/catch so a missing/broken Cover never blocks delivery.

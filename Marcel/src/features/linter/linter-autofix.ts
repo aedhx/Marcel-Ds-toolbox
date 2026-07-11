@@ -111,7 +111,7 @@ async function computeAutoFixName(node: SceneNode): Promise<string | null> {
         var gt = grpNode.children[j].type;
         grpCounts[gt] = (grpCounts[gt] || 0) + 1;
       }
-      var grpDom = grpNode.children[0].type;
+      var grpDom: string = grpNode.children[0].type;
       var grpMax = 0;
       for (var gk in grpCounts) {
         if (grpCounts[gk] > grpMax) {
