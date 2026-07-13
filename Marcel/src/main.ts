@@ -235,6 +235,9 @@ const handlers: Record<string, Handler> = {
       // Default unknown source to "moment" (T-053-03-INJ — closed-enum guard).
       var source = (msg.source === "sk-tab") ? "sk-tab" : "moment";
       await createStarterKit(template);
+      // A fresh Starter Kit is a NEW project, so this INTENTIONALLY resets the cover
+      // config to the governed default profile (DEFAULT_COVER_CONFIG) — unlike
+      // generate-cover, which load-mutate-saves to preserve the chosen projectProfile.
       await saveCoverConfig({ projectStatus: "In Progress" });
       figma.ui.postMessage({ type: "starter-kit-created", source: source, template: template });
       figma.notify(nt("sk.created"), { timeout: 4000 });
@@ -693,7 +696,12 @@ const handlers: Record<string, Handler> = {
 
   "generate-cover": async (msg) => {
     try {
-      const config: CoverConfig = { projectStatus: msg.status || "In Progress" };
+      // Load-mutate-save so the governed projectProfile (set via set-project-profile,
+      // 05.2-05) survives the round-trip. saveCoverConfig OVERWRITES the whole stored
+      // object, so a fresh { projectStatus } would silently drop projectProfile and
+      // reset the Je livre gate to DEFAULT_PROFILE_ID behind the designer's back (CR-02).
+      const config: CoverConfig = await loadCoverConfig();
+      config.projectStatus = msg.status || "In Progress";
       await saveCoverConfig(config);
       await generateOrUpdateCover(config);
       figma.ui.postMessage({ type: "cover-generated" });
