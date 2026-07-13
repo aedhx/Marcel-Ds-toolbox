@@ -21,7 +21,7 @@ import type { QualityCheckResult } from './quality-check-types';
 import { checkNodeColors, checkNodeStrokes } from '../features/health-check/hc-colors';
 import { checkNodeTypography } from '../features/health-check/hc-typography';
 import { checkNodeSpacing } from '../features/health-check/hc-spacing';
-import { collectInstanceIds, checkDetachedInstances, resolveComponentViolations } from '../features/health-check/hc-components';
+import { checkDetachedInstances, resolveComponentViolations } from '../features/health-check/hc-components';
 import { classifyCoverageInstances } from '../features/health-check/hc-coverage';
 import { checkNodeNaming, type NamingCtx } from '../features/linter/linter-rules';
 import {
@@ -145,9 +145,12 @@ export async function runQualityCheck(
       a11yFramePresent = true;
     }
 
-    // Collect ALL instance IDs for coverage (must be BEFORE the remote skip — hc-engine 77-79)
+    // Collect ALL instance IDs for coverage AND the component async pass (must be BEFORE the
+    // remote skip — hc-engine 77-79). The subtree skip below still prevents descending into
+    // instance internals; we only capture the instance's own id here.
     if (node.type === 'INSTANCE') {
       coverageInstanceIds.push(node.id);
+      instanceIds.push(node.id);
     }
 
     // Skip every instance's children (toolkit / library internals are out of audit scope).
@@ -196,10 +199,8 @@ export async function runQualityCheck(
       spacingViolations.push(...spacingResult);
     }
 
-    // ── Components (collect instance IDs for the async pass; detached are sync) ──
-    const instanceId = collectInstanceIds(node);
-    if (instanceId) instanceIds.push(instanceId);
-
+    // ── Components (instance IDs are collected in the pre-skip INSTANCE block above, since
+    // real INSTANCE nodes return false before reaching here; detached checks are sync) ──
     const detached = checkDetachedInstances(node, path);
     componentViolations.push(...detached);
     // Detached instances present as FRAMEs (real INSTANCE nodes skip their subtree above and
