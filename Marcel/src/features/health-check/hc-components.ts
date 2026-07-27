@@ -71,7 +71,7 @@ export async function resolveComponentViolations(instanceIds: string[]): Promise
     const mains = await Promise.all(
       nodes.map((node) =>
         node && node.type === 'INSTANCE'
-          ? (node as InstanceNode).getMainComponentAsync()
+          ? (node as InstanceNode).getMainComponentAsync().catch(() => null)
           : Promise.resolve(null)
       )
     );
