@@ -360,10 +360,14 @@ const handlers: Record<string, Handler> = {
   // ── Linter handlers (PRD V2) ──
 
   "run-linter": async (msg) => {
+    // Capture THIS scan's token in a local so a later superseding scan can never
+    // clobber it or be read in our post-await checks (WR-03). Declared outside the
+    // try so the catch can guard its null-out with the same identity check.
+    const token: ScanAbortToken = { cancelled: false };
     try {
-      // Cancel any in-progress scan
+      // Cancel any in-progress scan.
       if (currentAbortToken) currentAbortToken.cancelled = true;
-      currentAbortToken = { cancelled: false };
+      currentAbortToken = token;
 
       var config = await getLinterConfig();
       var allowlist = await loadAllowlist();
@@ -372,7 +376,7 @@ const handlers: Record<string, Handler> = {
       if (scope === "file") {
         var pageResults = await runLintFile(
           config,
-          currentAbortToken,
+          token,
           function(pageName, pageIndex, totalPages) {
             figma.ui.postMessage({
               type: "traversal-progress",
@@ -382,7 +386,7 @@ const handlers: Record<string, Handler> = {
           }
         );
 
-        if (currentAbortToken.cancelled) {
+        if (token.cancelled) {
           figma.ui.postMessage({ type: "scan-cancelled" });
           return;
         }
@@ -392,13 +396,13 @@ const handlers: Record<string, Handler> = {
           pageResults[p].result.violations = filterAllowlisted(pageResults[p].result.violations, allowlist);
         }
 
-        currentAbortToken = null;
+        if (currentAbortToken === token) currentAbortToken = null;
         figma.ui.postMessage({ type: "linter-result", result: pageResults, scope: "file" });
       } else {
         var lintResult = await runLintAsync(
           scope as "page" | "selection",
           config,
-          currentAbortToken,
+          token,
           function(processed, total) {
             figma.ui.postMessage({
               type: "traversal-progress",
@@ -408,7 +412,7 @@ const handlers: Record<string, Handler> = {
           }
         );
 
-        if (currentAbortToken.cancelled) {
+        if (token.cancelled) {
           figma.ui.postMessage({ type: "scan-cancelled" });
           return;
         }
@@ -416,12 +420,12 @@ const handlers: Record<string, Handler> = {
         // Filter allowlisted violations
         lintResult.violations = filterAllowlisted(lintResult.violations, allowlist);
 
-        currentAbortToken = null;
+        if (currentAbortToken === token) currentAbortToken = null;
         figma.ui.postMessage({ type: "linter-result", result: lintResult, scope: scope });
       }
     } catch (error: any) {
       console.error("Lint error:", error);
-      currentAbortToken = null;
+      if (currentAbortToken === token) currentAbortToken = null;
       figma.ui.postMessage({
         type: "linter-error",
         message: error?.message || "Error",
@@ -650,15 +654,17 @@ const handlers: Record<string, Handler> = {
   // single currentAbortToken supersede, unified progress post, discard-on-cancel.
 
   "run-quality-check": async (msg) => {
+    // Capture THIS scan's token in a local so a superseding scan can't clobber it (WR-03).
+    const token: ScanAbortToken = { cancelled: false };
     try {
       // Cancel any in-progress scan (single-token supersede, D-09)
       if (currentAbortToken) currentAbortToken.cancelled = true;
-      currentAbortToken = { cancelled: false };
+      currentAbortToken = token;
 
       const scope = msg.scope || "page";
       const result = await runQualityCheck(
         scope as "page" | "selection" | "file",
-        currentAbortToken,
+        token,
         (phase, processed, total) => {
           figma.ui.postMessage({
             type: "quality-check-progress",
@@ -669,7 +675,7 @@ const handlers: Record<string, Handler> = {
         }
       );
 
-      currentAbortToken = null;
+      if (currentAbortToken === token) currentAbortToken = null;
 
       // Discard-on-cancel (D-09): runQualityCheck returns null on cancel —
       // never post a partial score.
@@ -684,7 +690,7 @@ const handlers: Record<string, Handler> = {
       }
     } catch (error: any) {
       console.error("Quality Check error:", error);
-      currentAbortToken = null;
+      if (currentAbortToken === token) currentAbortToken = null;
       figma.ui.postMessage({
         type: "quality-check-error",
         message: error?.message || nt("hc.error"),
@@ -780,9 +786,23 @@ const handlers: Record<string, Handler> = {
   // flip goes through the existing validated generateOrUpdateCover path (T-052-12).
   "generate-delivery-stamp": async (msg) => {
     try {
+      // Validate the untrusted UI payload BEFORE any destructive work (WR-07):
+      // a malformed message must never delete the existing badge. The outer catch
+      // posts delivery-stamp-error + notifies.
+      const d = msg.data;
+      if (
+        !d ||
+        typeof d.dsScore !== "number" ||
+        typeof d.pass !== "boolean" ||
+        typeof d.threshold !== "number" ||
+        typeof d.legacyDebtPercent !== "number"
+      ) {
+        throw new Error("invalid stamp data");
+      }
+
       // STAMP FIRST (D-01/2): the badge is ALWAYS placed. Only a stamp failure
       // is a hard error — the outer catch handles it below.
-      await generateDeliveryStamp(msg.data as DeliveryStampData);
+      await generateDeliveryStamp(d as DeliveryStampData);
 
       // Cover flip is best-effort (AUDIT-01 soft gate): flip the Cover to Design
       // Done in its OWN try/catch so a missing/broken Cover never blocks delivery.
@@ -830,24 +850,26 @@ const handlers: Record<string, Handler> = {
   // ── Dead Styles handlers ──
 
   "scan-dead-styles": async (msg) => {
+    // Capture THIS scan's token in a local so a superseding scan can't clobber it (WR-03).
+    const token: ScanAbortToken = { cancelled: false };
     try {
       if (currentAbortToken) currentAbortToken.cancelled = true;
-      currentAbortToken = { cancelled: false };
+      currentAbortToken = token;
 
-      const result = await scanDeadStyles(currentAbortToken, (phase, current, total) => {
+      const result = await scanDeadStyles(token, (phase, current, total) => {
         figma.ui.postMessage({ type: "dead-styles-progress", phase, current, total });
       });
 
-      if (currentAbortToken.cancelled) {
+      if (token.cancelled) {
         figma.ui.postMessage({ type: "scan-cancelled" });
         return;
       }
 
-      currentAbortToken = null;
+      if (currentAbortToken === token) currentAbortToken = null;
       figma.ui.postMessage({ type: "dead-styles-result", result });
     } catch (error: any) {
       console.error("Dead styles scan error:", error);
-      currentAbortToken = null;
+      if (currentAbortToken === token) currentAbortToken = null;
       figma.ui.postMessage({
         type: "dead-styles-error",
         message: error?.message || "Error",
@@ -900,24 +922,26 @@ const handlers: Record<string, Handler> = {
   // ── Style Cleaner handlers (extended Dead Styles) ──
 
   "scan-style-cleaner": async (msg) => {
+    // Capture THIS scan's token in a local so a superseding scan can't clobber it (WR-03).
+    const token: ScanAbortToken = { cancelled: false };
     try {
       if (currentAbortToken) currentAbortToken.cancelled = true;
-      currentAbortToken = { cancelled: false };
+      currentAbortToken = token;
 
-      const result = await scanStyleCleaner(currentAbortToken, (phase, current, total) => {
+      const result = await scanStyleCleaner(token, (phase, current, total) => {
         figma.ui.postMessage({ type: "dead-styles-progress", phase, current, total });
       });
 
-      if (currentAbortToken.cancelled) {
+      if (token.cancelled) {
         figma.ui.postMessage({ type: "scan-cancelled" });
         return;
       }
 
-      currentAbortToken = null;
+      if (currentAbortToken === token) currentAbortToken = null;
       figma.ui.postMessage({ type: "style-cleaner-result", result });
     } catch (error: any) {
       console.error("Style cleaner scan error:", error);
-      currentAbortToken = null;
+      if (currentAbortToken === token) currentAbortToken = null;
       figma.ui.postMessage({
         type: "style-cleaner-error",
         message: error?.message || "Error",
