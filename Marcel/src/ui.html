@@ -4932,7 +4932,7 @@
           "qc.fix.category": "Fix this category", "qc.fix.all": "Fix all", "qc.ignore": "Ignore",
           "qc.navigate": "Click to navigate to this element",
           "qc.cat.naming": "Naming", "qc.cat.colors": "Colors", "qc.cat.typography": "Typography",
-          "qc.cat.spacing": "Spacing", "qc.cat.coverage": "Coverage",
+          "qc.cat.spacing": "Spacing", "qc.cat.components": "Components", "qc.cat.coverage": "Coverage",
           "qc.deadstyles.note": "Informational — does not affect the score",
           "qc.back": "← Back",
           "hub.title": "All tools",
@@ -5115,7 +5115,7 @@
           "qc.fix.category": "Corriger cette catégorie", "qc.fix.all": "Tout corriger", "qc.ignore": "Ignorer",
           "qc.navigate": "Cliquez pour naviguer vers cet élément",
           "qc.cat.naming": "Nommage", "qc.cat.colors": "Couleurs", "qc.cat.typography": "Typographie",
-          "qc.cat.spacing": "Espacement", "qc.cat.coverage": "Couverture",
+          "qc.cat.spacing": "Espacement", "qc.cat.components": "Composants", "qc.cat.coverage": "Couverture",
           "qc.deadstyles.note": "Informatif — n'affecte pas le score",
           "qc.back": "← Retour",
           "settings.language": "Langue",
@@ -5215,7 +5215,7 @@
           "qc.fix.category": "Corrigir esta categoria", "qc.fix.all": "Corrigir tudo", "qc.ignore": "Ignorar",
           "qc.navigate": "Clique para navegar até este elemento",
           "qc.cat.naming": "Nomenclatura", "qc.cat.colors": "Cores", "qc.cat.typography": "Tipografia",
-          "qc.cat.spacing": "Espaçamento", "qc.cat.coverage": "Cobertura",
+          "qc.cat.spacing": "Espaçamento", "qc.cat.components": "Componentes", "qc.cat.coverage": "Cobertura",
           "qc.deadstyles.note": "Informativo — não afeta a pontuação",
           "qc.back": "← Voltar",
           "settings.language": "Idioma",
@@ -7801,10 +7801,10 @@
       var qcScanStart = 0;          // scan start timestamp (ms) for the mm:ss elapsed timer
 
       // The 5 scored category cards (engine scores "colors"; coverage may be N/A).
-      var QC_CATEGORY_ORDER = ["naming", "colors", "typography", "spacing", "coverage"];
+      var QC_CATEGORY_ORDER = ["naming", "colors", "typography", "spacing", "components", "coverage"];
       var QC_CATEGORY_LABELS = {
         naming: "qc.cat.naming", colors: "qc.cat.colors", typography: "qc.cat.typography",
-        spacing: "qc.cat.spacing", coverage: "qc.cat.coverage",
+        spacing: "qc.cat.spacing", components: "qc.cat.components", coverage: "qc.cat.coverage",
       };
       var QC_THRESHOLD_ORDER = { high: 3, medium: 2, low: 1 };
 
@@ -7854,7 +7854,7 @@
       // removed in 07-02 — renderQCDashboard/renderQCDrilldown now read qcResult
       // directly.)
       function qcCanonCategory(cat) {
-        return cat === "color" ? "colors" : cat;
+        return cat === "color" ? "colors" : cat === "component" ? "components" : cat;
       }
 
       // Flat violations[] for one canonical category, read straight from qcResult
@@ -8297,7 +8297,8 @@
             var catLabel = t(QC_CATEGORY_LABELS[cat]) || cat;
             var catResult = catScores[cat];
             var cp = qcCatPct(catResult);
-            var catViolations = catResult ? catResult.violationCount : 0;
+            var catViolations = catResult ? catResult.violationCount
+              : (byCat[cat] ? byCat[cat].length : 0);
             var violText = catViolations === 0
               ? t("linter.no.violations")
               : catViolations + " violation" + (catViolations > 1 ? "s" : "");
