@@ -7801,10 +7801,10 @@
       var qcScanStart = 0;          // scan start timestamp (ms) for the mm:ss elapsed timer
 
       // The 5 scored category cards (engine scores "colors"; coverage may be N/A).
-      var QC_CATEGORY_ORDER = ["naming", "colors", "typography", "spacing", "coverage"];
+      var QC_CATEGORY_ORDER = ["naming", "colors", "typography", "spacing", "components", "coverage"];
       var QC_CATEGORY_LABELS = {
         naming: "qc.cat.naming", colors: "qc.cat.colors", typography: "qc.cat.typography",
-        spacing: "qc.cat.spacing", coverage: "qc.cat.coverage",
+        spacing: "qc.cat.spacing", components: "qc.cat.components", coverage: "qc.cat.coverage",
       };
       var QC_THRESHOLD_ORDER = { high: 3, medium: 2, low: 1 };
 
@@ -7854,7 +7854,7 @@
       // removed in 07-02 — renderQCDashboard/renderQCDrilldown now read qcResult
       // directly.)
       function qcCanonCategory(cat) {
-        return cat === "color" ? "colors" : cat;
+        return cat === "color" ? "colors" : cat === "component" ? "components" : cat;
       }
 
       // Flat violations[] for one canonical category, read straight from qcResult
@@ -8297,7 +8297,8 @@
             var catLabel = t(QC_CATEGORY_LABELS[cat]) || cat;
             var catResult = catScores[cat];
             var cp = qcCatPct(catResult);
-            var catViolations = catResult ? catResult.violationCount : 0;
+            var catViolations = catResult ? catResult.violationCount
+              : (byCat[cat] ? byCat[cat].length : 0);
             var violText = catViolations === 0
               ? t("linter.no.violations")
               : catViolations + " violation" + (catViolations > 1 ? "s" : "");
