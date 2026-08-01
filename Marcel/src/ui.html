@@ -1420,6 +1420,10 @@
         gap: var(--spacing-s);
       }
       .qc-category-card {
+        width: 100%;
+        margin: 0;
+        text-align: center;
+        font-family: "Ubuntu", sans-serif;
         background: var(--bg-subtle);
         border: 1px solid var(--border-default);
         border-radius: var(--radius-m);
@@ -2794,31 +2798,37 @@
       </div>
       <nav class="moment-nav" role="tablist" aria-label="Moments">
         <button
+          id="moment-tab-start"
           class="moment-nav-btn"
           data-moment="start"
           role="tab"
           aria-selected="false"
+          aria-controls="panel-start"
           data-i18n="nav.start"
         >Je démarre</button>
         <button
+          id="moment-tab-build"
           class="moment-nav-btn active"
           data-moment="build"
           role="tab"
           aria-selected="true"
+          aria-controls="panel-build"
           data-i18n="nav.build"
         >Je construis</button>
         <button
+          id="moment-tab-deliver"
           class="moment-nav-btn"
           data-moment="deliver"
           role="tab"
           aria-selected="false"
+          aria-controls="panel-deliver"
           data-i18n="nav.deliver"
         >Je livre</button>
       </nav>
 
       <div class="moment-panels">
         <!-- ── Je démarre ── -->
-        <div id="panel-start" class="moment-panel" role="tabpanel">
+        <div id="panel-start" class="moment-panel" role="tabpanel" aria-labelledby="moment-tab-start">
           <div class="moment-heading" data-i18n="nav.start.title">Je démarre</div>
           <div class="moment-body" data-i18n="nav.start.body">Start a new file with the right structure.</div>
           <!-- Door A · blank file → Starter Kit (default; toggled by init-context.hasProjectPages) -->
@@ -2911,7 +2921,7 @@
         </div>
 
         <!-- ── Je construis (QC home) ── -->
-        <div id="panel-build" class="moment-panel active" role="tabpanel">
+        <div id="panel-build" class="moment-panel active" role="tabpanel" aria-labelledby="moment-tab-build">
           <div class="moment-heading" data-i18n="nav.build.title">Je construis</div>
 
           <!-- QC view container — state regions toggled by qcShowView() -->
@@ -3172,7 +3182,7 @@
         </div>
 
         <!-- ── Je livre — Handoff gate (NET-NEW; DELIVER-01/02/03 — D-01/D-03/D-04) ── -->
-        <div id="panel-deliver" class="moment-panel" role="tabpanel">
+        <div id="panel-deliver" class="moment-panel" role="tabpanel" aria-labelledby="moment-tab-deliver">
           <div class="moment-heading" data-i18n="nav.deliver.title">Je livre</div>
 
           <!-- State: no scan this session (qcResult === null) — D-04, no persisted fallback -->
@@ -8303,11 +8313,11 @@
               ? t("linter.no.violations")
               : catViolations + " violation" + (catViolations > 1 ? "s" : "");
             html +=
-              '<div class="qc-category-card" onclick="qcDrillInto(\'' + cat + "')\">" +
+              '<button type="button" class="qc-category-card" onclick="qcDrillInto(\'' + cat + "')\">" +
               qcDonut(cp.pct, "small", cp.label) +
               '<div class="qc-category-name">' + escapeHtml(catLabel) + "</div>" +
               '<div class="qc-category-violations">' + escapeHtml(violText) + "</div>" +
-              "</div>";
+              "</button>";
           }
           gridEl.innerHTML = html;
         }
