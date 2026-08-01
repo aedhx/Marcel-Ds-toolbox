@@ -131,7 +131,7 @@ export async function generateDeliveryStamp(data: DeliveryStampData): Promise<vo
 
   const scoreLine = createText({
     text:
-      "Conformité DS " +
+      "Score Quality Check " +
       data.dsScore +
       "/100 " +
       (data.pass ? "✓" : "✗") +

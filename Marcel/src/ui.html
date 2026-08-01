@@ -8071,11 +8071,10 @@
         var threshold = getProfileThreshold();
         var profile = getSelectedDeliveryProfile();
         return {
-          // DS conformity headline is the score de conformité (fallback overall).
-          dsScore:
-            typeof qcResult.conformityScore === "number"
-              ? qcResult.conformityScore
-              : overall,
+          // WR-06: the number of record is the gated global `overall` — the SAME value
+          // the pass/fail mark and the Je livre gate use — so the badge's number and its
+          // ✓/✗ mark can never contradict each other (or the gate).
+          dsScore: overall,
           pass: overall >= threshold,
           profileLabel: profile ? profile.label : "—",
           threshold: threshold,
