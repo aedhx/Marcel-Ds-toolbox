@@ -1214,6 +1214,11 @@
         border-radius: var(--radius-s);
       }
       .lang-opt {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 28px;
+        box-sizing: border-box;
         border: none;
         background: none;
         cursor: pointer;
@@ -1294,7 +1299,7 @@
         align-items: center;
         justify-content: center;
         width: 100%;
-        height: 36px;
+        height: 40px;
         padding: 0 var(--spacing-l);
         background: var(--bg-subtle);
         color: var(--content-default);
@@ -1455,6 +1460,10 @@
         gap: var(--spacing-s);
       }
       .qc-back-btn {
+        display: inline-flex;
+        align-items: center;
+        min-height: 28px;
+        box-sizing: border-box;
         border: none;
         background: none;
         cursor: pointer;
@@ -1587,6 +1596,11 @@
         flex-shrink: 0;
       }
       .qc-fix-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 28px;
+        box-sizing: border-box;
         font-family: "Ubuntu", sans-serif;
         font-size: 12px;
         font-weight: 700;
@@ -1608,6 +1622,9 @@
         padding: 4px;
         display: inline-flex;
         align-items: center;
+        justify-content: center;
+        min-height: 28px;
+        box-sizing: border-box;
       }
       .qc-ignore-btn:hover {
         color: var(--content-default);
@@ -2515,6 +2532,11 @@
         align-self: stretch;
       }
       .ds-filter-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 28px;
+        box-sizing: border-box;
         background: var(--bg-subtle);
         border: 1px solid var(--border-default);
         border-radius: 12px;
@@ -3020,7 +3042,7 @@
             <!-- State: scanning (determinate — percent/counter/phase/timer/bar) -->
             <div id="qc-scanning" class="hidden">
               <div class="qc-card">
-                <div class="moment-body" id="qc-scanning-label" data-i18n="qc.scanning">Scanning…</div>
+                <div class="moment-body" id="qc-scanning-label" aria-live="polite" data-i18n="qc.scanning">Scanning…</div>
                 <div id="qc-progress-track" style="width: 100%; height: 6px; border-radius: 3px; background: var(--border-subtle); overflow: hidden; margin: var(--spacing-s) 0;">
                   <div id="qc-progress-fill" style="width: 0%; height: 100%; background: var(--brand); border-radius: 3px; transition: width 0.2s ease;"></div>
                 </div>
@@ -3085,7 +3107,7 @@
 
             <!-- State: error -->
             <div id="qc-error" class="hidden">
-              <div class="qc-state-msg" id="qc-error-msg" data-i18n="qc.error">The scan failed. Check your selection and try again.</div>
+              <div class="qc-state-msg" id="qc-error-msg" role="alert" data-i18n="qc.error">The scan failed. Check your selection and try again.</div>
               <button class="btn-primary" id="qc-error-rescan-btn" data-i18n="qc.rescan">Rescan</button>
             </div>
 
@@ -3544,6 +3566,8 @@
           <div
             id="deliver-done"
             class="moment-card hidden"
+            role="status"
+            aria-live="polite"
             style="
               border-left: 4px solid #2c815e;
               margin-top: var(--spacing-l);
