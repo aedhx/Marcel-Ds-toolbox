@@ -4932,7 +4932,7 @@
           "qc.fix.category": "Fix this category", "qc.fix.all": "Fix all", "qc.ignore": "Ignore",
           "qc.navigate": "Click to navigate to this element",
           "qc.cat.naming": "Naming", "qc.cat.colors": "Colors", "qc.cat.typography": "Typography",
-          "qc.cat.spacing": "Spacing", "qc.cat.coverage": "Coverage",
+          "qc.cat.spacing": "Spacing", "qc.cat.components": "Components", "qc.cat.coverage": "Coverage",
           "qc.deadstyles.note": "Informational — does not affect the score",
           "qc.back": "← Back",
           "hub.title": "All tools",
@@ -5115,7 +5115,7 @@
           "qc.fix.category": "Corriger cette catégorie", "qc.fix.all": "Tout corriger", "qc.ignore": "Ignorer",
           "qc.navigate": "Cliquez pour naviguer vers cet élément",
           "qc.cat.naming": "Nommage", "qc.cat.colors": "Couleurs", "qc.cat.typography": "Typographie",
-          "qc.cat.spacing": "Espacement", "qc.cat.coverage": "Couverture",
+          "qc.cat.spacing": "Espacement", "qc.cat.components": "Composants", "qc.cat.coverage": "Couverture",
           "qc.deadstyles.note": "Informatif — n'affecte pas le score",
           "qc.back": "← Retour",
           "settings.language": "Langue",
@@ -5215,7 +5215,7 @@
           "qc.fix.category": "Corrigir esta categoria", "qc.fix.all": "Corrigir tudo", "qc.ignore": "Ignorar",
           "qc.navigate": "Clique para navegar até este elemento",
           "qc.cat.naming": "Nomenclatura", "qc.cat.colors": "Cores", "qc.cat.typography": "Tipografia",
-          "qc.cat.spacing": "Espaçamento", "qc.cat.coverage": "Cobertura",
+          "qc.cat.spacing": "Espaçamento", "qc.cat.components": "Componentes", "qc.cat.coverage": "Cobertura",
           "qc.deadstyles.note": "Informativo — não afeta a pontuação",
           "qc.back": "← Voltar",
           "settings.language": "Idioma",
@@ -6850,11 +6850,23 @@
           if (qcView === "scanning") qcShowView("cancelled");
         }
         if (msg.type === "fix-qc-violation-result") {
-          // Re-run the scan so the score + list reflect the applied fix.
-          if (msg.result && msg.result.success) runQualityCheck();
+          if (msg.result && msg.result.success) {
+            // Re-run the scan so the score + list reflect the applied fix (the re-scan
+            // re-renders the list, so the tracked button is discarded).
+            qcLastFixBtn = null;
+            runQualityCheck();
+          } else if (qcLastFixBtn) {
+            // WR-05: the fix failed — re-enable its button so the violation stays
+            // fixable this session without a manual re-scan.
+            qcLastFixBtn.disabled = false;
+            qcLastFixBtn = null;
+          }
         }
         if (msg.type === "fix-qc-bulk-result") {
-          if (msg.result && (msg.result.fixed > 0 || msg.result.failed >= 0)) runQualityCheck();
+          // WR-04: only re-scan when the bulk fix actually changed something. `failed >= 0`
+          // was a tautology (both counters non-negative) that forced a full traversal on
+          // a total no-op; require a real fixed/failed count instead.
+          if (msg.result && (msg.result.fixed > 0 || msg.result.failed > 0)) runQualityCheck();
         }
 
         // ── Starter Kit messages ──
@@ -7059,6 +7071,17 @@
           });
           recalculateAndRenderScore();
           renderViolationGroups(currentViolations);
+
+          // WR-05: also reconcile the live QC view so the "ignore" button actually
+          // removes the row from the QC drilldown (same nodeId::rule key), instead of
+          // only touching the Linter tab. Re-render whichever QC view is active.
+          if (qcResult) {
+            qcResult.violations = qcResult.violations.filter(function (v) {
+              return !allowSet[v.nodeId + "::" + v.rule];
+            });
+            if (qcView === "drilldown") renderQCDrilldown(qcDrillCategory);
+            else renderQCDashboard();
+          }
         }
 
         if (msg.type === "allowlist-loaded") {
@@ -7795,16 +7818,19 @@
       var qcResult = null;          // raw QualityCheckResult
       var qcView = "empty";         // empty|scanning|dashboard|drilldown|error|cancelled|clean
       var qcDrillCategory = null;   // currently drilled category key
+      var qcLastFixBtn = null;      // WR-05: the single-fix button awaiting its result (re-enabled on failure)
       var qcThreshold = "high";     // confidence threshold (high|medium|low)
       var qcScope = "page";         // SINGLE source of truth for scan scope (page|selection|file)
       var qcTimerId = null;         // elapsed-scan interval id (exactly one, cleared on every scanning exit)
       var qcScanStart = 0;          // scan start timestamp (ms) for the mm:ss elapsed timer
 
-      // The 5 scored category cards (engine scores "colors"; coverage may be N/A).
-      var QC_CATEGORY_ORDER = ["naming", "colors", "typography", "spacing", "coverage"];
+      // The 5 SCORED category cards (naming/colors/typography/spacing/components) sourced
+      // from qcResult.categories, plus an informational "coverage" card (WR-01) whose count
+      // comes from byCat["coverage"] since coverage is never a scored CategoryScore.
+      var QC_CATEGORY_ORDER = ["naming", "colors", "typography", "spacing", "components", "coverage"];
       var QC_CATEGORY_LABELS = {
         naming: "qc.cat.naming", colors: "qc.cat.colors", typography: "qc.cat.typography",
-        spacing: "qc.cat.spacing", coverage: "qc.cat.coverage",
+        spacing: "qc.cat.spacing", components: "qc.cat.components", coverage: "qc.cat.coverage",
       };
       var QC_THRESHOLD_ORDER = { high: 3, medium: 2, low: 1 };
 
@@ -7854,7 +7880,11 @@
       // removed in 07-02 — renderQCDashboard/renderQCDrilldown now read qcResult
       // directly.)
       function qcCanonCategory(cat) {
-        return cat === "color" ? "colors" : cat;
+        if (cat === "color") return "colors";
+        // Component violations carry the singular category "component", but the
+        // CategoryScore + card key are plural "components" (WR-01).
+        if (cat === "component") return "components";
+        return cat;
       }
 
       // Flat violations[] for one canonical category, read straight from qcResult
@@ -8295,8 +8325,17 @@
             var cat = QC_CATEGORY_ORDER[i];
             var catLabel = t(QC_CATEGORY_LABELS[cat]) || cat;
             var catResult = catScores[cat];
-            var cp = qcCatPct(catResult);
-            var catViolations = catResult ? catResult.violationCount : 0;
+            var cp, catViolations;
+            if (cat === "coverage") {
+              // WR-01: coverage is never a scored CategoryScore (CATEGORY_OF_RULE.coverage
+              // = null). Show it as an INFORMATIONAL card — count from byCat["coverage"] and
+              // a neutral donut — so the card and its drilldown agree instead of always "—"/0.
+              catViolations = byCat["coverage"] ? byCat["coverage"].length : 0;
+              cp = qcCatPct(null);
+            } else {
+              cp = qcCatPct(catResult);
+              catViolations = catResult ? catResult.violationCount : 0;
+            }
             var violText = catViolations === 0
               ? t("linter.no.violations")
               : catViolations + " violation" + (catViolations > 1 ? "s" : "");
@@ -8554,6 +8593,7 @@
             var meta = {};
             try { meta = JSON.parse(btn.getAttribute("data-meta") || "{}"); } catch (err) { meta = {}; }
             btn.disabled = true;
+            qcLastFixBtn = btn; // WR-05: remember it so a failed fix can re-enable it
             parent.postMessage(
               { pluginMessage: {
                 type: "fix-qc-violation",
