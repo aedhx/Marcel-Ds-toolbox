@@ -6884,11 +6884,23 @@
           if (qcView === "scanning") qcShowView("cancelled");
         }
         if (msg.type === "fix-qc-violation-result") {
-          // Re-run the scan so the score + list reflect the applied fix.
-          if (msg.result && msg.result.success) runQualityCheck();
+          if (msg.result && msg.result.success) {
+            // Re-run the scan so the score + list reflect the applied fix (the re-scan
+            // re-renders the list, so the tracked button is discarded).
+            qcLastFixBtn = null;
+            runQualityCheck();
+          } else if (qcLastFixBtn) {
+            // WR-05: the fix failed — re-enable its button so the violation stays
+            // fixable this session without a manual re-scan.
+            qcLastFixBtn.disabled = false;
+            qcLastFixBtn = null;
+          }
         }
         if (msg.type === "fix-qc-bulk-result") {
-          if (msg.result && (msg.result.fixed > 0 || msg.result.failed >= 0)) runQualityCheck();
+          // WR-04: only re-scan when the bulk fix actually changed something. `failed >= 0`
+          // was a tautology (both counters non-negative) that forced a full traversal on
+          // a total no-op; require a real fixed/failed count instead.
+          if (msg.result && (msg.result.fixed > 0 || msg.result.failed > 0)) runQualityCheck();
         }
 
         // ── Starter Kit messages ──
@@ -7093,6 +7105,17 @@
           });
           recalculateAndRenderScore();
           renderViolationGroups(currentViolations);
+
+          // WR-05: also reconcile the live QC view so the "ignore" button actually
+          // removes the row from the QC drilldown (same nodeId::rule key), instead of
+          // only touching the Linter tab. Re-render whichever QC view is active.
+          if (qcResult) {
+            qcResult.violations = qcResult.violations.filter(function (v) {
+              return !allowSet[v.nodeId + "::" + v.rule];
+            });
+            if (qcView === "drilldown") renderQCDrilldown(qcDrillCategory);
+            else renderQCDashboard();
+          }
         }
 
         if (msg.type === "allowlist-loaded") {
@@ -7829,6 +7852,7 @@
       var qcResult = null;          // raw QualityCheckResult
       var qcView = "empty";         // empty|scanning|dashboard|drilldown|error|cancelled|clean
       var qcDrillCategory = null;   // currently drilled category key
+      var qcLastFixBtn = null;      // WR-05: the single-fix button awaiting its result (re-enabled on failure)
       var qcThreshold = "high";     // confidence threshold (high|medium|low)
       var qcScope = "page";         // SINGLE source of truth for scan scope (page|selection|file)
       var qcTimerId = null;         // elapsed-scan interval id (exactly one, cleared on every scanning exit)
@@ -8105,11 +8129,10 @@
         var threshold = getProfileThreshold();
         var profile = getSelectedDeliveryProfile();
         return {
-          // DS conformity headline is the score de conformité (fallback overall).
-          dsScore:
-            typeof qcResult.conformityScore === "number"
-              ? qcResult.conformityScore
-              : overall,
+          // WR-06: the number of record is the gated global `overall` — the SAME value
+          // the pass/fail mark and the Je livre gate use — so the badge's number and its
+          // ✓/✗ mark can never contradict each other (or the gate).
+          dsScore: overall,
           pass: overall >= threshold,
           profileLabel: profile ? profile.label : "—",
           threshold: threshold,
@@ -8590,6 +8613,7 @@
             var meta = {};
             try { meta = JSON.parse(btn.getAttribute("data-meta") || "{}"); } catch (err) { meta = {}; }
             btn.disabled = true;
+            qcLastFixBtn = btn; // WR-05: remember it so a failed fix can re-enable it
             parent.postMessage(
               { pluginMessage: {
                 type: "fix-qc-violation",

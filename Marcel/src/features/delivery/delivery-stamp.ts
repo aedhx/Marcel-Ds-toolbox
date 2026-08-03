@@ -81,10 +81,6 @@ export async function generateDeliveryStamp(data: DeliveryStampData): Promise<vo
   // selection BEFORE removing a stale stamp so an old badge isn't targeted.
   const selection = figma.currentPage.selection;
 
-  // Replace any previous stamp so re-delivering updates in place (no stacking).
-  const previous = figma.currentPage.findChild((n) => n.name === STAMP_FRAME_NAME);
-  if (previous) previous.remove();
-
   const accent = data.pass ? colors.success : colors.error;
 
   // ── Outer badge frame (auto-layout, DS radius + drop shadow) ──
@@ -135,7 +131,7 @@ export async function generateDeliveryStamp(data: DeliveryStampData): Promise<vo
 
   const scoreLine = createText({
     text:
-      "Conformité DS " +
+      "Score Quality Check " +
       data.dsScore +
       "/100 " +
       (data.pass ? "✓" : "✗") +
@@ -191,6 +187,13 @@ export async function generateDeliveryStamp(data: DeliveryStampData): Promise<vo
   body.appendChild(createStampRow("Date", data.date));
 
   badge.appendChild(body);
+
+  // WR-07: only NOW — with the new badge fully built — remove any previous stamp
+  // so re-delivering updates in place (no stacking). A throw during construction
+  // above therefore leaves the existing badge intact. The `others` filter below
+  // then naturally excludes the just-removed old badge.
+  const previous = figma.currentPage.findChild((n) => n.name === STAMP_FRAME_NAME);
+  if (previous) previous.remove();
 
   // Append first so the badge is a top-level page child — its .x/.y are then
   // page-absolute and align with absoluteBoundingBox for selection placement.

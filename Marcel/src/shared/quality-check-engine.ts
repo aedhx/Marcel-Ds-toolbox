@@ -13,7 +13,10 @@
 
 import { traverseNodes, type TraversalScope, type ScanAbortToken } from './node-traversal';
 import { calculatePenaltyScore, formatScoreLabel, getScoreColor } from './scoring';
-import { A11Y_FRAME_NAME, A11Y_ABSENT_PENALTY } from './scoring-config';
+// A11Y_ABSENT_PENALTY intentionally NOT imported — the a11y gate penalty is suppressed
+// (WR-08, NOT-EVALUATED in lot 1). The constant remains defined in scoring-config for the
+// future starter-kit builder that will generate the A11Y_FRAME_NAME frame.
+import { A11Y_FRAME_NAME } from './scoring-config';
 import { type Violation } from './violation-types';
 import { getNodeFills, getNodeStrokes } from './figma-helpers';
 import type { QualityCheckResult } from './quality-check-types';
@@ -320,7 +323,14 @@ export async function runQualityCheck(
   // the absence so the gate UI (Plan 05) can warn + force-launch the a11y plugin. Present
   // frame → no penalty, global === DS conformity. Penalty is the named scoring-config
   // constant (never a literal), satisfying T-052-06.
-  const a11yGatePenalty = a11yFramePresent ? 0 : A11Y_ABSENT_PENALTY;
+  // WR-08: a11y is NOT-EVALUATED in lot 1. No starter-kit builder generates a node
+  // named A11Y_FRAME_NAME, and the gate is scope-dependent (a correctly-named frame
+  // on another page is invisible to a page-scope scan, and page nodes are never visited
+  // by the frame traversal), so the −A11Y_ABSENT_PENALTY would fire unconditionally on
+  // every file. Suppress it (force 0) until the generator exists. The A11Y_FRAME_NAME /
+  // A11Y_ABSENT_PENALTY constants stay defined in scoring-config for that future builder;
+  // the name-detection pass above stays in place, just no longer wired to a penalty.
+  const a11yGatePenalty = 0;
 
   // ── HS delivery checklist (HS-01 — spec §1.6/§4) ──
   // Page-structure hygiene evaluated AFTER the pass (page-name + cover-node reads, no BFS).
@@ -353,7 +363,7 @@ export async function runQualityCheck(
     conformityScore,
     // Downstream fields defaulted so the contract is fully shaped before Plan 04 lands.
     legacyDebtPercent,      // Plan 02 (SCORE-03) — derived from foreign-library bindings
-    a11yFramePresent,       // Plan 03 (SCORE-04) — real name-detection from the pass
+    a11yFramePresent: undefined, // WR-08 — a11y NOT-EVALUATED in lot 1 (penalty suppressed)
     a11yGatePenalty,        // Plan 03 (SCORE-04) — fixed penalty when the frame is absent
     hsPenalty,               // Plan 04 (HS-01) — clamped soft penalty, folded into overall
     coverUpToDate,           // Plan 04 (HS-01) — cover hard-gate flag (enforced at Je livre)
