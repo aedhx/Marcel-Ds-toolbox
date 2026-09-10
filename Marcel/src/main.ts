@@ -171,6 +171,13 @@ var linterConfig: LinterConfig | null = null;
 // ── Abort token for cancellable scans ──
 var currentAbortToken: ScanAbortToken | null = null;
 
+// ── Audit door in-flight guard (CR-02) ──
+// figma.ui.onmessage does NOT serialize handlers: a second apply-structure-upgrade
+// arriving while the first is suspended in an await would build the Cover twice /
+// duplicate pages. The UI disables its Apply button, but the sandbox must not
+// trust the UI — one structure mutation at a time.
+var structureUpgradeInFlight = false;
+
 async function getLinterConfig(): Promise<LinterConfig> {
   if (!linterConfig) {
     linterConfig = await loadLinterConfig();
@@ -280,6 +287,11 @@ const handlers: Record<string, Handler> = {
   },
 
   "apply-structure-upgrade": async (msg) => {
+    // CR-02: drop duplicates while a mutation is in flight. The pending
+    // request's own reply (applied OR error) re-arms the UI, so a silent
+    // early return is enough — no second reply, no second mutation.
+    if (structureUpgradeInFlight) return;
+    structureUpgradeInFlight = true;
     try {
       var selections = msg.selections || {
         generateCover: false,
@@ -296,6 +308,8 @@ const handlers: Record<string, Handler> = {
         message: error?.message || nt("audit.error"),
       });
       figma.notify(nt("audit.error"), { timeout: 4000, error: true });
+    } finally {
+      structureUpgradeInFlight = false;
     }
   },
 

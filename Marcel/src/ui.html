@@ -6054,6 +6054,10 @@
       var auditApplyBtn = document.getElementById("start-audit-apply");
       if (auditApplyBtn)
         auditApplyBtn.addEventListener("click", function () {
+          // CR-02: mirror the B1-09 diagnose guard — one apply at a time. The
+          // button stays disabled until a reply lands (structure-upgrade-applied
+          // OR structure-upgrade-error re-arm it).
+          if (auditApplyBtn.disabled) return;
           var selections = collectAuditSelections();
           // Guard: no-op if the user ticked nothing (consent boundary).
           if (
@@ -6068,6 +6072,7 @@
           // Valid selection — clear any stale guard/error text before applying.
           var applyHintEl = document.getElementById("audit-apply-hint");
           if (applyHintEl) applyHintEl.textContent = "";
+          auditApplyBtn.disabled = true;
           parent.postMessage(
             { pluginMessage: { type: "apply-structure-upgrade", selections: selections } },
             "*",
@@ -7268,6 +7273,9 @@
           renderAuditDiagnosis(msg.diagnosis);
         }
         if (msg.type === "structure-upgrade-applied") {
+          // CR-02: the apply round-trip is over — re-arm the Apply button.
+          var applyDoneBtn = document.getElementById("start-audit-apply");
+          if (applyDoneBtn) applyDoneBtn.disabled = false;
           // Re-diagnose so the checklist reflects what is now in the file.
           parent.postMessage({ pluginMessage: { type: "diagnose-file-structure" } }, "*");
         }
@@ -7275,6 +7283,9 @@
           // B1-09: a failed round-trip must not leave the diagnose button dead.
           var diagnoseErrBtn = document.getElementById("start-audit-diagnose");
           if (diagnoseErrBtn) diagnoseErrBtn.disabled = false;
+          // CR-02: same for the Apply button (this reply serves both round-trips).
+          var applyErrBtn = document.getElementById("start-audit-apply");
+          if (applyErrBtn) applyErrBtn.disabled = false;
           var auditErr = document.getElementById("audit-apply-hint");
           if (auditErr && msg.message) auditErr.textContent = msg.message;
         }
