@@ -7357,14 +7357,18 @@
         if (msg.type === "fix-qc-violation-result") {
           if (msg.result && msg.result.success) {
             // Re-run the scan so the score + list reflect the applied fix (the re-scan
-            // re-renders the list, so the tracked button is discarded).
-            qcLastFixBtn = null;
+            // re-renders the list, so every fix button is rebuilt).
             runQualityCheck();
-          } else if (qcLastFixBtn) {
-            // WR-05: the fix failed — re-enable its button so the violation stays
-            // fixable this session without a manual re-scan.
-            qcLastFixBtn.disabled = false;
-            qcLastFixBtn = null;
+          } else if (msg.violationId) {
+            // WR-05 / WR-04: the fix failed — re-enable ITS button (matched by the
+            // violationId the reply echoes back, not a single shared slot) so the
+            // violation stays fixable this session without a manual re-scan.
+            var qcFixBtns = document.querySelectorAll('.qc-fix-btn[data-action="fix"]');
+            for (var fbi = 0; fbi < qcFixBtns.length; fbi++) {
+              if (qcFixBtns[fbi].getAttribute("data-vid") === msg.violationId) {
+                qcFixBtns[fbi].disabled = false;
+              }
+            }
           }
         }
         if (msg.type === "fix-qc-bulk-result") {
@@ -8336,7 +8340,6 @@
       var qcResult = null;          // raw QualityCheckResult
       var qcView = "empty";         // empty|scanning|dashboard|drilldown|error|cancelled|clean
       var qcDrillCategory = null;   // currently drilled category key
-      var qcLastFixBtn = null;      // WR-05: the single-fix button awaiting its result (re-enabled on failure)
       var qcThreshold = "high";     // confidence threshold (high|medium|low)
       var qcScope = "page";         // SINGLE source of truth for scan scope (page|selection|file)
       var qcTimerId = null;         // elapsed-scan interval id (exactly one, cleared on every scanning exit)
@@ -9096,8 +9099,7 @@
             e.stopPropagation();
             var meta = {};
             try { meta = JSON.parse(btn.getAttribute("data-meta") || "{}"); } catch (err) { meta = {}; }
-            btn.disabled = true;
-            qcLastFixBtn = btn; // WR-05: remember it so a failed fix can re-enable it
+            btn.disabled = true; // re-armed by fix-qc-violation-result via data-vid (WR-04)
             parent.postMessage(
               { pluginMessage: {
                 type: "fix-qc-violation",
