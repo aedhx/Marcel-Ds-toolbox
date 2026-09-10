@@ -7584,6 +7584,17 @@
             qcResult.violations = qcResult.violations.filter(function (v) {
               return !allowSet[v.nodeId + "::" + v.rule];
             });
+            // WR-03: the dashboard cards read categories[].violationCount, not
+            // violations[] — recount per canonical category so card and drilldown
+            // agree. Scores stay as scanned (informational until re-scan).
+            var qcRemaining = {};
+            qcResult.violations.forEach(function (v) {
+              var qcKey = qcCanonCategory(v.category);
+              qcRemaining[qcKey] = (qcRemaining[qcKey] || 0) + 1;
+            });
+            (qcResult.categories || []).forEach(function (c) {
+              c.violationCount = qcRemaining[c.category] || 0;
+            });
             if (qcView === "drilldown") renderQCDrilldown(qcDrillCategory);
             else renderQCDashboard();
           }
