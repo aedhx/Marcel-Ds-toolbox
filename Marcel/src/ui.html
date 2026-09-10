@@ -1106,6 +1106,12 @@
         background: #9b6dd7;
         color: #fff;
       }
+      /* WR-02: the Accessibility card (Je construis, QT-4) still uses this
+         variant; the legacy a11y-tab rule was deleted with the tab, leaving the
+         white eye glyph on no background. Token-driven like .tk/.ds. */
+      .hub-card-icon.a11y {
+        background: var(--info);
+      }
       .hub-card-icon.lock {
         background: var(--bg-subtle);
         border: 1px solid var(--border-default);
