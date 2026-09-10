@@ -636,6 +636,12 @@
         color: var(--brand-hover);
         text-decoration: underline;
       }
+      /* In-flight state for the demoted "Re-diagnose" link (B1-09). */
+      .btn-tertiary:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        text-decoration: none;
+      }
 
       /* ── ONE shared keyboard :focus-visible ring (S-02 / START-03/04, BUILD-05/09,
          DELIVER-08) — reaches every interactive control. :where() keeps 0 specificity
@@ -2852,9 +2858,12 @@
         <!-- ── Je démarre ── -->
         <div id="panel-start" class="moment-panel" role="tabpanel" aria-labelledby="moment-tab-start">
           <div class="moment-heading" data-i18n="nav.start.title">Je démarre</div>
-          <div class="moment-body" data-i18n="nav.start.body">Start a new file with the right structure.</div>
           <!-- Door A · blank file → Starter Kit (default; toggled by init-context.hasProjectPages) -->
           <div id="start-blank-door">
+          <!-- UXH-04 · single intro: this blank-file body lives INSIDE Door A so
+               applyStartDoor() hides it on the Audit door, which keeps only
+               start.audit.intro (the .moment-card-desc) as its intro. -->
+          <div class="moment-body" data-i18n="nav.start.body">Start a new file with the right structure.</div>
           <div class="moment-card">
           <div class="moment-card-head">
             <div class="hub-card-icon sk">
@@ -2932,8 +2941,10 @@
                 >Apply selected fixes</button>
               <div class="moment-meta" style="margin-top: var(--spacing-xs);" data-i18n="start.audit.optin"
                 >Nothing is applied until you tick a box and click Apply.</div>
-              <button class="moment-secondary-btn" id="start-audit-qc"
-                      style="margin-top: var(--spacing-l);" data-i18n="start.audit.qc"
+              <!-- UXH-04 · step 3 (score): tertiary link separated from the Apply
+                   primary by the shared .divider — one primary per step. -->
+              <div class="divider" style="margin: var(--spacing-l) 0;"></div>
+              <button class="btn-tertiary" id="start-audit-qc" data-i18n="start.audit.qc"
                 >Run a baseline Quality Check</button>
               <div class="moment-meta" style="margin-top: var(--spacing-xs);" data-i18n="start.audit.qc.caption"
                 >Get a starting score for this file.</div>
@@ -5062,6 +5073,7 @@
           "start.dslib.caption": "Creates a file from the DS Library template.",
           "start.audit.intro": "This file already has content. Run an audit to check its structure — nothing is changed without your consent.",
           "start.audit.diagnose": "Diagnose the file",
+          "start.audit.rediagnose": "Re-diagnose the file",
           "start.audit.card.title": "Audit this file",
           "start.audit.result.title": "Structure diagnosis",
           "start.audit.apply": "Apply selected fixes",
@@ -5164,6 +5176,7 @@
           "start.dslib.caption": "Crée un fichier basé sur le template Librairie DS.",
           "start.audit.intro": "Ce fichier contient déjà du contenu. Lancez un audit pour vérifier sa structure — rien n'est modifié sans votre consentement.",
           "start.audit.diagnose": "Diagnostiquer le fichier",
+          "start.audit.rediagnose": "Re-diagnostiquer le fichier",
           "start.audit.card.title": "Auditer ce fichier",
           "start.audit.result.title": "Diagnostic de la structure",
           "start.audit.apply": "Appliquer les correctifs cochés",
@@ -5264,6 +5277,7 @@
           "start.dslib.caption": "Cria um arquivo a partir do modelo da biblioteca DS.",
           "start.audit.intro": "Este arquivo já tem conteúdo. Faça uma auditoria para verificar sua estrutura — nada é alterado sem o seu consentimento.",
           "start.audit.diagnose": "Diagnosticar o arquivo",
+          "start.audit.rediagnose": "Rediagnosticar o arquivo",
           "start.audit.card.title": "Auditar este arquivo",
           "start.audit.result.title": "Diagnóstico da estrutura",
           "start.audit.apply": "Aplicar as correções marcadas",
@@ -5598,6 +5612,17 @@
         }
         listEl.innerHTML = rows;
         resultEl.classList.remove("hidden");
+
+        // UXH-04 · step 1 complete: demote Diagnose to a small tertiary
+        // "Re-diagnose" link so Apply is the ONLY blue primary in the door.
+        // data-i18n is swapped too so a later locale switch keeps the new label.
+        var diagnoseBtn = document.getElementById("start-audit-diagnose");
+        if (diagnoseBtn) {
+          diagnoseBtn.classList.remove("btn-primary");
+          diagnoseBtn.classList.add("btn-tertiary");
+          diagnoseBtn.setAttribute("data-i18n", "start.audit.rediagnose");
+          diagnoseBtn.textContent = t("start.audit.rediagnose");
+        }
       }
 
       // Gather ONLY the ticked fixes — this is the consent boundary.
@@ -5619,6 +5644,10 @@
       var auditDiagnoseBtn = document.getElementById("start-audit-diagnose");
       if (auditDiagnoseBtn)
         auditDiagnoseBtn.addEventListener("click", function () {
+          // B1-09: one diagnose at a time — the button stays disabled until a reply
+          // lands (file-structure-diagnosis OR structure-upgrade-error re-arm it).
+          if (auditDiagnoseBtn.disabled) return;
+          auditDiagnoseBtn.disabled = true;
           parent.postMessage({ pluginMessage: { type: "diagnose-file-structure" } }, "*");
         });
 
@@ -6830,6 +6859,9 @@
 
         // ── Je démarre · Audit mode (AUDIT-01, spec §3) ──
         if (msg.type === "file-structure-diagnosis") {
+          // B1-09: reply landed — re-arm the diagnose button before rendering.
+          var diagnoseReplyBtn = document.getElementById("start-audit-diagnose");
+          if (diagnoseReplyBtn) diagnoseReplyBtn.disabled = false;
           renderAuditDiagnosis(msg.diagnosis);
         }
         if (msg.type === "structure-upgrade-applied") {
@@ -6837,6 +6869,9 @@
           parent.postMessage({ pluginMessage: { type: "diagnose-file-structure" } }, "*");
         }
         if (msg.type === "structure-upgrade-error") {
+          // B1-09: a failed round-trip must not leave the diagnose button dead.
+          var diagnoseErrBtn = document.getElementById("start-audit-diagnose");
+          if (diagnoseErrBtn) diagnoseErrBtn.disabled = false;
           var auditErr = document.getElementById("start-audit-status");
           if (auditErr && msg.message) auditErr.textContent = msg.message;
         }
