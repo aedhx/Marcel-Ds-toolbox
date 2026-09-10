@@ -9128,7 +9128,14 @@
         root.querySelectorAll('.qc-violation-row[data-action="navigate"]').forEach(function (row) {
           row.addEventListener("click", function (e) {
             if (e.target.closest("[data-action=fix]") || e.target.closest("[data-action=ignore]")) return;
-            navigateToNode(row.getAttribute("data-node-id"));
+            // navigateToNode() was deleted with the legacy HC surface (07-04);
+            // post the sandbox message directly, like the other navigate call sites.
+            var navNodeId = row.getAttribute("data-node-id");
+            if (!navNodeId) return;
+            parent.postMessage(
+              { pluginMessage: { type: "navigate-to-node", nodeId: navNodeId } },
+              "*",
+            );
           });
         });
       }
