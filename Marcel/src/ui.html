@@ -7613,11 +7613,13 @@
             .classList.add("hidden");
         }
 
-        // EXPORT-01 (spec §2): the badge was generated AND the Cover flipped to
-        // Design Done in one sandbox action. Reflect both in the gate.
+        // EXPORT-01 (spec §2): the badge was generated; the Cover flip is
+        // best-effort. Only promote the local gate state when the sandbox
+        // confirms the Cover really flipped (CR-01) — on a no-Cover file the
+        // sandbox already told the designer the status was NOT updated.
         if (msg.type === "delivery-stamp-generated") {
           deliverMarkdonePending = false;
-          coverStatus = "Design Done";
+          if (msg.coverFlipped !== false) coverStatus = "Design Done";
           deliverShowView("done");
         }
         if (msg.type === "delivery-stamp-error") {

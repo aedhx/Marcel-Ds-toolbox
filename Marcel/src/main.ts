@@ -708,8 +708,10 @@ const handlers: Record<string, Handler> = {
       // reset the Je livre gate to DEFAULT_PROFILE_ID behind the designer's back (CR-02).
       const config: CoverConfig = await loadCoverConfig();
       config.projectStatus = msg.status || "In Progress";
-      await saveCoverConfig(config);
+      // Generate FIRST, persist only once the Cover really changed — keeps
+      // clientStorage consistent with the file when the flip fails (CR-01).
       await generateOrUpdateCover(config);
+      await saveCoverConfig(config);
       figma.ui.postMessage({ type: "cover-generated" });
       figma.notify(nt("cover.updated"), { timeout: 3000 });
     } catch (error: any) {
@@ -809,10 +811,13 @@ const handlers: Record<string, Handler> = {
       try {
         var coverCfg = await loadCoverConfig();
         coverCfg.projectStatus = "Design Done";
-        await saveCoverConfig(coverCfg);
+        // Flip FIRST, persist ONLY on success: generateOrUpdateCover throws
+        // NO_COVER before any mutation, so saving beforehand would leave
+        // clientStorage at "Design Done" for a file that has no Cover (CR-01).
         await generateOrUpdateCover(coverCfg);
+        await saveCoverConfig(coverCfg);
 
-        figma.ui.postMessage({ type: "delivery-stamp-generated" });
+        figma.ui.postMessage({ type: "delivery-stamp-generated", coverFlipped: true });
         figma.notify(nt("deliver.stamp.done"), { timeout: 3000 });
       } catch (coverErr: any) {
         // No Cover (or any other Cover error): the stamp IS placed, so the
@@ -821,7 +826,10 @@ const handlers: Record<string, Handler> = {
         if (coverErr?.code !== NO_COVER_ERROR_CODE) {
           console.error("Delivery cover flip error:", coverErr);
         }
-        figma.ui.postMessage({ type: "delivery-stamp-generated" });
+        // coverFlipped:false tells the UI NOT to promote its local gate state —
+        // the notification says the status was not updated, so nothing may
+        // claim "Design Done" (CR-01).
+        figma.ui.postMessage({ type: "delivery-stamp-generated", coverFlipped: false });
         figma.notify(nt("deliver.stamp.noCoverSoft"), { timeout: 4000 });
       }
     } catch (error: any) {

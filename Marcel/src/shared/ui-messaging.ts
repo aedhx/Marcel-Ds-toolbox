@@ -119,8 +119,10 @@ export type PluginMessage =
   | { type: "cover-config-loaded"; config: unknown; fileName?: string; pageName?: string }
   // Governed project profile list (spec §1.7 — PROFILE-01): the closed list + current selection
   | { type: "delivery-profile-config"; profiles: Array<{ id: string; label: string; threshold: number }>; selectedProfileId: string }
-  // Export delivery stamp (spec §2 — EXPORT-01): badge generated + Cover flipped
-  | { type: "delivery-stamp-generated" }
+  // Export delivery stamp (spec §2 — EXPORT-01): badge generated; `coverFlipped`
+  // is false when the Cover flip was skipped (no Cover) — the UI must NOT
+  // promote its gate state to "Design Done" in that case (CR-01).
+  | { type: "delivery-stamp-generated"; coverFlipped: boolean }
   | { type: "delivery-stamp-error"; message: string }
   // Dead Styles
   | { type: "dead-styles-result"; result: DeadStylesResult }
