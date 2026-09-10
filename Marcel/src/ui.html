@@ -2959,6 +2959,11 @@
             </div>
             <button class="btn-primary" id="start-audit-diagnose" data-i18n="start.audit.diagnose"
               >Diagnose the file</button>
+            <!-- WR-01: a failed diagnose round-trip must be visible BEFORE the first
+                 successful diagnosis reveals #start-audit-result (textContent only —
+                 no innerHTML, no injection). -->
+            <div id="audit-diagnose-hint" class="moment-meta" style="margin-top: var(--spacing-xs);"
+                 aria-live="polite"></div>
             <div id="start-audit-result" class="hidden" style="margin-top: var(--spacing-l);">
               <div class="moment-heading" data-i18n="start.audit.result.title"
                 >Structure diagnosis</div>
@@ -6048,6 +6053,9 @@
           // lands (file-structure-diagnosis OR structure-upgrade-error re-arm it).
           if (auditDiagnoseBtn.disabled) return;
           auditDiagnoseBtn.disabled = true;
+          // WR-01: clear a stale diagnose error before the new round-trip.
+          var diagnoseHintEl = document.getElementById("audit-diagnose-hint");
+          if (diagnoseHintEl) diagnoseHintEl.textContent = "";
           parent.postMessage({ pluginMessage: { type: "diagnose-file-structure" } }, "*");
         });
 
@@ -7270,6 +7278,8 @@
           // B1-09: reply landed — re-arm the diagnose button before rendering.
           var diagnoseReplyBtn = document.getElementById("start-audit-diagnose");
           if (diagnoseReplyBtn) diagnoseReplyBtn.disabled = false;
+          var diagnoseOkHint = document.getElementById("audit-diagnose-hint");
+          if (diagnoseOkHint) diagnoseOkHint.textContent = "";
           renderAuditDiagnosis(msg.diagnosis);
         }
         if (msg.type === "structure-upgrade-applied") {
@@ -7286,7 +7296,13 @@
           // CR-02: same for the Apply button (this reply serves both round-trips).
           var applyErrBtn = document.getElementById("start-audit-apply");
           if (applyErrBtn) applyErrBtn.disabled = false;
-          var auditErr = document.getElementById("audit-apply-hint");
+          // WR-01: #audit-apply-hint lives inside #start-audit-result, which stays
+          // hidden until the first successful diagnosis. Route the message to the
+          // always-visible hint under Diagnose in that case so a first-time
+          // diagnose failure is never mute (textContent only — no innerHTML).
+          var auditResultEl = document.getElementById("start-audit-result");
+          var auditResultHidden = !auditResultEl || auditResultEl.classList.contains("hidden");
+          var auditErr = document.getElementById(auditResultHidden ? "audit-diagnose-hint" : "audit-apply-hint");
           if (auditErr && msg.message) auditErr.textContent = msg.message;
         }
 

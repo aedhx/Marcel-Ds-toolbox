@@ -283,6 +283,8 @@ const handlers: Record<string, Handler> = {
         type: "structure-upgrade-error",
         message: error?.message || nt("audit.error"),
       });
+      // WR-01: match the apply catch — a failed diagnose must never be silent.
+      figma.notify(nt("audit.error"), { timeout: 4000, error: true });
     }
   },
 
