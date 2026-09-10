@@ -786,6 +786,33 @@
         background: var(--border-default);
       }
 
+      /* ── UXH-04 · Je démarre · Audit — ONE aligned grammar for the read-only
+         status rows and the opt-in fix checklist: same left origin, same control
+         column, tokenised spacing (replaces the old ad-hoc inline row margins). ── */
+      .audit-fix-row {
+        display: flex;
+        gap: var(--spacing-s);
+        align-items: flex-start;
+        margin: var(--spacing-s) 0;
+      }
+      .audit-status-row {
+        display: flex;
+        gap: var(--spacing-s);
+        align-items: flex-start;
+        margin: var(--spacing-s) 0;
+      }
+      /* Same 14px control column for both rows → identical text left origin.
+         The checkbox keeps the global green var(--success) accent-color. */
+      .audit-fix-row input[type="checkbox"],
+      .audit-status-row .audit-status-glyph {
+        flex-shrink: 0;
+        width: 14px;
+        height: 14px;
+        margin: 0;
+        text-align: center;
+        line-height: 14px;
+      }
+
       /* ── Options section ── */
       .options-section {
         display: flex;
@@ -2941,6 +2968,11 @@
                 >Apply selected fixes</button>
               <div class="moment-meta" style="margin-top: var(--spacing-xs);" data-i18n="start.audit.optin"
                 >Nothing is applied until you tick a box and click Apply.</div>
+              <!-- B1-08: the apply-nothing guard AND the structure-upgrade-error land
+                   HERE (textContent only — no innerHTML, no injection) so the ✓/—
+                   diagnosis in #start-audit-status is never clobbered. -->
+              <div id="audit-apply-hint" class="moment-meta" style="margin-top: var(--spacing-xs);"
+                   aria-live="polite"></div>
               <!-- UXH-04 · step 3 (score): tertiary link separated from the Apply
                    primary by the shared .divider — one primary per step. -->
               <div class="divider" style="margin: var(--spacing-l) 0;"></div>
@@ -5572,34 +5604,47 @@
         var applyBtn = document.getElementById("start-audit-apply");
         if (!resultEl || !statusEl || !listEl) return;
 
-        // Read-only état des lieux (what the file looks like today).
+        // Read-only état des lieux (what the file looks like today) — rendered as
+        // .audit-status-row lines so each glyph shares the checklist's left origin
+        // and control column (UXH-04 aligned grammar). Met = green var(--success) ✓.
         var yes = "✓", no = "—";
+        function auditStatusRow(met, labelHtml) {
+          return (
+            '<div class="audit-status-row">' +
+            '<span class="audit-status-glyph moment-meta"' +
+            (met ? ' style="color: var(--success);"' : "") +
+            ">" + (met ? yes : no) + "</span>" +
+            '<span class="moment-meta">' + labelHtml + "</span>" +
+            "</div>"
+          );
+        }
         statusEl.innerHTML =
-          '<div class="moment-meta">' +
-          (d.hasCover ? yes : no) + " " + auditEsc(t("start.audit.state.cover")) +
-          (d.coverIsLegacy ? " (" + auditEsc(t("start.audit.state.legacy")) + ")" : "") +
-          "<br>" + (d.hasArchives ? yes : no) + " " + auditEsc(t("start.audit.state.archives")) +
-          "<br>" + (d.fileNamed ? yes : no) + " " + auditEsc(t("start.audit.state.named")) +
-          "</div>";
+          auditStatusRow(
+            !!d.hasCover,
+            auditEsc(t("start.audit.state.cover")) +
+              (d.coverIsLegacy ? " (" + auditEsc(t("start.audit.state.legacy")) + ")" : ""),
+          ) +
+          auditStatusRow(!!d.hasArchives, auditEsc(t("start.audit.state.archives"))) +
+          auditStatusRow(!!d.fileNamed, auditEsc(t("start.audit.state.named")));
 
         // Opt-in fixes — one checkbox per applicable gap. Nothing pre-checked.
         var rows = "";
         if (!d.hasCover) {
           rows +=
-            '<label class="audit-fix-row" style="display:flex;gap:8px;align-items:flex-start;margin:6px 0;">' +
+            '<label class="audit-fix-row">' +
             '<input type="checkbox" id="audit-fix-gencover">' +
             "<span>" + auditEsc(t("start.audit.fix.gencover")) + "</span></label>";
         }
         if (d.coverIsLegacy) {
           rows +=
-            '<label class="audit-fix-row" style="display:flex;gap:8px;align-items:flex-start;margin:6px 0;">' +
+            '<label class="audit-fix-row">' +
             '<input type="checkbox" id="audit-fix-replacelegacy">' +
             "<span>" + auditEsc(t("start.audit.fix.replacelegacy")) + "</span></label>";
         }
         var missing = d.missingStandardPages || [];
         for (var i = 0; i < missing.length; i++) {
           rows +=
-            '<label class="audit-fix-row" style="display:flex;gap:8px;align-items:flex-start;margin:6px 0;">' +
+            '<label class="audit-fix-row">' +
             '<input type="checkbox" class="audit-fix-addpage" data-page="' + auditEsc(missing[i]) + '">' +
             "<span>" + auditEsc(t("start.audit.fix.addpage")) + " " + auditEsc(missing[i]) + "</span></label>";
         }
@@ -5612,6 +5657,10 @@
         }
         listEl.innerHTML = rows;
         resultEl.classList.remove("hidden");
+
+        // A fresh diagnosis supersedes any previous apply hint / upgrade error.
+        var hintReset = document.getElementById("audit-apply-hint");
+        if (hintReset) hintReset.textContent = "";
 
         // UXH-04 · step 1 complete: demote Diagnose to a small tertiary
         // "Re-diagnose" link so Apply is the ONLY blue primary in the door.
@@ -5661,10 +5710,13 @@
             !selections.replaceLegacyCover &&
             selections.addMissingPages.length === 0
           ) {
-            var statusEl = document.getElementById("start-audit-status");
-            if (statusEl) statusEl.textContent = t("start.audit.nothing");
+            var emptyHintEl = document.getElementById("audit-apply-hint");
+            if (emptyHintEl) emptyHintEl.textContent = t("start.audit.nothing");
             return;
           }
+          // Valid selection — clear any stale guard/error text before applying.
+          var applyHintEl = document.getElementById("audit-apply-hint");
+          if (applyHintEl) applyHintEl.textContent = "";
           parent.postMessage(
             { pluginMessage: { type: "apply-structure-upgrade", selections: selections } },
             "*",
@@ -6872,7 +6924,7 @@
           // B1-09: a failed round-trip must not leave the diagnose button dead.
           var diagnoseErrBtn = document.getElementById("start-audit-diagnose");
           if (diagnoseErrBtn) diagnoseErrBtn.disabled = false;
-          var auditErr = document.getElementById("start-audit-status");
+          var auditErr = document.getElementById("audit-apply-hint");
           if (auditErr && msg.message) auditErr.textContent = msg.message;
         }
 
