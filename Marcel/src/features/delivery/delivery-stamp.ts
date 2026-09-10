@@ -81,6 +81,12 @@ export async function generateDeliveryStamp(data: DeliveryStampData): Promise<vo
   // selection BEFORE removing a stale stamp so an old badge isn't targeted.
   const selection = figma.currentPage.selection;
 
+  // Capture any PREVIOUS stamp BEFORE building the new one: figma.createFrame()
+  // parents the new badge to the current page immediately, under the SAME name,
+  // so a by-name lookup done after construction would find (and remove) the
+  // badge we just built — "in appendChild: The node ... does not exist".
+  const previous = figma.currentPage.findChild((n) => n.name === STAMP_FRAME_NAME);
+
   const accent = data.pass ? colors.success : colors.error;
 
   // ── Outer badge frame (auto-layout, DS radius + drop shadow) ──
@@ -188,12 +194,11 @@ export async function generateDeliveryStamp(data: DeliveryStampData): Promise<vo
 
   badge.appendChild(body);
 
-  // WR-07: only NOW — with the new badge fully built — remove any previous stamp
-  // so re-delivering updates in place (no stacking). A throw during construction
-  // above therefore leaves the existing badge intact. The `others` filter below
-  // then naturally excludes the just-removed old badge.
-  const previous = figma.currentPage.findChild((n) => n.name === STAMP_FRAME_NAME);
-  if (previous) previous.remove();
+  // WR-07: only NOW — with the new badge fully built — remove the previous stamp
+  // (captured above, before construction) so re-delivering updates in place (no
+  // stacking). A throw during construction above therefore leaves the existing
+  // badge intact. The `others` filter below then naturally excludes it.
+  if (previous && previous !== badge && !previous.removed) previous.remove();
 
   // Append first so the badge is a top-level page child — its .x/.y are then
   // page-absolute and align with absoluteBoundingBox for selection placement.
