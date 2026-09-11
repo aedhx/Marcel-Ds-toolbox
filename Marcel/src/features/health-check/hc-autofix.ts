@@ -90,25 +90,28 @@ async function resolveTextStyle(textNode: TextNode): Promise<TextStyle | null> {
     // Start with local text styles
     var allStyles: TextStyle[] = await figma.getLocalTextStylesAsync();
 
-    // Also fetch from team library (requires "teamlibrary" permission)
+    // The Plugin API has NO way to list a team library's text styles
+    // (figma.teamLibrary only exposes variable collections — the former
+    // `getAvailableLibraryTextStylesAsync` call never existed and always threw,
+    // silently leaving project files with ZERO candidates). Instead, harvest the
+    // library text styles ALREADY USED in this file: every TEXT node bound to a
+    // (remote) text style resolves through getStyleByIdAsync. Ubuntu-only filter
+    // below keeps the pool DS-only.
+    var seenStyleIds: Record<string, true> = {};
+    for (var li = 0; li < allStyles.length; li++) seenStyleIds[allStyles[li].id] = true;
     try {
-      // `getAvailableLibraryTextStylesAsync` is a runtime figma.teamLibrary method that the
-      // installed @figma/plugin-typings do not declare (TeamLibraryAPI only types the
-      // variable-collection methods) — a genuine typings gap. Cast through `any`; the call is
-      // already wrapped in try/catch so a missing method degrades to local-only styles.
-      var libStyles =
-        await (figma.teamLibrary as any).getAvailableLibraryTextStylesAsync();
-      for (var ls = 0; ls < libStyles.length; ls++) {
-        var libStyle = libStyles[ls];
-        // Only import from Marcel DS library
-        if (!libStyle.libraryName.toLowerCase().includes("marcel")) continue;
-        var imported = (await figma.importStyleByKeyAsync(
-          libStyle.key
-        )) as TextStyle;
-        allStyles.push(imported);
+      var textNodes = figma.currentPage.findAllWithCriteria({ types: ["TEXT"] });
+      for (var tn = 0; tn < textNodes.length; tn++) {
+        var sid = (textNodes[tn] as TextNode).textStyleId;
+        if (typeof sid !== "string" || !sid || seenStyleIds[sid]) continue;
+        seenStyleIds[sid] = true;
+        try {
+          var usedStyle = await figma.getStyleByIdAsync(sid);
+          if (usedStyle && usedStyle.type === "TEXT") allStyles.push(usedStyle as TextStyle);
+        } catch (_e2) { /* stale style id — skip */ }
       }
     } catch (_e) {
-      // teamLibrary may not be available — continue with local only
+      // page not loaded / API unavailable — continue with local only
     }
 
     _textStylesCache = allStyles;
