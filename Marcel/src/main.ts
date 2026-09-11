@@ -44,6 +44,12 @@ const NOTIF: Record<string, Record<string, string>> = {
     "hc.fix.count": "{fixed} violation{s} corrigee{s}",
     "hc.fix.count.failed": " ({failed} echouee{fs})",
     "hc.fix.none": "Aucune violation n'a pu etre corrigee.",
+    "hc.fix.fail": "Correction impossible : {detail}",
+    "hc.fix.detail.noTextStyle": "aucun style de texte Marcel de cette taille n'est utilise dans ce fichier",
+    "hc.fix.detail.notText": "ce calque n'est pas un texte",
+    "hc.fix.detail.mixed": "valeurs mixtes sur ce calque",
+    "hc.fix.detail.font": "police Marcel introuvable",
+    "hc.fix.detail.generic": "aucune correction automatique pour cette regle",
     "hc.error": "Erreur lors de l'audit Health Check.",
     "cover.updated": "Cover mise à jour ✅",
     "cover.error": "Erreur lors de la mise à jour de la cover.",
@@ -78,6 +84,12 @@ const NOTIF: Record<string, Record<string, string>> = {
     "hc.fix.count": "{fixed} violation{s} fixed",
     "hc.fix.count.failed": " ({failed} failed)",
     "hc.fix.none": "No violations could be fixed.",
+    "hc.fix.fail": "Cannot fix: {detail}",
+    "hc.fix.detail.noTextStyle": "no Marcel text style of this size is used in this file",
+    "hc.fix.detail.notText": "this layer is not a text layer",
+    "hc.fix.detail.mixed": "mixed values on this layer",
+    "hc.fix.detail.font": "Marcel font unavailable",
+    "hc.fix.detail.generic": "no automatic fix for this rule",
     "hc.error": "Error during Health Check audit.",
     "cover.updated": "Cover updated ✅",
     "cover.error": "Error updating the cover.",
@@ -112,6 +124,12 @@ const NOTIF: Record<string, Record<string, string>> = {
     "hc.fix.count": "{fixed} violação(ões) corrigida{s}",
     "hc.fix.count.failed": " ({failed} falhou)",
     "hc.fix.none": "Nenhuma violação pôde ser corrigida.",
+    "hc.fix.fail": "Não foi possível corrigir: {detail}",
+    "hc.fix.detail.noTextStyle": "nenhum estilo de texto Marcel deste tamanho é usado neste arquivo",
+    "hc.fix.detail.notText": "esta camada não é um texto",
+    "hc.fix.detail.mixed": "valores mistos nesta camada",
+    "hc.fix.detail.font": "fonte Marcel indisponível",
+    "hc.fix.detail.generic": "nenhuma correção automática para esta regra",
     "hc.error": "Erro durante a auditoria Health Check.",
     "cover.updated": "Cover atualizada ✅",
     "cover.error": "Erro ao atualizar a cover.",
@@ -128,6 +146,17 @@ const NOTIF: Record<string, Record<string, string>> = {
     "ds.batch.replace": "{count} elemento(s) substituido(s)",
   }
 };
+
+// Map hcFixNode's internal `detail` strings (English, developer-facing) to the
+// i18n reason shown when a single Quality Check fix fails.
+function hcFixDetailKey(detail: string): string {
+  var d = (detail || "").toLowerCase();
+  if (d.indexOf("text style") !== -1) return "hc.fix.detail.noTextStyle";
+  if (d.indexOf("not a text") !== -1) return "hc.fix.detail.notText";
+  if (d.indexOf("mixed") !== -1) return "hc.fix.detail.mixed";
+  if (d.indexOf("font") !== -1) return "hc.fix.detail.font";
+  return "hc.fix.detail.generic";
+}
 
 function nt(key: string, params?: Record<string, string | number>): string {
   let str = (NOTIF[activeLocale] || NOTIF["fr"])[key] || key;
@@ -534,19 +563,21 @@ const handlers: Record<string, Handler> = {
       var qcNodeId = msg.nodeId || "";
       var cat = msg.category || "";
       var qcSuccess = false;
+      var qcDetail = "";
       if (cat === "naming") {
         var qcNameRes = await autoFixNode(qcNodeId, msg.suggestion);
         qcSuccess = qcNameRes.success;
       } else if (cat === "color" || cat === "colors" || cat === "typography" || cat === "spacing") {
         var qcHcRes = await hcFixNode(qcNodeId, { rule: msg.rule || "", metadata: msg.metadata });
         qcSuccess = qcHcRes.success;
+        qcDetail = qcHcRes.detail || "";
       } else {
         // component / coverage / dead-styles / unknown → non-value-fixable
         qcSuccess = false;
       }
       figma.ui.postMessage({
         type: "fix-qc-violation-result",
-        result: { success: qcSuccess },
+        result: { success: qcSuccess, detail: qcDetail },
         violationId: msg.violationId,
       });
       if (qcSuccess) {
@@ -555,6 +586,13 @@ const handlers: Record<string, Handler> = {
           await selectAndZoom(qcFixedNode as SceneNode);
         }
         figma.notify(nt("hc.fix.ok"), { timeout: 2000 });
+      } else {
+        // A failed single fix must never be silent: the UI only re-arms the button,
+        // so the sandbox is the one place that can tell the designer WHY.
+        figma.notify(nt("hc.fix.fail", { detail: nt(hcFixDetailKey(qcDetail)) }), {
+          timeout: 4000,
+          error: true,
+        });
       }
     } catch (error: any) {
       console.error("QC fix node error:", error);
@@ -609,6 +647,9 @@ const handlers: Record<string, Handler> = {
 
       if (qcCatFixed > 0) {
         figma.notify(nt("hc.fix.count", { fixed: qcCatFixed, s: qcCatFixed > 1 ? "s" : "" }), { timeout: 3000 });
+      } else {
+        // Same contract as fix-qc-all: a no-op bulk fix is reported, never silent.
+        figma.notify(nt("hc.fix.none"), { timeout: 3000 });
       }
 
       figma.ui.postMessage({
@@ -849,7 +890,14 @@ const handlers: Record<string, Handler> = {
         figma.notify(nt("deliver.stamp.noCoverSoft"), { timeout: 4000 });
       }
     } catch (error: any) {
-      console.error("Delivery stamp error:", error);
+      // Figma's console prints a bare "Error" for some API rejections — spell out
+      // every field we have so the next report is actionable.
+      console.error(
+        "Delivery stamp error:",
+        error?.message || "(no message)",
+        error?.code || "",
+        error?.stack || error
+      );
       figma.ui.postMessage({
         type: "delivery-stamp-error",
         message: nt("deliver.stamp.error"),

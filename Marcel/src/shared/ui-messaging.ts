@@ -98,7 +98,7 @@ export type PluginMessage =
   | { type: "quality-check-error"; message: string }
   | { type: "quality-check-progress"; phase: string; processed: number; total: number }
   // Unified Quality Check fix-routing results (Phase 4 — QC-08/QC-09)
-  | { type: "fix-qc-violation-result"; result: { success: boolean }; violationId?: string }
+  | { type: "fix-qc-violation-result"; result: { success: boolean; detail?: string }; violationId?: string }
   | { type: "fix-qc-bulk-result"; result: { fixed: number; failed: number; fixedNodeIds: string[] } }
   // i18n (Phase 3 — MIGR-05)
   | { type: "language"; language: "fr" | "en" | "pt-BR" }
