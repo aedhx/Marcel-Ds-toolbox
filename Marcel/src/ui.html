@@ -3126,6 +3126,27 @@
               </div>
               <div class="moment-meta" data-i18n="qc.scope.hint" style="margin-bottom: var(--spacing-s);">Scanning the entire file can be slow on large files — the Page scan is enough day-to-day.</div>
               <button class="btn-primary" id="qc-rescan-btn" data-i18n="qc.rescan" style="margin-bottom: var(--spacing-l);">Rescan</button>
+              <!-- A11y attestation notice (lot 2): sits ABOVE the ring so the −15 pts is
+                   the first thing read after a scan. Text is param-bearing ({penalty}) →
+                   set from JS, NO data-i18n. CTA jumps straight to Je livre. -->
+              <div
+                id="qc-a11y-notice"
+                class="hidden"
+                style="margin-bottom: var(--spacing-l); border-left: 4px solid var(--warning-text); background: var(--warning-fill); border-radius: var(--radius-m); padding: var(--spacing-m);"
+              >
+                <div
+                  id="qc-a11y-notice-text"
+                  style="font-size:14px; font-weight:700; line-height:1.4; color: var(--warning-text);"
+                ></div>
+                <button
+                  class="btn-tertiary"
+                  id="qc-a11y-notice-cta"
+                  style="margin-top: var(--spacing-s);"
+                  data-i18n="build.a11y.notice.cta"
+                >
+                  Attester dans Je livre
+                </button>
+              </div>
               <div class="qc-score-global" id="qc-global-score"><!-- ring injected --></div>
               <div class="qc-categories-grid" id="qc-categories-grid"><!-- cards injected --></div>
               <div class="qc-bulk-bar" id="qc-dashboard-bulk">
@@ -4983,6 +5004,8 @@
           "build.import": "Import Toolkit", "build.a11y.link": "Accessibility — external plugin ↗",
           "build.import.title": "Handoff Toolkit", "build.cover.desc": "Update the status shown on the Cover page.",
           "build.a11y.title": "Accessibility", "build.a11y.desc": "Audit color contrast & readability via the external plugin.",
+          "build.a11y.notice": "Accessibility not attested: −{penalty} pts",
+          "build.a11y.notice.cta": "Attest in Je livre",
           "build.cover.label": "Cover status", "build.cover.apply": "Update Cover",
           "build.cover.current": "Current: {status}",
           "cover.status.inprogress": "In Progress", "cover.status.playground": "Playground",
@@ -5174,6 +5197,8 @@
           "build.import": "Importer la Toolkit", "build.a11y.link": "Accessibilité (plugin externe) ↗",
           "build.import.title": "Toolkit Handoff", "build.cover.desc": "Met à jour le statut affiché sur la page Cover.",
           "build.a11y.title": "Accessibilité", "build.a11y.desc": "Audite le contraste et la lisibilité via le plugin externe.",
+          "build.a11y.notice": "Accessibilité non attestée : −{penalty} pts",
+          "build.a11y.notice.cta": "Attester dans Je livre",
           "build.cover.label": "Statut de la Cover", "build.cover.apply": "Mettre à jour la Cover",
           "build.cover.current": "Actuel : {status}",
           "cover.status.inprogress": "En cours", "cover.status.playground": "Playground",
@@ -5453,6 +5478,8 @@
           "build.import": "Importar a Toolkit", "build.a11y.link": "Acessibilidade (plugin externo) ↗",
           "build.import.title": "Toolkit de Handoff", "build.cover.desc": "Atualiza o status exibido na página Cover.",
           "build.a11y.title": "Acessibilidade", "build.a11y.desc": "Audita o contraste de cores e a legibilidade via plugin externo.",
+          "build.a11y.notice": "Acessibilidade não atestada: −{penalty} pts",
+          "build.a11y.notice.cta": "Atestar em Je livre",
           "build.cover.label": "Status da Cover", "build.cover.apply": "Atualizar a Cover",
           "build.cover.current": "Atual: {status}",
           "cover.status.inprogress": "Em andamento", "cover.status.playground": "Playground",
@@ -6188,6 +6215,15 @@
         deliverNoscanCta.addEventListener("click", function () {
           switchMoment("build");
           qcShowView("empty");
+        });
+
+      // Je construis → Je livre shortcut for the a11y attestation notice (lot 2).
+      // switchMoment already posts load-cover-config + load-delivery-profile-config and
+      // calls renderDeliverGate(), so the card lands in its correct state.
+      var qcA11yNoticeCta = document.getElementById("qc-a11y-notice-cta");
+      if (qcA11yNoticeCta)
+        qcA11yNoticeCta.addEventListener("click", function () {
+          switchMoment("deliver");
         });
 
       // A11y attestation (lot 2 — checkbox only; never reads a11y-engine). Persists on the
@@ -8876,6 +8912,18 @@
       // ── Render: dashboard (ring + 5 cards) ──
       function renderQCDashboard() {
         if (!qcResult) return;
+        // ── A11y attestation notice (lot 2) — reads the ENGINE flag, kept in sync
+        // without a rescan by applyA11yAttestation().
+        var a11yNotice = document.getElementById("qc-a11y-notice");
+        if (a11yNotice) {
+          var a11yUnattested = qcResult.a11yAttested !== true;
+          a11yNotice.classList.toggle("hidden", !a11yUnattested);
+          var a11yNoticeText = document.getElementById("qc-a11y-notice-text");
+          if (a11yNoticeText && a11yUnattested)
+            a11yNoticeText.textContent = t("build.a11y.notice", {
+              penalty: A11Y_UNATTESTED_PENALTY_UI,
+            });
+        }
         // Reflect the persisted scope into the dashboard picker on every render.
         qcSyncScopeRadios();
         var overall = qcResult.overall;
