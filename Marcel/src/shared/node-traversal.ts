@@ -1,3 +1,5 @@
+import { isPluginArtifact } from "./plugin-artifacts";
+
 // ── Types ──
 
 export interface ScanAbortToken {
@@ -136,6 +138,10 @@ async function processNodeQueue(
 
     for (const entry of chunk) {
       const { node, depth, path } = entry;
+
+      // Plugin-generated artifacts (delivery stamp) are not design content: never
+      // visited, subtree never queued — the plugin must not audit its own badge.
+      if (isPluginArtifact(node)) continue;
 
       // Call visitor — if returns false, skip this node's children
       const result = visitor(node, depth, path);

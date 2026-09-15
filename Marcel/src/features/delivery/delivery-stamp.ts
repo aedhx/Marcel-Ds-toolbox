@@ -11,6 +11,11 @@
 
 import { colors, spacing, borderRadius } from "../../shared/tokens";
 import {
+  DELIVERY_STAMP_FRAME_NAME,
+  isPluginArtifact,
+  toStandardLayerName,
+} from "../../shared/plugin-artifacts";
+import {
   createFrame,
   createText,
   solidFill,
@@ -18,9 +23,10 @@ import {
   loadAllFonts,
 } from "../../shared/figma-helpers";
 
-// Standard name of the generated badge frame. Also used to find + replace a
-// previous stamp so re-delivering does not stack duplicate badges.
-const STAMP_FRAME_NAME = "Marcel — Livraison Quality Check";
+// Standard name of the generated badge frame (shared/plugin-artifacts — the traversal
+// excludes it from every scan). A previous stamp, current OR legacy name, is found and
+// replaced so re-delivering does not stack duplicate badges.
+const STAMP_FRAME_NAME = DELIVERY_STAMP_FRAME_NAME;
 
 // Aggregate-only payload for the badge. NO node references, colors, or any
 // design content are ever added here (privacy — threat T-052-11).
@@ -39,7 +45,7 @@ export interface DeliveryStampData {
 /** One "label : value" row inside the badge body. */
 function createStampRow(label: string, value: string): FrameNode {
   const row = createFrame({
-    name: label,
+    name: toStandardLayerName(label),
     width: 1,
     height: 1,
     fills: [],
@@ -56,6 +62,7 @@ function createStampRow(label: string, value: string): FrameNode {
     fontStyle: "Medium",
     color: colors.contentSubtler,
   });
+  labelText.name = "Label";
   row.appendChild(labelText);
 
   const valueText = createText({
@@ -64,6 +71,7 @@ function createStampRow(label: string, value: string): FrameNode {
     fontStyle: "Bold",
     color: colors.contentDefault,
   });
+  valueText.name = "Value";
   row.appendChild(valueText);
 
   return row;
@@ -85,7 +93,7 @@ export async function generateDeliveryStamp(data: DeliveryStampData): Promise<vo
   // parents the new badge to the current page immediately, under the SAME name,
   // so a by-name lookup done after construction would find (and remove) the
   // badge we just built — "in appendChild: The node ... does not exist".
-  const previous = figma.currentPage.findChild((n) => n.name === STAMP_FRAME_NAME);
+  const previous = figma.currentPage.findChild((n) => isPluginArtifact(n));
 
   const accent = data.pass ? colors.success : colors.error;
 
@@ -133,6 +141,9 @@ export async function generateDeliveryStamp(data: DeliveryStampData): Promise<vo
     fontStyle: "Bold",
     color: colors.white,
   });
+  // Layer names stay in the linter's standard character set; the displayed text keeps
+  // its typography (em dash, check marks) — the rule reads node.name, not characters.
+  title.name = "Title";
   header.appendChild(title);
 
   const scoreLine = createText({
@@ -148,6 +159,7 @@ export async function generateDeliveryStamp(data: DeliveryStampData): Promise<vo
     fontStyle: "Medium",
     color: colors.white,
   });
+  scoreLine.name = "Score";
   header.appendChild(scoreLine);
 
   badge.appendChild(header);
