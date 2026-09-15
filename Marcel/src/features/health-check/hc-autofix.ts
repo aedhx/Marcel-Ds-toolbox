@@ -32,6 +32,8 @@ function resetResolutionCache() {
   _spacingVarsCache = null;
   _textStylesCache = null;
   _colorVarsCache = null;
+  _colorLibraryIndex = null;
+  _colorImportedByKey = {};
 }
 
 // ── Color variable resolution ──
@@ -62,57 +64,117 @@ async function variableHex(v: Variable): Promise<string | null> {
   return null;
 }
 
-async function resolveColorVariable(targetHex: string): Promise<Variable | null> {
-  if (!_colorVarsCache) {
-    var colorVars: Variable[] = await figma.variables.getLocalVariablesAsync("COLOR");
-    var seen: Record<string, true> = {};
-    for (var i0 = 0; i0 < colorVars.length; i0++) seen[colorVars[i0].id] = true;
+// ── Color variable resolution ──
+//
+// Why a color fix used to look like "nothing happens": every Marcel COLOR library
+// variable (semantic + primitives, hundreds) was imported ONE await at a time, then each
+// candidate resolved its alias with another await, before the first hex comparison. In a
+// project file that is tens of seconds of silence after the click. The violation carries
+// the Marcel token NAME (metadata.nearestToken, e.g. "Action/Background/Brand/Default"),
+// so match by name first and import only that one variable; the hex fallback imports
+// the library in parallel chunks and is reached only when no name matches.
 
-    // Marcel team-library collections (same listing as spacing).
-    try {
-      var cols = await figma.teamLibrary.getAvailableLibraryVariableCollectionsAsync();
-      for (var c = 0; c < cols.length; c++) {
-        if (!cols[c].libraryName.toLowerCase().includes("marcel")) continue;
-        var libVars = await figma.teamLibrary.getVariablesInLibraryCollectionAsync(cols[c].key);
-        for (var lv = 0; lv < libVars.length; lv++) {
-          if (libVars[lv].resolvedType !== "COLOR") continue;
-          var imported = await figma.variables.importVariableByKeyAsync(libVars[lv].key);
-          if (!seen[imported.id]) { seen[imported.id] = true; colorVars.push(imported); }
-        }
+interface LibraryColorEntry { name: string; key: string; }
+var _colorLibraryIndex: LibraryColorEntry[] | null = null;      // Marcel library COLOR vars, not imported
+var _colorImportedByKey: Record<string, Variable | null> = {};
+
+async function importColorByKey(key: string): Promise<Variable | null> {
+  if (key in _colorImportedByKey) return _colorImportedByKey[key];
+  var v: Variable | null = null;
+  try { v = await figma.variables.importVariableByKeyAsync(key); } catch (_e) { v = null; }
+  _colorImportedByKey[key] = v;
+  return v;
+}
+
+async function loadColorLibraryIndex(): Promise<LibraryColorEntry[]> {
+  var index: LibraryColorEntry[] = [];
+  try {
+    var cols = await figma.teamLibrary.getAvailableLibraryVariableCollectionsAsync();
+    for (var c = 0; c < cols.length; c++) {
+      if (!cols[c].libraryName.toLowerCase().includes("marcel")) continue;
+      var libVars = await figma.teamLibrary.getVariablesInLibraryCollectionAsync(cols[c].key);
+      for (var lv = 0; lv < libVars.length; lv++) {
+        if (libVars[lv].resolvedType === "COLOR") index.push({ name: libVars[lv].name, key: libVars[lv].key });
       }
-    } catch (_e) { /* teamLibrary unavailable — continue */ }
+    }
+  } catch (_e) { /* teamLibrary unavailable — local + harvested only */ }
+  return index;
+}
 
-    // COLOR variables already bound to paints on this page.
-    try {
-      var painted = figma.currentPage.findAll(function (n) {
-        return "fills" in n || "strokes" in n;
-      });
-      for (var pn = 0; pn < painted.length; pn++) {
-        var lists: any[] = [];
-        var fl = (painted[pn] as any).fills;
-        var st = (painted[pn] as any).strokes;
-        if (Array.isArray(fl)) lists = lists.concat(fl);
-        if (Array.isArray(st)) lists = lists.concat(st);
-        for (var pi = 0; pi < lists.length; pi++) {
-          var bound = lists[pi] && lists[pi].boundVariables && lists[pi].boundVariables.color;
-          var boundId = bound && typeof bound === "object" ? bound.id : null;
-          if (!boundId || seen[boundId]) continue;
-          seen[boundId] = true;
-          try {
-            var bv = await figma.variables.getVariableByIdAsync(boundId);
-            if (bv && bv.resolvedType === "COLOR") colorVars.push(bv);
-          } catch (_e2) { /* stale id */ }
-        }
+/** Local COLOR variables + the COLOR variables already bound to paints on this page. */
+async function collectColorCandidates(): Promise<Variable[]> {
+  var colorVars: Variable[] = await figma.variables.getLocalVariablesAsync("COLOR");
+  var seen: Record<string, true> = {};
+  for (var i0 = 0; i0 < colorVars.length; i0++) seen[colorVars[i0].id] = true;
+  try {
+    var painted = figma.currentPage.findAll(function (n) { return "fills" in n || "strokes" in n; });
+    var pendingIds: string[] = [];
+    for (var pn = 0; pn < painted.length; pn++) {
+      var lists: any[] = [];
+      var fl = (painted[pn] as any).fills;
+      var st = (painted[pn] as any).strokes;
+      if (Array.isArray(fl)) lists = lists.concat(fl);
+      if (Array.isArray(st)) lists = lists.concat(st);
+      for (var pi = 0; pi < lists.length; pi++) {
+        var bound = lists[pi] && lists[pi].boundVariables && lists[pi].boundVariables.color;
+        var boundId = bound && typeof bound === "object" ? bound.id : null;
+        if (!boundId || seen[boundId]) continue;
+        seen[boundId] = true;
+        pendingIds.push(boundId);
       }
-    } catch (_e3) { /* page not loaded — continue */ }
+    }
+    var harvested = await Promise.all(
+      pendingIds.map(function (id) { return figma.variables.getVariableByIdAsync(id).catch(function () { return null; }); })
+    );
+    for (var h = 0; h < harvested.length; h++) {
+      var hv = harvested[h];
+      if (hv && hv.resolvedType === "COLOR") colorVars.push(hv);
+    }
+  } catch (_e3) { /* page not loaded — continue */ }
+  return colorVars;
+}
 
-    _colorVarsCache = colorVars;
+function variableNameMatches(candidate: string, wanted: string): boolean {
+  var have = normalizeVarName(candidate);
+  var want = normalizeVarName(wanted);
+  return have === want || have.slice(-(want.length + 1)) === "/" + want;
+}
+
+async function resolveColorVariable(targetHex: string, tokenName?: string): Promise<Variable | null> {
+  if (!_colorVarsCache) _colorVarsCache = await collectColorCandidates();
+  if (!_colorLibraryIndex) _colorLibraryIndex = await loadColorLibraryIndex();
+  var want = targetHex.toLowerCase();
+
+  // 1. Name match — local/harvested first, then ONE library import for the matching entry.
+  if (tokenName) {
+    for (var n1 = 0; n1 < _colorVarsCache.length; n1++) {
+      if (variableNameMatches(_colorVarsCache[n1].name, tokenName)) return _colorVarsCache[n1];
+    }
+    for (var n2 = 0; n2 < _colorLibraryIndex.length; n2++) {
+      if (!variableNameMatches(_colorLibraryIndex[n2].name, tokenName)) continue;
+      var byName = await importColorByKey(_colorLibraryIndex[n2].key);
+      if (byName) { _colorVarsCache.push(byName); return byName; }
+    }
   }
 
-  var want = targetHex.toLowerCase();
-  for (var i = 0; i < _colorVarsCache.length; i++) {
-    var hex = await variableHex(_colorVarsCache[i]);
-    if (hex === want) return _colorVarsCache[i];
+  // 2. Hex match on local/harvested (aliases resolved concurrently).
+  var hexes = await Promise.all(_colorVarsCache.map(variableHex));
+  for (var h1 = 0; h1 < hexes.length; h1++) {
+    if (hexes[h1] === want) return _colorVarsCache[h1];
+  }
+
+  // 3. Hex match on the library — imported in parallel chunks, only when 1 and 2 failed.
+  var CHUNK = 50;
+  for (var c0 = 0; c0 < _colorLibraryIndex.length; c0 += CHUNK) {
+    var slice = _colorLibraryIndex.slice(c0, c0 + CHUNK);
+    var imported = await Promise.all(slice.map(function (e) { return importColorByKey(e.key); }));
+    var libHexes = await Promise.all(imported.map(function (v) { return v ? variableHex(v) : Promise.resolve(null); }));
+    for (var k = 0; k < imported.length; k++) {
+      var iv = imported[k];
+      if (!iv) continue;
+      if (_colorVarsCache.indexOf(iv) === -1) _colorVarsCache.push(iv);
+      if (libHexes[k] === want) return iv;
+    }
   }
   return null;
 }
@@ -306,7 +368,20 @@ export async function hcFixNode(
   }
 
   var sceneNode = node as SceneNode;
+  var t0 = Date.now();
+  var res = await dispatchHcFix(sceneNode, violation);
+  // One line per fix in the Figma console: rule, layer, outcome, reason, duration.
+  console.log(
+    "[Marcel] fix " + violation.rule + " on \"" + sceneNode.name + "\" → " +
+    (res.success ? "OK" : "FAIL") + " (" + res.detail + ") in " + (Date.now() - t0) + "ms"
+  );
+  return res;
+}
 
+async function dispatchHcFix(
+  sceneNode: SceneNode,
+  violation: { rule: string; metadata?: Record<string, unknown> }
+): Promise<{ success: boolean; detail: string }> {
   switch (violation.rule) {
     case "off-token-fill":
       return await fixFillColor(sceneNode, violation.metadata);
@@ -342,7 +417,7 @@ async function fixFillColor(
   var currentHex = String(meta.currentValue).toLowerCase();
   var targetHex = String(meta.nearestHex).toLowerCase();
   var targetRgb = hexToRgb(targetHex);
-  var colorVar = await resolveColorVariable(targetHex);
+  var colorVar = await resolveColorVariable(targetHex, meta.nearestToken ? String(meta.nearestToken) : undefined);
 
   var newFills: Paint[] = [];
   var matched = false;
@@ -396,7 +471,7 @@ async function fixStrokeColor(
   var currentHex = String(meta.currentValue).toLowerCase();
   var targetHex = String(meta.nearestHex).toLowerCase();
   var targetRgb = hexToRgb(targetHex);
-  var colorVar = await resolveColorVariable(targetHex);
+  var colorVar = await resolveColorVariable(targetHex, meta.nearestToken ? String(meta.nearestToken) : undefined);
 
   var newStrokes: Paint[] = [];
   var matched = false;
