@@ -1,7 +1,7 @@
 // ── Health Check Auto-fix ──
 // Applies DS-compliant fixes for color, spacing, and typography violations.
 
-import { hexToRgb, rgbToHex, fonts } from "../../shared/tokens";
+import { hexToRgb, rgbToHex, fonts, DS_TOKENS } from "../../shared/tokens";
 import { loadFont } from "../../shared/figma-helpers";
 import type { Violation } from "../../shared/violation-types";
 
@@ -117,83 +117,126 @@ async function resolveColorVariable(targetHex: string): Promise<Variable | null>
   return null;
 }
 
-async function resolveSpacingVariable(value: number): Promise<Variable | null> {
-  if (!_spacingVarsCache) {
-    // Start with local variables
-    var allVars = await figma.variables.getLocalVariablesAsync("FLOAT");
+// ── Spacing variable resolution ──
+//
+// Why it used to "do nothing" in project files: the candidates were matched ONLY by
+// numeric value after a single alias hop on the first mode. Marcel spacing variables
+// are remote (Layout collection) and alias primitives; when the hop failed the value
+// stayed an alias object, nothing matched, and the fix failed as "no spacing variable".
+// The Marcel names are known (DS_TOKENS: "Spacing/M" = 12 …), so match by NAME first
+// and fall back to a deeper, all-modes numeric match. The library import is also
+// narrowed to FLOAT variables named "*spacing*" — the former loop imported EVERY Marcel
+// variable (hundreds of colors) one await at a time before the first fix could run.
 
-    // Also fetch from team library collections (requires "teamlibrary" permission)
-    try {
-      var libCollections =
-        await figma.teamLibrary.getAvailableLibraryVariableCollectionsAsync();
-      for (var c = 0; c < libCollections.length; c++) {
-        var col = libCollections[c];
-        // Only import from Marcel DS library (col.name = collection name, col.libraryName = library name)
-        if (!col.libraryName.toLowerCase().includes("marcel")) continue;
-        var libVars =
-          await figma.teamLibrary.getVariablesInLibraryCollectionAsync(
-            col.key
-          );
-        for (var lv = 0; lv < libVars.length; lv++) {
-          var imported = await figma.variables.importVariableByKeyAsync(
-            libVars[lv].key
-          );
-          allVars.push(imported);
-        }
-      }
-    } catch (_e) {
-      // teamLibrary may not be available — continue with local only
+var SPACING_NAME_BY_VALUE: Record<number, string> = {};
+for (var _ti = 0; _ti < DS_TOKENS.length; _ti++) {
+  if (DS_TOKENS[_ti].category === "spacing") {
+    SPACING_NAME_BY_VALUE[parseInt(DS_TOKENS[_ti].value, 10)] = DS_TOKENS[_ti].name;
+  }
+}
+
+/** "Marcel / Spacing-M" → "marcel/spacing/m" so library naming variants still line up. */
+function normalizeVarName(name: string): string {
+  return name.toLowerCase().replace(/[\s_\-]+/g, "/").replace(/\/+/g, "/");
+}
+
+function isSpacingCandidate(v: { name: string; resolvedType: string }): boolean {
+  return v.resolvedType === "FLOAT" && v.name.toLowerCase().indexOf("spacing") !== -1;
+}
+
+/** First numeric value across modes, following aliases up to 3 hops. */
+async function spacingNumericValue(v: Variable): Promise<number | null> {
+  var modeIds = Object.keys(v.valuesByMode);
+  for (var m = 0; m < modeIds.length; m++) {
+    var val: any = v.valuesByMode[modeIds[m]];
+    for (var hop = 0; hop < 3 && val && typeof val === "object" && "id" in val; hop++) {
+      try {
+        var target = await figma.variables.getVariableByIdAsync(val.id);
+        if (!target) { val = null; break; }
+        var tModes = Object.keys(target.valuesByMode);
+        val = tModes.length > 0 ? target.valuesByMode[tModes[0]] : null;
+      } catch (_e) { val = null; }
     }
+    if (typeof val === "number") return val;
+  }
+  return null;
+}
 
-    // Also harvest the spacing variables ALREADY BOUND on this page's auto-layout
-    // frames (padding/itemSpacing): in a project file the DS variables are remote,
-    // and this is the only listing that works regardless of library naming.
-    var seenVarIds: Record<string, true> = {};
-    for (var sv = 0; sv < allVars.length; sv++) seenVarIds[allVars[sv].id] = true;
-    try {
-      var layoutNodes = figma.currentPage.findAllWithCriteria({
-        types: ["FRAME", "COMPONENT", "INSTANCE"],
-      });
-      var spacingFields = ["paddingTop", "paddingBottom", "paddingLeft", "paddingRight", "itemSpacing"];
-      for (var ln = 0; ln < layoutNodes.length; ln++) {
-        var bvMap = (layoutNodes[ln] as any).boundVariables as Record<string, any> | undefined;
-        if (!bvMap) continue;
-        for (var sf = 0; sf < spacingFields.length; sf++) {
-          var alias = bvMap[spacingFields[sf]];
-          var aliasId = alias && typeof alias === "object" ? alias.id : null;
-          if (!aliasId || seenVarIds[aliasId]) continue;
-          seenVarIds[aliasId] = true;
-          try {
-            var boundVar = await figma.variables.getVariableByIdAsync(aliasId);
-            if (boundVar && boundVar.resolvedType === "FLOAT") allVars.push(boundVar);
-          } catch (_e3) { /* stale id — skip */ }
-        }
+async function collectSpacingCandidates(): Promise<Variable[]> {
+  var allVars: Variable[] = (await figma.variables.getLocalVariablesAsync("FLOAT")).filter(isSpacingCandidate);
+  var seenVarIds: Record<string, true> = {};
+  for (var sv = 0; sv < allVars.length; sv++) seenVarIds[allVars[sv].id] = true;
+
+  // Team library (requires "teamlibrary" permission; lists only libraries ENABLED in this file).
+  try {
+    var libCollections = await figma.teamLibrary.getAvailableLibraryVariableCollectionsAsync();
+    for (var c = 0; c < libCollections.length; c++) {
+      var col = libCollections[c];
+      var libName = (col.libraryName || "").toLowerCase();
+      var colName = (col.name || "").toLowerCase();
+      if (libName.indexOf("marcel") === -1 && colName !== "layout" && colName.indexOf("spacing") === -1) continue;
+      var libVars = (await figma.teamLibrary.getVariablesInLibraryCollectionAsync(col.key)).filter(isSpacingCandidate);
+      var imported = await Promise.all(
+        libVars.map(function (lv) { return figma.variables.importVariableByKeyAsync(lv.key).catch(function () { return null; }); })
+      );
+      for (var im = 0; im < imported.length; im++) {
+        var iv = imported[im];
+        if (iv && !seenVarIds[iv.id]) { seenVarIds[iv.id] = true; allVars.push(iv); }
       }
-    } catch (_e4) {
-      // page not loaded / API unavailable — continue with what we have
     }
-
-    _spacingVarsCache = allVars;
+  } catch (_e) {
+    // teamLibrary unavailable — continue with local + harvested
   }
 
-  for (var i = 0; i < _spacingVarsCache.length; i++) {
-    var v = _spacingVarsCache[i];
-    if (!v.name.toLowerCase().includes("spacing")) continue;
-    var modeIds = Object.keys(v.valuesByMode);
-    if (modeIds.length === 0) continue;
-    var raw = v.valuesByMode[modeIds[0]];
-    // Resolve aliases: if value is a VariableAlias, follow the reference
-    var val = raw;
-    if (typeof raw === "object" && raw !== null && "id" in (raw as any)) {
-      try {
-        var aliased = await figma.variables.getVariableByIdAsync((raw as any).id);
-        if (aliased) {
-          var aModes = Object.keys(aliased.valuesByMode);
-          if (aModes.length > 0) val = aliased.valuesByMode[aModes[0]];
-        }
-      } catch (_e2) { /* skip */ }
+  // Harvest the spacing variables ALREADY BOUND on this page's auto-layout frames: the one
+  // listing that works in a project file whatever the library is named or enabled.
+  try {
+    var layoutNodes = figma.currentPage.findAllWithCriteria({ types: ["FRAME", "COMPONENT", "INSTANCE"] });
+    var spacingFields = ["paddingTop", "paddingBottom", "paddingLeft", "paddingRight", "itemSpacing"];
+    var pendingIds: string[] = [];
+    for (var ln = 0; ln < layoutNodes.length; ln++) {
+      var bvMap = (layoutNodes[ln] as any).boundVariables as Record<string, any> | undefined;
+      if (!bvMap) continue;
+      for (var sf = 0; sf < spacingFields.length; sf++) {
+        var alias = bvMap[spacingFields[sf]];
+        var aliasId = alias && typeof alias === "object" ? alias.id : null;
+        if (!aliasId || seenVarIds[aliasId]) continue;
+        seenVarIds[aliasId] = true;
+        pendingIds.push(aliasId);
+      }
     }
-    if (typeof val === "number" && val === value) return v;
+    var harvested = await Promise.all(
+      pendingIds.map(function (id) { return figma.variables.getVariableByIdAsync(id).catch(function () { return null; }); })
+    );
+    for (var h = 0; h < harvested.length; h++) {
+      var hv = harvested[h];
+      if (hv && isSpacingCandidate(hv)) allVars.push(hv);
+    }
+  } catch (_e4) {
+    // page not loaded / API unavailable — continue with what we have
+  }
+
+  return allVars;
+}
+
+async function resolveSpacingVariable(value: number): Promise<Variable | null> {
+  if (!_spacingVarsCache) _spacingVarsCache = await collectSpacingCandidates();
+  var candidates = _spacingVarsCache;
+
+  // 1. Name match against the Marcel token for this value ("Spacing/M" for 12).
+  var targetName = SPACING_NAME_BY_VALUE[value];
+  if (targetName) {
+    var want = normalizeVarName(targetName);
+    for (var i = 0; i < candidates.length; i++) {
+      var have = normalizeVarName(candidates[i].name);
+      if (have === want || have.slice(-(want.length + 1)) === "/" + want) return candidates[i];
+    }
+  }
+
+  // 2. Numeric match (any mode, aliases followed) for libraries with other naming.
+  for (var j = 0; j < candidates.length; j++) {
+    var num = await spacingNumericValue(candidates[j]);
+    if (num === value) return candidates[j];
   }
   return null;
 }
@@ -410,8 +453,10 @@ async function fixSpacing(
     try {
       (node as FrameNode).setBoundVariable(property as VariableBindableNodeField, variable);
       return { success: true, detail: variable.name };
-    } catch (_e) {
-      // fall through to the raw-value path below
+    } catch (e: any) {
+      // A variable WAS found but Figma refused the binding on this node: say so with
+      // Figma's own message instead of the misleading "no spacing variable" fallback.
+      return { success: false, detail: "bind failed: " + String(e?.message || e) };
     }
   }
 

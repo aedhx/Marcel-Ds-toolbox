@@ -161,6 +161,9 @@ const NOTIF: Record<string, Record<string, string>> = {
 // i18n reason shown when a single Quality Check fix fails.
 function hcFixDetailKey(detail: string): string {
   var d = (detail || "").toLowerCase();
+  // Raw Figma refusal (e.g. "bind failed: …"): nt() echoes unknown keys verbatim, so the
+  // designer reads the actual reason instead of the generic "no auto-fix" line.
+  if (d.indexOf("bind failed") !== -1) return detail;
   if (d.indexOf("text style") !== -1) return "hc.fix.detail.noTextStyle";
   if (d.indexOf("spacing variable") !== -1) return "hc.fix.detail.noSpacingVar";
   if (d.indexOf("sibling") !== -1) return "hc.fix.detail.siblingName";
