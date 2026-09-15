@@ -1675,6 +1675,13 @@
         font-style: italic;
         padding: var(--spacing-xs) 0;
       }
+      /* Live counter, not an informational aside — same tertiary grammar, NOT italic. */
+      .qc-ignored-note {
+        font-size: 12px;
+        font-weight: 400;
+        color: var(--content-subtler);
+        padding: var(--spacing-xs) 0;
+      }
       .qc-state-msg {
         font-size: 14px;
         font-weight: 400;
@@ -3169,6 +3176,10 @@
               </div>
               <div class="qc-score-global" id="qc-global-score"><!-- ring injected --></div>
               <div class="qc-categories-grid" id="qc-categories-grid"><!-- cards injected --></div>
+              <!-- NO data-i18n: the string carries a {count} placeholder, so it is written
+                   from JS via t(key, params). A data-i18n element would be clobbered by
+                   applyTranslations, dropping the count. -->
+              <div class="qc-ignored-note hidden" id="qc-ignored-count"></div>
               <div class="qc-bulk-bar" id="qc-dashboard-bulk">
                 <label data-i18n="qc.threshold.label">Confidence threshold</label>
                 <select class="qc-threshold-select" id="qc-threshold-dash">
@@ -5098,6 +5109,7 @@
           "qc.cat.naming": "Naming", "qc.cat.colors": "Colors", "qc.cat.typography": "Typography",
           "qc.cat.spacing": "Spacing", "qc.cat.components": "Components", "qc.cat.coverage": "Coverage",
           "qc.deadstyles.note": "Informational — does not affect the score",
+          "qc.ignored.count": "{count} ignored violation(s) — excluded from the score",
           "qc.back": "← Back",
           "hub.title": "All tools",
           "hub.desc": "Access every Marcel tool — detailed audits, imports and utilities.",
@@ -5297,6 +5309,7 @@
           "qc.cat.naming": "Nommage", "qc.cat.colors": "Couleurs", "qc.cat.typography": "Typographie",
           "qc.cat.spacing": "Espacement", "qc.cat.components": "Composants", "qc.cat.coverage": "Couverture",
           "qc.deadstyles.note": "Informatif — n'affecte pas le score",
+          "qc.ignored.count": "{count} violation(s) ignorée(s) — n'entrent pas dans le score",
           "qc.back": "← Retour",
           "settings.language": "Langue",
           "hub.title": "Tous les outils",
@@ -5584,6 +5597,7 @@
           "qc.cat.naming": "Nomenclatura", "qc.cat.colors": "Cores", "qc.cat.typography": "Tipografia",
           "qc.cat.spacing": "Espaçamento", "qc.cat.components": "Componentes", "qc.cat.coverage": "Cobertura",
           "qc.deadstyles.note": "Informativo — não afeta a pontuação",
+          "qc.ignored.count": "{count} violação(ões) ignorada(s) — não entram na pontuação",
           "qc.back": "← Voltar",
           "settings.language": "Idioma",
           "hub.title": "Todas as ferramentas",
@@ -7755,19 +7769,33 @@
             qcResult.violations = qcResult.violations.filter(function (v) {
               return !allowSet[v.nodeId + "::" + v.rule];
             });
-            // WR-03: the dashboard cards read categories[].violationCount, not
-            // violations[] — recount per canonical category so card and drilldown
-            // agree. Scores stay as scanned (informational until re-scan).
-            var qcRemaining = {};
-            qcResult.violations.forEach(function (v) {
-              var qcKey = qcCanonCategory(v.category);
-              qcRemaining[qcKey] = (qcRemaining[qcKey] || 0) + 1;
-            });
-            (qcResult.categories || []).forEach(function (c) {
-              c.violationCount = qcRemaining[c.category] || 0;
-            });
+            qcRecountCategories();
             if (qcView === "drilldown") renderQCDrilldown(qcDrillCategory);
             else renderQCDashboard();
+          }
+        }
+
+        // ── In-memory re-score after an ignore/unignore (EVP-02) ──
+        // Posted by the sandbox right AFTER "allowlist-updated", so qcResult.violations
+        // is already reconciled by the block above when this lands. No re-scan, no
+        // second traversal — the numbers come from the sandbox's cached raw scan.
+        if (msg.type === "quality-check-rescored") {
+          if (qcResult) {
+            qcResult.conformityScore = msg.conformityScore;
+            qcResult.ignoredCount = msg.ignoredCount;
+            qcResult.categories = msg.categories || qcResult.categories;
+            // The headline is re-derived LOCALLY (mirroring applyA11yAttestation):
+            // msg.overall is the sandbox's scan-time equivalent and is deliberately NOT
+            // trusted here, because the a11y attestation may have been toggled since the
+            // scan — the UI holds the live a11yGatePenalty.
+            qcResult.overall = Math.max(
+              0,
+              qcResult.conformityScore - (qcResult.a11yGatePenalty || 0) - (qcResult.hsPenalty || 0),
+            );
+            qcRecountCategories();
+            if (qcView === "drilldown") renderQCDrilldown(qcDrillCategory);
+            else renderQCDashboard();
+            renderDeliverGate();
           }
         }
 
@@ -8578,6 +8606,22 @@
         return cat === "color" ? "colors" : cat === "component" ? "components" : cat;
       }
 
+      // WR-03: the dashboard cards read categories[].violationCount, not violations[] —
+      // recount per canonical category so card and drilldown agree. Scores stay as scanned
+      // (informational until re-scan). Shared by the ignore reconcile and the re-score path
+      // so the two can never diverge.
+      function qcRecountCategories() {
+        if (!qcResult) return;
+        var qcRemaining = {};
+        qcResult.violations.forEach(function (v) {
+          var qcKey = qcCanonCategory(v.category);
+          qcRemaining[qcKey] = (qcRemaining[qcKey] || 0) + 1;
+        });
+        (qcResult.categories || []).forEach(function (c) {
+          c.violationCount = qcRemaining[c.category] || 0;
+        });
+      }
+
       // Flat violations[] for one canonical category, read straight from qcResult
       // ("color"→"colors" normalized). Used by the drilldown bulk-fix count/collect.
       function qcViolationsForCategory(category) {
@@ -9093,6 +9137,15 @@
             "hidden",
             !(byCat["dead-styles"] && byCat["dead-styles"].length > 0)
           );
+
+        // Ignored-violations counter (EVP-03) — they no longer weigh on the score.
+        // textContent, never innerHTML: no designer-controlled string reaches the DOM.
+        var qcIgn = qcResult.ignoredCount || 0;
+        var ignEl = document.getElementById("qc-ignored-count");
+        if (ignEl) {
+          ignEl.textContent = t("qc.ignored.count", { count: qcIgn });
+          ignEl.classList.toggle("hidden", qcIgn === 0);
+        }
 
         // Fix-all bulk count (excludes non-fixable families).
         qcUpdateDashboardBulk();
