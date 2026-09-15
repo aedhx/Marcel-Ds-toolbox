@@ -775,7 +775,10 @@ export async function scanStyleCleaner(
 
 export interface FinalizedDeadStyles {
   result: StyleCleanerResult;
-  unusedScope: TraversalScope; // always "file" — unused-local is never scope-bounded (D-07)
+  // "file" when the unused-local half ran (file-scope scan). For page/selection scans the
+  // unused-local half is SKIPPED (see below) and this echoes the scan scope so the consumer
+  // knows dead local styles/variables were not evaluated on this run.
+  unusedScope: TraversalScope;
 }
 
 export async function finalizeDeadStyles(
@@ -793,14 +796,37 @@ export async function finalizeDeadStyles(
   styleCache = new Map();
   await buildDSVariableKeyMap();
 
-  // ── Unused-local half (ALWAYS file-wide, D-07) ──
+  const deadStyles: DeadStyleInfo[] = [];
+
+  // ── Unused-local half — FILE-SCOPE SCANS ONLY ──
+  // D-07 pins this half file-wide because a narrow usedVarIds set yields false positives.
+  // The corollary is that it costs O(file) no matter what the designer selected: a second
+  // full traversal of every page, one getStyleConsumersAsync() (itself a file-wide search)
+  // per local style, plus getLocalVariablesAsync. Dead local styles/variables are
+  // non-scoring (D-02) and style-level (no owning node), so on a page/selection scan we
+  // skip the half entirely instead of paying a whole-file price for findings that neither
+  // move the score nor belong to the selected nodes. They still surface on a file scan.
+  if (scope !== "file") {
+    const foreignOnly = await processForeignHalf(rawVarBindings, rawStyleBindings, abortToken, onProgress);
+    return {
+      result: {
+        foreignItems: foreignOnly.foreignItems,
+        deadStyles,
+        totalLocalStyles: 0,
+        totalLocalVariables: 0,
+        totalForeignVariables: foreignOnly.totalForeignVariables,
+        totalForeignStyles: foreignOnly.totalForeignStyles,
+        scanDurationMs: Date.now() - startTime,
+      },
+      unusedScope: scope,
+    };
+  }
+
   const paintStyles = await figma.getLocalPaintStylesAsync();
   const textStyles = await figma.getLocalTextStylesAsync();
   const effectStyles = await figma.getLocalEffectStylesAsync();
   const allStyles = [...paintStyles, ...textStyles, ...effectStyles];
   const totalLocalStyles = allStyles.length;
-
-  const deadStyles: DeadStyleInfo[] = [];
 
   // Phase 2 verbatim: dead local styles = styles with zero consumers.
   for (let i = 0; i < allStyles.length; i++) {
@@ -885,39 +911,52 @@ export async function finalizeDeadStyles(
   }
 
   // ── Foreign half (scope-aware — bindings already collected at the unified scan's scope) ──
+  const foreign = await processForeignHalf(rawVarBindings, rawStyleBindings, abortToken, onProgress);
+
+  if (abortToken.cancelled) {
+    return { result: emptyResult(totalLocalStyles, totalLocalVariables, startTime), unusedScope: "file" };
+  }
+
+  return {
+    result: {
+      foreignItems: foreign.foreignItems,
+      deadStyles,
+      totalLocalStyles,
+      totalLocalVariables,
+      totalForeignVariables: foreign.totalForeignVariables,
+      totalForeignStyles: foreign.totalForeignStyles,
+      scanDurationMs: Date.now() - startTime,
+    },
+    unusedScope: "file",
+  };
+}
+
+// ── Foreign half, shared by both scope branches of finalizeDeadStyles ──
+// Only walks the bindings the unified visitor already collected, so its cost is bounded by
+// the scan scope (not the file). Returns whatever it had classified if cancelled mid-way;
+// callers check abortToken after it returns.
+async function processForeignHalf(
+  rawVarBindings: RawVarBinding[],
+  rawStyleBindings: RawStyleBinding[],
+  abortToken: ScanAbortToken,
+  onProgress?: (phase: string, current: number, total: number) => void
+): Promise<{ foreignItems: ForeignItemInfo[]; totalForeignVariables: number; totalForeignStyles: number }> {
   const foreignItems: ForeignItemInfo[] = [];
 
   if (onProgress) onProgress("foreign-variables", 0, rawVarBindings.length);
   await processForeignVariableBindings(rawVarBindings, foreignItems);
   if (onProgress) onProgress("foreign-variables", rawVarBindings.length, rawVarBindings.length);
 
-  if (abortToken.cancelled) {
-    return { result: emptyResult(totalLocalStyles, totalLocalVariables, startTime), unusedScope: "file" };
+  if (!abortToken.cancelled) {
+    if (onProgress) onProgress("foreign-styles", 0, rawStyleBindings.length);
+    await processForeignStyleBindings(rawStyleBindings, foreignItems);
+    if (onProgress) onProgress("foreign-styles", rawStyleBindings.length, rawStyleBindings.length);
   }
 
-  if (onProgress) onProgress("foreign-styles", 0, rawStyleBindings.length);
-  await processForeignStyleBindings(rawStyleBindings, foreignItems);
-  if (onProgress) onProgress("foreign-styles", rawStyleBindings.length, rawStyleBindings.length);
-
-  const totalForeignVariables = foreignItems.filter((f) => f.id.startsWith("foreign-var-")).length;
-  const totalForeignStyles = foreignItems.filter((f) => f.id.startsWith("foreign-style-")).length;
-
-  // `scope` is accepted for symmetry with the unified pass / future scope-aware tuning; the
-  // foreign half already honors scope through the collected bindings, the unused half is
-  // pinned file-wide (hence unusedScope: "file").
-  void scope;
-
   return {
-    result: {
-      foreignItems,
-      deadStyles,
-      totalLocalStyles,
-      totalLocalVariables,
-      totalForeignVariables,
-      totalForeignStyles,
-      scanDurationMs: Date.now() - startTime,
-    },
-    unusedScope: "file",
+    foreignItems,
+    totalForeignVariables: foreignItems.filter((f) => f.id.startsWith("foreign-var-")).length,
+    totalForeignStyles: foreignItems.filter((f) => f.id.startsWith("foreign-style-")).length,
   };
 }
 
