@@ -26,10 +26,95 @@ var STYLE_MAP: Record<string, string> = {
 
 var _spacingVarsCache: Variable[] | null = null;
 var _textStylesCache: TextStyle[] | null = null;
+var _colorVarsCache: Variable[] | null = null;
 
 function resetResolutionCache() {
   _spacingVarsCache = null;
   _textStylesCache = null;
+  _colorVarsCache = null;
+}
+
+// ── Color variable resolution ──
+// A DS-correct color fix BINDS the Marcel color variable, not just the hex.
+// Candidates: local COLOR variables + Marcel team-library collections + the
+// COLOR variables already bound to fills/strokes on the current page (the only
+// listing that works in a project file whatever the library is named).
+
+/** Resolve a variable's first-mode value to a lowercase hex, following one alias hop. */
+async function variableHex(v: Variable): Promise<string | null> {
+  var modeIds = Object.keys(v.valuesByMode);
+  if (modeIds.length === 0) return null;
+  var raw: any = v.valuesByMode[modeIds[0]];
+  if (raw && typeof raw === "object" && "id" in raw) {
+    try {
+      var aliased = await figma.variables.getVariableByIdAsync(raw.id);
+      if (!aliased) return null;
+      var aModes = Object.keys(aliased.valuesByMode);
+      if (aModes.length === 0) return null;
+      raw = aliased.valuesByMode[aModes[0]];
+    } catch (_e) {
+      return null;
+    }
+  }
+  if (raw && typeof raw === "object" && "r" in raw && "g" in raw && "b" in raw) {
+    return rgbToHex(raw.r, raw.g, raw.b).toLowerCase();
+  }
+  return null;
+}
+
+async function resolveColorVariable(targetHex: string): Promise<Variable | null> {
+  if (!_colorVarsCache) {
+    var colorVars: Variable[] = await figma.variables.getLocalVariablesAsync("COLOR");
+    var seen: Record<string, true> = {};
+    for (var i0 = 0; i0 < colorVars.length; i0++) seen[colorVars[i0].id] = true;
+
+    // Marcel team-library collections (same listing as spacing).
+    try {
+      var cols = await figma.teamLibrary.getAvailableLibraryVariableCollectionsAsync();
+      for (var c = 0; c < cols.length; c++) {
+        if (!cols[c].libraryName.toLowerCase().includes("marcel")) continue;
+        var libVars = await figma.teamLibrary.getVariablesInLibraryCollectionAsync(cols[c].key);
+        for (var lv = 0; lv < libVars.length; lv++) {
+          if (libVars[lv].resolvedType !== "COLOR") continue;
+          var imported = await figma.variables.importVariableByKeyAsync(libVars[lv].key);
+          if (!seen[imported.id]) { seen[imported.id] = true; colorVars.push(imported); }
+        }
+      }
+    } catch (_e) { /* teamLibrary unavailable — continue */ }
+
+    // COLOR variables already bound to paints on this page.
+    try {
+      var painted = figma.currentPage.findAll(function (n) {
+        return "fills" in n || "strokes" in n;
+      });
+      for (var pn = 0; pn < painted.length; pn++) {
+        var lists: any[] = [];
+        var fl = (painted[pn] as any).fills;
+        var st = (painted[pn] as any).strokes;
+        if (Array.isArray(fl)) lists = lists.concat(fl);
+        if (Array.isArray(st)) lists = lists.concat(st);
+        for (var pi = 0; pi < lists.length; pi++) {
+          var bound = lists[pi] && lists[pi].boundVariables && lists[pi].boundVariables.color;
+          var boundId = bound && typeof bound === "object" ? bound.id : null;
+          if (!boundId || seen[boundId]) continue;
+          seen[boundId] = true;
+          try {
+            var bv = await figma.variables.getVariableByIdAsync(boundId);
+            if (bv && bv.resolvedType === "COLOR") colorVars.push(bv);
+          } catch (_e2) { /* stale id */ }
+        }
+      }
+    } catch (_e3) { /* page not loaded — continue */ }
+
+    _colorVarsCache = colorVars;
+  }
+
+  var want = targetHex.toLowerCase();
+  for (var i = 0; i < _colorVarsCache.length; i++) {
+    var hex = await variableHex(_colorVarsCache[i]);
+    if (hex === want) return _colorVarsCache[i];
+  }
+  return null;
 }
 
 async function resolveSpacingVariable(value: number): Promise<Variable | null> {
@@ -181,9 +266,9 @@ export async function hcFixNode(
 
   switch (violation.rule) {
     case "off-token-fill":
-      return fixFillColor(sceneNode, violation.metadata);
+      return await fixFillColor(sceneNode, violation.metadata);
     case "off-token-stroke":
-      return fixStrokeColor(sceneNode, violation.metadata);
+      return await fixStrokeColor(sceneNode, violation.metadata);
     case "off-token-spacing":
     case "missing-spacing-var":
       return await fixSpacing(sceneNode, violation.metadata);
@@ -198,10 +283,10 @@ export async function hcFixNode(
 
 // ── Color fill fix ──
 
-function fixFillColor(
+async function fixFillColor(
   node: SceneNode,
   meta?: Record<string, unknown>
-): { success: boolean; detail: string } {
+): Promise<{ success: boolean; detail: string }> {
   if (!meta?.nearestHex || !("fills" in node)) {
     return { success: false, detail: "Missing metadata or fills" };
   }
@@ -214,6 +299,7 @@ function fixFillColor(
   var currentHex = String(meta.currentValue).toLowerCase();
   var targetHex = String(meta.nearestHex).toLowerCase();
   var targetRgb = hexToRgb(targetHex);
+  var colorVar = await resolveColorVariable(targetHex);
 
   var newFills: Paint[] = [];
   var matched = false;
@@ -230,6 +316,12 @@ function fixFillColor(
           visible: paint.visible,
           blendMode: paint.blendMode,
         };
+        // Bind the DS variable when one resolves — the hex alone only mimics the token.
+        if (colorVar) {
+          try {
+            newPaint = figma.variables.setBoundVariableForPaint(newPaint, "color", colorVar);
+          } catch (_e) { /* keep the raw hex */ }
+        }
         newFills.push(newPaint);
         matched = true;
         continue;
@@ -243,15 +335,15 @@ function fixFillColor(
   }
 
   (node as MinimalFillsMixin).fills = newFills;
-  return { success: true, detail: targetHex };
+  return { success: true, detail: colorVar ? colorVar.name : targetHex };
 }
 
 // ── Color stroke fix ──
 
-function fixStrokeColor(
+async function fixStrokeColor(
   node: SceneNode,
   meta?: Record<string, unknown>
-): { success: boolean; detail: string } {
+): Promise<{ success: boolean; detail: string }> {
   if (!meta?.nearestHex || !("strokes" in node)) {
     return { success: false, detail: "Missing metadata or strokes" };
   }
@@ -261,6 +353,7 @@ function fixStrokeColor(
   var currentHex = String(meta.currentValue).toLowerCase();
   var targetHex = String(meta.nearestHex).toLowerCase();
   var targetRgb = hexToRgb(targetHex);
+  var colorVar = await resolveColorVariable(targetHex);
 
   var newStrokes: Paint[] = [];
   var matched = false;
@@ -277,6 +370,11 @@ function fixStrokeColor(
           visible: paint.visible,
           blendMode: paint.blendMode,
         };
+        if (colorVar) {
+          try {
+            newPaint = figma.variables.setBoundVariableForPaint(newPaint, "color", colorVar);
+          } catch (_e) { /* keep the raw hex */ }
+        }
         newStrokes.push(newPaint);
         matched = true;
         continue;
@@ -290,7 +388,7 @@ function fixStrokeColor(
   }
 
   (node as MinimalStrokesMixin).strokes = newStrokes;
-  return { success: true, detail: targetHex };
+  return { success: true, detail: colorVar ? colorVar.name : targetHex };
 }
 
 // ── Spacing fix ──
