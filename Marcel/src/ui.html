@@ -3499,9 +3499,17 @@
                           I ran the accessibility check
                         </div>
                       </label>
-                      <div class="moment-card-desc" data-i18n="deliver.check.a11y.sub">
-                        Via the external plugin ↗
-                      </div>
+                      <!-- Explicit secondary CTA (was a plain caption "Via the external plugin ↗"
+                           that read as text, not as an action). Same hardened open-external
+                           path → figma.openExternal(A11Y_PLUGIN_URL). -->
+                      <button
+                        class="moment-secondary-btn"
+                        id="deliver-a11y-open-btn"
+                        style="margin-top: var(--spacing-s);"
+                        data-i18n="deliver.check.a11y.open"
+                      >
+                        Open the plugin ↗
+                      </button>
                       <!-- State caption: param-bearing ({penalty}) → set from JS,
                            NO data-i18n (applyTranslations would clobber it). -->
                       <div
@@ -5078,7 +5086,7 @@
           "deliver.check.score.met": "Score {score}/100 — above threshold ✓",
           "deliver.check.score.unmet": "Score {score}/100 — below recommended threshold",
           "deliver.check.a11y": "I ran the accessibility check",
-          "deliver.check.a11y.sub": "Via the external plugin ↗",
+          "deliver.check.a11y.open": "Open the plugin ↗",
           "deliver.a11y.card.title": "Accessibility · required",
           "deliver.a11y.card.unattested": "−{penalty} points on the score until attested",
           "deliver.a11y.card.attested": "Attested",
@@ -5278,7 +5286,7 @@
           "deliver.check.score.met": "Score {score}/100 — au-dessus du seuil ✓",
           "deliver.check.score.unmet": "Score {score}/100 — sous le seuil recommandé",
           "deliver.check.a11y": "J'ai lancé la vérification d'accessibilité",
-          "deliver.check.a11y.sub": "Via le plugin externe ↗",
+          "deliver.check.a11y.open": "Ouvrir le plugin ↗",
           "deliver.a11y.card.title": "Accessibilité · requis",
           "deliver.a11y.card.unattested": "−{penalty} points sur le score tant que non attesté",
           "deliver.a11y.card.attested": "Attestée",
@@ -5566,7 +5574,7 @@
           "deliver.check.score.met": "Score {score}/100 — acima do limite ✓",
           "deliver.check.score.unmet": "Score {score}/100 — abaixo do limite recomendado",
           "deliver.check.a11y": "Executei a verificação de acessibilidade",
-          "deliver.check.a11y.sub": "Via o plugin externo ↗",
+          "deliver.check.a11y.open": "Abrir o plugin ↗",
           "deliver.a11y.card.title": "Acessibilidade · obrigatório",
           "deliver.a11y.card.unattested": "−{penalty} pontos na pontuação enquanto não atestado",
           "deliver.a11y.card.attested": "Atestada",
@@ -6261,6 +6269,8 @@
       function openA11yPlugin() {
         openExternalUrl(A11Y_PLUGIN_URL);
       }
+      var deliverA11yOpenBtn = document.getElementById("deliver-a11y-open-btn");
+      if (deliverA11yOpenBtn) deliverA11yOpenBtn.addEventListener("click", openA11yPlugin);
       // CD-02/CD-03/CD-04 — Check-designs card + Je livre reminder wiring.
       var cdFigmaLink = document.getElementById("build-checkdesigns-figma-link");
       if (cdFigmaLink)
