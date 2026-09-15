@@ -51,6 +51,8 @@ const NOTIF: Record<string, Record<string, string>> = {
     "hc.fix.detail.font": "police Marcel introuvable",
     "hc.fix.detail.generic": "aucune correction automatique pour cette regle",
     "hc.fix.detail.noSpacingVar": "aucune variable d'espacement Marcel n'est accessible dans ce fichier",
+    "hc.fix.detail.siblingName": "un calque frere porte deja ce nom, renommez-le a la main",
+    "hc.fix.detail.noSuggestion": "aucun nom ne peut etre propose pour ce calque",
     "hc.error": "Erreur lors de l'audit Health Check.",
     "cover.updated": "Cover mise à jour ✅",
     "cover.error": "Erreur lors de la mise à jour de la cover.",
@@ -92,6 +94,8 @@ const NOTIF: Record<string, Record<string, string>> = {
     "hc.fix.detail.font": "Marcel font unavailable",
     "hc.fix.detail.generic": "no automatic fix for this rule",
     "hc.fix.detail.noSpacingVar": "no Marcel spacing variable is reachable in this file",
+    "hc.fix.detail.siblingName": "a sibling layer already has this name, rename it manually",
+    "hc.fix.detail.noSuggestion": "no name can be suggested for this layer",
     "hc.error": "Error during Health Check audit.",
     "cover.updated": "Cover updated ✅",
     "cover.error": "Error updating the cover.",
@@ -133,6 +137,8 @@ const NOTIF: Record<string, Record<string, string>> = {
     "hc.fix.detail.font": "fonte Marcel indisponível",
     "hc.fix.detail.generic": "nenhuma correção automática para esta regra",
     "hc.fix.detail.noSpacingVar": "nenhuma variável de espaçamento Marcel está acessível neste arquivo",
+    "hc.fix.detail.siblingName": "uma camada irmã já tem este nome, renomeie manualmente",
+    "hc.fix.detail.noSuggestion": "nenhum nome pode ser sugerido para esta camada",
     "hc.error": "Erro durante a auditoria Health Check.",
     "cover.updated": "Cover atualizada ✅",
     "cover.error": "Erro ao atualizar a cover.",
@@ -156,6 +162,8 @@ function hcFixDetailKey(detail: string): string {
   var d = (detail || "").toLowerCase();
   if (d.indexOf("text style") !== -1) return "hc.fix.detail.noTextStyle";
   if (d.indexOf("spacing variable") !== -1) return "hc.fix.detail.noSpacingVar";
+  if (d.indexOf("sibling") !== -1) return "hc.fix.detail.siblingName";
+  if (d.indexOf("no name suggestion") !== -1) return "hc.fix.detail.noSuggestion";
   if (d.indexOf("not a text") !== -1) return "hc.fix.detail.notText";
   if (d.indexOf("mixed") !== -1) return "hc.fix.detail.mixed";
   if (d.indexOf("font") !== -1) return "hc.fix.detail.font";
@@ -571,6 +579,7 @@ const handlers: Record<string, Handler> = {
       if (cat === "naming") {
         var qcNameRes = await autoFixNode(qcNodeId, msg.suggestion);
         qcSuccess = qcNameRes.success;
+        qcDetail = qcNameRes.detail || "";
       } else if (cat === "color" || cat === "colors" || cat === "typography" || cat === "spacing") {
         var qcHcRes = await hcFixNode(qcNodeId, { rule: msg.rule || "", metadata: msg.metadata });
         qcSuccess = qcHcRes.success;

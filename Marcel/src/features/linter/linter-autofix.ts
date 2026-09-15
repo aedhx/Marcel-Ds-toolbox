@@ -132,10 +132,10 @@ async function computeAutoFixName(node: SceneNode): Promise<string | null> {
 export async function autoFixNode(
   nodeId: string,
   suggestion?: string
-): Promise<{ success: boolean; newName: string }> {
+): Promise<{ success: boolean; newName: string; detail?: string }> {
   var node = await figma.getNodeByIdAsync(nodeId);
   if (!node || !("name" in node)) {
-    return { success: false, newName: "" };
+    return { success: false, newName: "", detail: "Node not found" };
   }
 
   var sceneNode = node as SceneNode;
@@ -157,11 +157,17 @@ export async function autoFixNode(
 
   if (newName && newName !== currentName) {
     var finalName = deduplicateSiblingName(sceneNode, newName);
+    // Sibling collision can hand back the CURRENT name ("Button 2" → base "Button"
+    // taken by a sibling → dedupe → "Button 2"): writing it is a no-op that used to
+    // be reported as a success, so the violation survived every re-scan.
+    if (finalName === currentName) {
+      return { success: false, newName: currentName, detail: "Sibling name collision" };
+    }
     sceneNode.name = finalName;
     return { success: true, newName: finalName };
   }
 
-  return { success: false, newName: currentName };
+  return { success: false, newName: currentName, detail: "No name suggestion" };
 }
 
 // ── Fix all auto-fixable violations (async) ──
