@@ -227,9 +227,16 @@ async function getLinterConfig(): Promise<LinterConfig> {
 }
 
 // ── External link-out allowlist (D-07 / T-051-01) ──
-// The ONLY URL open-external may pass to figma.openExternal. A compromised/buggy
-// UI could post an arbitrary phishing url; the handler opens this constant only.
+// The ONLY URLs open-external may pass to figma.openExternal. A compromised/buggy
+// UI could post an arbitrary phishing url; the handler opens an allowlist entry only.
+// This is now a CLOSED 3-entry array matched by STRICT EQUALITY (T-e4d-01): no prefix
+// matching, no startsWith, no URL parsing. A prefix match on "https://help.figma.com/"
+// would let a compromised UI open any Figma help page, and a prefix match on a
+// carrefour.design subdomain would let it open any Carrefour page.
 const A11Y_PLUGIN_URL = "https://www.figma.com/community/plugin/1625532706318215948";
+const FIGMA_CHECK_DESIGNS_URL = "https://help.figma.com/hc/en-us/articles/39592284074263-Check-designs-in-Figma";
+const CARREFOUR_DELIVERY_URL = "https://carrefour.design/328eff0d7/p/38d38a-how-to-deliver-a-project";
+const EXTERNAL_URL_ALLOWLIST: readonly string[] = [A11Y_PLUGIN_URL, FIGMA_CHECK_DESIGNS_URL, CARREFOUR_DELIVERY_URL];
 
 type UiMsg = {
   type: string;
@@ -260,6 +267,7 @@ type UiMsg = {
   url?: string;
   profileId?: string;
   attested?: boolean; // set-a11y-attested (a11y delivery gate) — untrusted, coerced at use
+  ack?: boolean; // set-checkdesigns-ack (Je construis card dismissal) — untrusted, coerced at use
   selections?: { generateCover: boolean; replaceLegacyCover: boolean; addMissingPages: string[] };
   data?: DeliveryStampData;
 };
@@ -866,6 +874,21 @@ const handlers: Record<string, Handler> = {
     }
   },
 
+  // ── Je construis Check-designs card dismissal (CD-03) ──
+  // `msg.ack` is untrusted UI input (threat T-e4d-02): boolean-coerce it and read no
+  // other field. Load-mutate-save so projectStatus / projectProfile / a11yAttested
+  // cannot be clobbered. No reply and no notification — a card dismissal is not an
+  // action worth a toast; the UI re-reads on the next `load-cover-config`.
+  "set-checkdesigns-ack": async (msg) => {
+    try {
+      const coverCfg = await loadCoverConfig();
+      coverCfg.checkDesignsAck = msg.ack === true;
+      await saveCoverConfig(coverCfg);
+    } catch (error: any) {
+      console.error("Set check-designs ack error:", error);
+    }
+  },
+
   // ── Export delivery stamp (spec §2 — EXPORT-01) ──
   // At the "Je livre" gate: generate the in-file aggregate-only badge AND flip the
   // Cover to "Design Done" in one action (spec §2: stamp + Design Done happen
@@ -938,8 +961,14 @@ const handlers: Record<string, Handler> = {
   // ── External link-out (D-07 / SC-5) — hardened against arbitrary urls (T-051-01) ──
   "open-external": async (msg) => {
     try {
-      if (msg.url === A11Y_PLUGIN_URL) {
-        figma.openExternal(A11Y_PLUGIN_URL);
+      // Strict-equality membership (indexOf === ES2017-safe). The value handed to
+      // figma.openExternal is the MATCHED ALLOWLIST ENTRY, never the untrusted msg.url.
+      // `msg.url` is optional on the flat UiMsg type; a missing/non-string value
+      // narrows to "" which is never an allowlist entry → rejected.
+      const requestedUrl = typeof msg.url === "string" ? msg.url : "";
+      const allowed = EXTERNAL_URL_ALLOWLIST.indexOf(requestedUrl);
+      if (allowed !== -1) {
+        figma.openExternal(EXTERNAL_URL_ALLOWLIST[allowed]);
       } else {
         console.error("open-external: rejected non-allowlisted url");
       }

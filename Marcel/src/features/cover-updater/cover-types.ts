@@ -13,6 +13,9 @@ export interface CoverConfig {
   // QC global score while absent. Distinct from the frame-detection gate
   // (A11Y_ABSENT_PENALTY), which stays suppressed per WR-08.
   a11yAttested?: boolean;
+  // The designer dismissed the "clean up with Figma Check designs first" card in
+  // Je construis. Purely a UI-state flag — it gates NO score and NO delivery condition.
+  checkDesignsAck?: boolean;
 }
 
 export const PROJECT_STATUSES = [
@@ -32,6 +35,7 @@ export const DEFAULT_COVER_CONFIG: CoverConfig = {
   projectStatus: "In Progress",
   projectProfile: DEFAULT_PROFILE_ID,
   a11yAttested: false,
+  checkDesignsAck: false,
 };
 
 /**

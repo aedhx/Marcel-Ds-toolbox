@@ -19,6 +19,10 @@ export async function loadCoverConfig(): Promise<CoverConfig> {
       // T-QA-02: strict boolean coercion — a corrupted/absent stored value
       // degrades to false (fail-closed: unattested, penalty applied).
       a11yAttested: (stored as CoverConfig).a11yAttested === true,
+      // T-e4d-02/03: strict boolean coercion — an absent/corrupted stored value
+      // degrades to false (fail-open: the Check-designs recommendation is shown
+      // again, which is the harmless direction).
+      checkDesignsAck: (stored as CoverConfig).checkDesignsAck === true,
     };
   }
   return { ...DEFAULT_COVER_CONFIG };
