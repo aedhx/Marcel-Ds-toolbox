@@ -3000,6 +3000,26 @@
         <div id="panel-build" class="moment-panel active" role="tabpanel" aria-labelledby="moment-tab-build">
           <div class="moment-heading" data-i18n="nav.build.title">Je construis</div>
 
+          <!-- CD-01: Check-designs recommendation. Deliberately OUTSIDE #qc-view so
+               qcShowView() state toggling never swallows it — it stays readable while
+               results are on screen. Collapsed state persists per file (CD-03). -->
+          <div class="moment-card" id="build-checkdesigns-card" style="margin-bottom: var(--spacing-l);">
+            <div class="moment-card-head">
+              <div>
+                <div class="moment-card-title" data-i18n="build.checkdesigns.title">Nettoyez d'abord avec Figma</div>
+                <div class="moment-card-desc" data-i18n="build.checkdesigns.body"></div>
+              </div>
+            </div>
+            <div style="display: flex; flex-wrap: wrap; gap: var(--spacing-xs);">
+              <button class="btn-tertiary" id="build-checkdesigns-figma-link" data-i18n="build.checkdesigns.link.figma" style="padding-left: 0;">Guide Figma ↗</button>
+              <button class="btn-tertiary" id="build-checkdesigns-carrefour-link" data-i18n="build.checkdesigns.link.carrefour">Procédure de livraison Carrefour ↗</button>
+            </div>
+            <button class="moment-secondary-btn" id="build-checkdesigns-ack-btn" data-i18n="build.checkdesigns.ack">J'ai compris</button>
+          </div>
+          <div class="moment-meta hidden" id="build-checkdesigns-collapsed" style="margin-bottom: var(--spacing-l);">
+            <button class="btn-tertiary" id="build-checkdesigns-collapsed-link" data-i18n="build.checkdesigns.collapsed" style="padding-left: 0;">Check designs Figma recommandé avant le scan ↗</button>
+          </div>
+
           <!-- QC view container — state regions toggled by qcShowView() -->
           <div id="qc-view">
             <!-- State: empty / pre-scan -->
@@ -3650,6 +3670,12 @@
                   Copy for Jira
                 </button>
               </div>
+            </div>
+            <!-- CD-04: permanent delivery-procedure reminder, under the gate card and
+                 inside the gate state region (so it never shows in noscan / done).
+                 Reuses build.checkdesigns.link.carrefour — one source of truth. -->
+            <div class="moment-meta" style="margin-top: var(--spacing-s);">
+              <button class="btn-tertiary" id="deliver-carrefour-link" data-i18n="build.checkdesigns.link.carrefour" style="padding-left: 0;">Procédure de livraison Carrefour ↗</button>
             </div>
           </div>
 
@@ -5006,6 +5032,12 @@
           "build.a11y.title": "Accessibility", "build.a11y.desc": "Audit color contrast & readability via the external plugin.",
           "build.a11y.notice": "Accessibility not attested: −{penalty} pts",
           "build.a11y.notice.cta": "Attest in Je livre",
+          "build.checkdesigns.title": "Clean up with Figma first",
+          "build.checkdesigns.body": "Run Check designs (right-click your selection, or the Actions menu) and apply its suggestions: colors, spacing, typography and detached components get fixed upfront. Marcel's Quality Check then takes over for naming, coverage and the score.",
+          "build.checkdesigns.link.figma": "Figma guide ↗",
+          "build.checkdesigns.link.carrefour": "Carrefour delivery procedure ↗",
+          "build.checkdesigns.ack": "Got it",
+          "build.checkdesigns.collapsed": "Figma Check designs recommended before the scan ↗",
           "build.cover.label": "Cover status", "build.cover.apply": "Update Cover",
           "build.cover.current": "Current: {status}",
           "cover.status.inprogress": "In Progress", "cover.status.playground": "Playground",
@@ -5199,6 +5231,12 @@
           "build.a11y.title": "Accessibilité", "build.a11y.desc": "Audite le contraste et la lisibilité via le plugin externe.",
           "build.a11y.notice": "Accessibilité non attestée : −{penalty} pts",
           "build.a11y.notice.cta": "Attester dans Je livre",
+          "build.checkdesigns.title": "Nettoyez d'abord avec Figma",
+          "build.checkdesigns.body": "Lancez Check designs (clic droit sur votre sélection, ou menu Actions) et appliquez ses suggestions : couleurs, espacements, typographie et composants détachés sont corrigés en amont. Le Quality Check Marcel prend ensuite le relais pour le nommage, la couverture et le score.",
+          "build.checkdesigns.link.figma": "Guide Figma ↗",
+          "build.checkdesigns.link.carrefour": "Procédure de livraison Carrefour ↗",
+          "build.checkdesigns.ack": "J'ai compris",
+          "build.checkdesigns.collapsed": "Check designs Figma recommandé avant le scan ↗",
           "build.cover.label": "Statut de la Cover", "build.cover.apply": "Mettre à jour la Cover",
           "build.cover.current": "Actuel : {status}",
           "cover.status.inprogress": "En cours", "cover.status.playground": "Playground",
@@ -5480,6 +5518,12 @@
           "build.a11y.title": "Acessibilidade", "build.a11y.desc": "Audita o contraste de cores e a legibilidade via plugin externo.",
           "build.a11y.notice": "Acessibilidade não atestada: −{penalty} pts",
           "build.a11y.notice.cta": "Atestar em Je livre",
+          "build.checkdesigns.title": "Limpe primeiro com o Figma",
+          "build.checkdesigns.body": "Execute o Check designs (clique com o botão direito na sua seleção, ou menu Actions) e aplique as sugestões: cores, espaçamentos, tipografia e componentes desanexados são corrigidos antes. O Quality Check do Marcel assume depois para a nomenclatura, a cobertura e a pontuação.",
+          "build.checkdesigns.link.figma": "Guia Figma ↗",
+          "build.checkdesigns.link.carrefour": "Procedimento de entrega Carrefour ↗",
+          "build.checkdesigns.ack": "Entendi",
+          "build.checkdesigns.collapsed": "Check designs do Figma recomendado antes do scan ↗",
           "build.cover.label": "Status da Cover", "build.cover.apply": "Atualizar a Cover",
           "build.cover.current": "Atual: {status}",
           "cover.status.inprogress": "Em andamento", "cover.status.playground": "Playground",
@@ -6187,12 +6231,61 @@
       // allowlists, or the handler's strict equality check rejects the open.
       var A11Y_PLUGIN_URL =
         "https://www.figma.com/community/plugin/1625532706318215948";
-      function openA11yPlugin() {
+      // CD-02: these two MUST stay byte-identical to FIGMA_CHECK_DESIGNS_URL /
+      // CARREFOUR_DELIVERY_URL in main.ts, or the open-external handler's
+      // strict-equality membership check rejects them.
+      var FIGMA_CHECK_DESIGNS_URL =
+        "https://help.figma.com/hc/en-us/articles/39592284074263-Check-designs-in-Figma";
+      var CARREFOUR_DELIVERY_URL =
+        "https://carrefour.design/328eff0d7/p/38d38a-how-to-deliver-a-project";
+      function openExternalUrl(url) {
         parent.postMessage(
-          { pluginMessage: { type: "open-external", url: A11Y_PLUGIN_URL } },
+          { pluginMessage: { type: "open-external", url: url } },
           "*",
         );
       }
+      function openA11yPlugin() {
+        openExternalUrl(A11Y_PLUGIN_URL);
+      }
+      // CD-02/CD-03/CD-04 — Check-designs card + Je livre reminder wiring.
+      var cdFigmaLink = document.getElementById("build-checkdesigns-figma-link");
+      if (cdFigmaLink)
+        cdFigmaLink.addEventListener("click", function () {
+          openExternalUrl(FIGMA_CHECK_DESIGNS_URL);
+        });
+      var cdCollapsedLink = document.getElementById(
+        "build-checkdesigns-collapsed-link",
+      );
+      if (cdCollapsedLink)
+        cdCollapsedLink.addEventListener("click", function () {
+          openExternalUrl(FIGMA_CHECK_DESIGNS_URL);
+        });
+      var cdCarrefourLink = document.getElementById(
+        "build-checkdesigns-carrefour-link",
+      );
+      if (cdCarrefourLink)
+        cdCarrefourLink.addEventListener("click", function () {
+          openExternalUrl(CARREFOUR_DELIVERY_URL);
+        });
+      var deliverCarrefourLink = document.getElementById(
+        "deliver-carrefour-link",
+      );
+      if (deliverCarrefourLink)
+        deliverCarrefourLink.addEventListener("click", function () {
+          openExternalUrl(CARREFOUR_DELIVERY_URL);
+        });
+      // One-way by design: the collapsed row is a permanent reminder, not a toggle.
+      var cdAckBtn = document.getElementById("build-checkdesigns-ack-btn");
+      if (cdAckBtn)
+        cdAckBtn.addEventListener("click", function () {
+          checkDesignsAck = true;
+          renderCheckDesignsCard();
+          parent.postMessage(
+            { pluginMessage: { type: "set-checkdesigns-ack", ack: true } },
+            "*",
+          );
+        });
+
       var momentA11yLink = document.getElementById("moment-a11y-link");
       if (momentA11yLink)
         momentA11yLink.addEventListener("click", function () {
@@ -7759,6 +7852,11 @@
           // read and reconcile a stale in-memory qcResult. NOT gated on projectStatus —
           // the attestation must survive a reload regardless of the cover state.
           if (msg.config) applyA11yAttestation(msg.config.a11yAttested === true);
+          // CD-03: same posture — restore the card dismissal regardless of cover state.
+          if (msg.config) {
+            checkDesignsAck = msg.config.checkDesignsAck === true;
+            renderCheckDesignsCard();
+          }
           if (msg.config && msg.config.projectStatus) {
             // DELIVER-01: keep the gate's cover-ready row fresh (read-only).
             coverStatus = msg.config.projectStatus;
@@ -8581,6 +8679,7 @@
       // ══════════════════════════════════════════════
       // Session-only state (NO clientStorage — D-04 posture; gate only READS qcResult).
       var deliverA11yAttested = false;   // a11y attestation — hydrated from cover-config-loaded (lot 2)
+      var checkDesignsAck = false;   // Check-designs card dismissed — hydrated from cover-config-loaded (per file)
       var A11Y_UNATTESTED_PENALTY_UI = 15; // mirror of A11Y_UNATTESTED_PENALTY in shared/scoring-config.ts — ui.html has no build-time import
       var coverStatus = null;            // last cover-config-loaded projectStatus
       var deliverMarkdonePending = false; // true between gate Mark-Done click and cover-generated reply
@@ -8762,6 +8861,15 @@
       // Apply an attestation value locally and reconcile the in-memory qcResult so the
       // score reflects it WITHOUT a rescan. Mirrors the engine formula exactly
       // (quality-check-engine.ts: overall = max(0, conformity − a11yGate − hs)).
+      // CD-03: pure DOM toggling — no innerHTML, so no escaping surface (T-e4d-05).
+      function renderCheckDesignsCard() {
+        var card = document.getElementById("build-checkdesigns-card");
+        var row = document.getElementById("build-checkdesigns-collapsed");
+        if (!card || !row) return;
+        card.classList.toggle("hidden", checkDesignsAck);
+        row.classList.toggle("hidden", !checkDesignsAck);
+      }
+
       function applyA11yAttestation(attested) {
         deliverA11yAttested = attested === true;
         if (qcResult) {
