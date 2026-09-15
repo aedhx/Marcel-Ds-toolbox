@@ -25,6 +25,17 @@ export interface QualityCheckResult extends ScoreResult {
   // component, AND non-scoring dead-styles (each tagged via its `category`, D-02/D-08).
   violations: Violation[];
 
+  // How many scanned violations the ignore allowlist excluded BEFORE scoring (EVP-01).
+  // « Ignorer » means "excluded from the score": these findings never reach
+  // calculatePenaltyScore, so they burn no penalty points. 0 when the allowlist is empty.
+  ignoredCount: number;
+
+  // The excluded findings themselves, retained so main.ts can re-score on un-ignore
+  // without re-traversing the file. Bounded by the allowlist size (a designer-authored
+  // handful), never by file size. The UI does not render this array today — it exists
+  // purely as the sandbox's in-memory re-score input (see quality-check-rescored).
+  ignoredViolations: Violation[];
+
   // Number of nodes the single traverseNodes() pass processed (D-13/D-10).
   processed: number;
 

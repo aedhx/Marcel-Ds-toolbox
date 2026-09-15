@@ -99,10 +99,16 @@ function isAutoLayout(node: SceneNode): boolean {
 // the Linter tab (Plan 01). `usedComponentIds` is therefore an empty set: checkNodeNaming's
 // six rules do not read it.
 
+// Allowlist note (EVP-01): the optional 4th parameter is the `nodeId::rule` ignore set,
+// applied BEFORE scoring so ignored violations do not burn penalty points. It is passed in
+// (not loaded here) because shared/ must not depend on a feature module (CONVENTIONS.md
+// layering) — features/linter/linter-allowlist.ts owns the key format and the persistence.
+
 export async function runQualityCheck(
   scope: TraversalScope,
   abortToken?: ScanAbortToken,
-  onProgress?: (phase: string, processed: number, total: number) => void
+  onProgress?: (phase: string, processed: number, total: number) => void,
+  allowlist?: Set<string>
 ): Promise<QualityCheckResult | null> {
   // ── Accumulators (declared up front, hc-engine idiom) ──
   const namingViolations: Violation[] = [];
@@ -300,7 +306,7 @@ export async function runQualityCheck(
   // the score input (below) and the contract's violation list — one source of truth.
   // coverage violations ride along for the UI list but are EXCLUDED from the penalty
   // buckets by scoring-config's CATEGORY_OF_RULE (coverage → null; spec §1.11).
-  const violations: Violation[] = [
+  const scannedViolations: Violation[] = [
     ...namingViolations,
     ...colorViolations,
     ...typographyViolations,
@@ -309,6 +315,21 @@ export async function runQualityCheck(
     ...coverageResult.violations,
     ...deadStyleViolations,
   ];
+
+  // ── Allowlist split — BEFORE scoring (EVP-01) ──
+  // « Ignorer » must actually mean "excluded from the score", so the ignore set is applied
+  // HERE, upstream of calculatePenaltyScore, not after it. The `nodeId::rule` key format is
+  // owned by features/linter/linter-allowlist.ts (filterAllowlisted) and inlined below
+  // rather than imported, because shared/ must not depend on a feature module.
+  const ignoredViolations: Violation[] =
+    allowlist && allowlist.size > 0
+      ? scannedViolations.filter((v) => allowlist.has(v.nodeId + '::' + v.rule))
+      : [];
+  const violations: Violation[] =
+    allowlist && allowlist.size > 0
+      ? scannedViolations.filter((v) => !allowlist.has(v.nodeId + '::' + v.rule))
+      : scannedViolations;
+  const ignoredCount = ignoredViolations.length;
 
   // ── Penalty-model headline (SCORE-01/SCORE-02 — spec §1.1–§1.5) ──
   // Replaces the former calculateWeightedCategoryScore[] → buildScoreResult path.
@@ -363,6 +384,8 @@ export async function runQualityCheck(
     totalViolations: scoreResult.totalViolations,
     totalChecked: scoreResult.totalChecked,
     violations,
+    ignoredCount,          // EVP-01 — excluded from the score, surfaced on the dashboard
+    ignoredViolations,     // EVP-01 — re-score input for ignore/unignore (no re-traversal)
     processed: traversalResult.processed,
     cancelled: false,
     // ── Penalty-model contract (Phase 5.2) ──

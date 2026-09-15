@@ -1,6 +1,7 @@
 import type { DeadStylesResult, DeadItemType, StyleCleanerResult } from '../features/dead-styles/dead-styles-types';
 import type { QualityCheckResult } from './quality-check-types';
 import type { Violation } from './violation-types';
+import type { CategoryScore } from './scoring';
 import type { DeliveryStampData } from '../features/delivery/delivery-stamp';
 import type { FileStructureDiagnosis } from '../features/starter-kit/audit-mode';
 
@@ -102,6 +103,8 @@ export type PluginMessage =
   | { type: "quality-check-result"; result: QualityCheckResult }
   | { type: "quality-check-error"; message: string }
   | { type: "quality-check-progress"; phase: string; processed: number; total: number }
+  // In-memory re-score after ignore/unignore (EVP-02) — no second traversal.
+  | { type: "quality-check-rescored"; overall: number; conformityScore: number; ignoredCount: number; categories: CategoryScore[] }
   // Unified Quality Check fix-routing results (Phase 4 — QC-08/QC-09)
   | { type: "fix-qc-violation-result"; result: { success: boolean; detail?: string }; violationId?: string }
   | { type: "fix-qc-bulk-result"; result: { fixed: number; failed: number; fixedNodeIds: string[] } }

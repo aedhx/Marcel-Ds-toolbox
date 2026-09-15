@@ -7,6 +7,7 @@ import { LinterConfig, loadLinterConfig, saveLinterConfig, resetLinterConfig } f
 import { loadAllowlist, addToAllowlist, removeFromAllowlist, clearAllowlist, filterAllowlisted } from "./features/linter/linter-allowlist";
 import { hcFixNode, hcFixAll } from "./features/health-check/hc-autofix";
 import { runQualityCheck } from "./shared/quality-check-engine";
+import { calculatePenaltyScore } from "./shared/scoring";
 import type { ScanAbortToken } from "./shared/node-traversal";
 import { generateOrUpdateCover, NO_COVER_ERROR_CODE } from "./features/cover-updater/cover-updater";
 import { loadCoverConfig, saveCoverConfig } from "./features/cover-updater/cover-config";
@@ -44,7 +45,7 @@ const NOTIF: Record<string, Record<string, string>> = {
     "hc.fix.count": "{fixed} violation{s} corrigee{s}",
     "hc.fix.count.failed": " ({failed} echouee{fs})",
     "hc.fix.none": "Aucune violation n'a pu etre corrigee.",
-    "hc.fix.fail": "Correction impossible : {detail}",
+    "hc.fix.fail": "Correction impossible : {detail} — utilisez Ignorer pour l\'exclure du score",
     "hc.fix.detail.noTextStyle": "aucun style de texte Marcel de cette taille n'est utilise dans ce fichier",
     "hc.fix.detail.notText": "ce calque n'est pas un texte",
     "hc.fix.detail.mixed": "valeurs mixtes sur ce calque",
@@ -87,7 +88,7 @@ const NOTIF: Record<string, Record<string, string>> = {
     "hc.fix.count": "{fixed} violation{s} fixed",
     "hc.fix.count.failed": " ({failed} failed)",
     "hc.fix.none": "No violations could be fixed.",
-    "hc.fix.fail": "Cannot fix: {detail}",
+    "hc.fix.fail": "Cannot fix: {detail} — use Ignore to exclude it from the score",
     "hc.fix.detail.noTextStyle": "no Marcel text style of this size is used in this file",
     "hc.fix.detail.notText": "this layer is not a text layer",
     "hc.fix.detail.mixed": "mixed values on this layer",
@@ -130,7 +131,7 @@ const NOTIF: Record<string, Record<string, string>> = {
     "hc.fix.count": "{fixed} violação(ões) corrigida{s}",
     "hc.fix.count.failed": " ({failed} falhou)",
     "hc.fix.none": "Nenhuma violação pôde ser corrigida.",
-    "hc.fix.fail": "Não foi possível corrigir: {detail}",
+    "hc.fix.fail": "Não foi possível corrigir: {detail} — use Ignorar para excluí-la da pontuação",
     "hc.fix.detail.noTextStyle": "nenhum estilo de texto Marcel deste tamanho é usado neste arquivo",
     "hc.fix.detail.notText": "esta camada não é um texto",
     "hc.fix.detail.mixed": "valores mistos nesta camada",
@@ -211,6 +212,32 @@ var linterConfig: LinterConfig | null = null;
 
 // ── Abort token for cancellable scans ──
 var currentAbortToken: ScanAbortToken | null = null;
+
+// ── Last QC scan, RAW (pre-allowlist) ──
+// Lets ignore/unignore re-score in memory — no second traversal (see quality-check-rescored).
+// Null until the first completed Quality Check; a cancelled scan never clobbers it.
+var qcLastScan: { violations: Violation[]; a11yGatePenalty: number; hsPenalty: number } | null = null;
+
+// ── In-memory re-score after an ignore/unignore (EVP-02) ──
+// Shared by "ignore-violation" and "unignore-violation" so the two paths can never diverge.
+// No-op (posts nothing) when there is no cached QC scan — the legacy Linter ignore path is
+// unchanged. `overall` posted here is the SANDBOX's best guess, derived from the penalties
+// captured at scan time; the UI deliberately re-derives it from its own live a11yGatePenalty
+// because the attestation can have been toggled since the scan.
+function qcPostRescore(list: Set<string>): void {
+  if (!qcLastScan) return;
+  var kept = qcLastScan.violations.filter(function (v) {
+    return !list.has(v.nodeId + "::" + v.rule);
+  });
+  var rescore = calculatePenaltyScore(kept);
+  figma.ui.postMessage({
+    type: "quality-check-rescored",
+    overall: Math.max(0, rescore.overall - qcLastScan.a11yGatePenalty - qcLastScan.hsPenalty),
+    conformityScore: rescore.overall,
+    ignoredCount: qcLastScan.violations.length - kept.length,
+    categories: rescore.categories,
+  });
+}
 
 // ── Audit door in-flight guard (CR-02) ──
 // figma.ui.onmessage does NOT serialize handlers: a second apply-structure-upgrade
@@ -699,6 +726,7 @@ const handlers: Record<string, Handler> = {
     try {
       var updatedList = await addToAllowlist(msg.nodeId || "", msg.ruleId || "");
       figma.ui.postMessage({ type: "allowlist-updated", allowlist: Array.from(updatedList) });
+      qcPostRescore(updatedList);
     } catch (error: any) {
       console.error("Ignore violation error:", error);
     }
@@ -708,6 +736,7 @@ const handlers: Record<string, Handler> = {
     try {
       var updatedList2 = await removeFromAllowlist(msg.nodeId || "", msg.ruleId || "");
       figma.ui.postMessage({ type: "allowlist-updated", allowlist: Array.from(updatedList2) });
+      qcPostRescore(updatedList2);
     } catch (error: any) {
       console.error("Unignore violation error:", error);
     }
@@ -745,6 +774,10 @@ const handlers: Record<string, Handler> = {
       currentAbortToken = token;
 
       const scope = msg.scope || "page";
+      // QC-09 / EVP-01: the ignore allowlist is loaded BEFORE the scan and handed to the
+      // engine, which filters it out UPSTREAM of calculatePenaltyScore — an ignored
+      // violation is hidden AND stops burning penalty points.
+      var qcAllowlist = await loadAllowlist();
       const result = await runQualityCheck(
         scope as "page" | "selection" | "file",
         token,
@@ -755,7 +788,8 @@ const handlers: Record<string, Handler> = {
             processed,
             total,
           });
-        }
+        },
+        qcAllowlist
       );
 
       if (currentAbortToken === token) currentAbortToken = null;
@@ -763,10 +797,12 @@ const handlers: Record<string, Handler> = {
       // Discard-on-cancel (D-09): runQualityCheck returns null on cancel —
       // never post a partial score.
       if (result) {
-        // QC-09: filter ignored violations so they stay hidden on rescan
-        // (mirror run-linter main.ts:351 — shared family-agnostic nodeId::rule allowlist)
-        var qcAllowlist = await loadAllowlist();
-        result.violations = filterAllowlisted(result.violations, qcAllowlist);
+        // Cache the RAW (pre-allowlist) scan so ignore/unignore can re-score in memory.
+        qcLastScan = {
+          violations: result.violations.concat(result.ignoredViolations),
+          a11yGatePenalty: result.a11yGatePenalty || 0,
+          hsPenalty: result.hsPenalty || 0,
+        };
         figma.ui.postMessage({ type: "quality-check-result", result });
       } else {
         figma.ui.postMessage({ type: "scan-cancelled" });
