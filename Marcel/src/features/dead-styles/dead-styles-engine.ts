@@ -21,6 +21,9 @@ interface CachedVariable {
   isForeign: boolean;
   resolvedType: string;
   key: string;
+  // Default-mode color captured at classification time (COLOR variables only) so the
+  // foreign-item preview needs no second getVariableByIdAsync / collection round-trip.
+  defaultColor: RGB | null;
 }
 
 interface CachedStyle {
@@ -28,10 +31,37 @@ interface CachedStyle {
   libraryName: string;
   styleName: string;
   styleType: "PAINT" | "TEXT" | "EFFECT";
+  // Preview + DS suggestion computed once per style at classification time (foreign only).
+  preview: StylePreview;
+  suggestion: DSSuggestion | null;
 }
 
 let variableCache = new Map<string, CachedVariable | null>();
 let styleCache = new Map<string, CachedStyle | null>();
+// Collections are shared by many variables: resolve each id once per scan. The promise is
+// cached (not the value) so concurrent classifications of sibling variables coalesce.
+let collectionCache = new Map<string, Promise<VariableCollection | null>>();
+
+function getCollectionCached(collectionId: string): Promise<VariableCollection | null> {
+  let pending = collectionCache.get(collectionId);
+  if (!pending) {
+    pending = figma.variables.getVariableCollectionByIdAsync(collectionId).catch(() => null);
+    collectionCache.set(collectionId, pending);
+  }
+  return pending;
+}
+
+// Classification is a per-id round-trip; run the UNIQUE ids of a binding list in concurrent
+// chunks (same pattern as hc-components / hc-coverage) so the per-binding loops below only
+// ever hit the caches. Chunked rather than one giant Promise.all to bound in-flight requests.
+const CLASSIFY_CHUNK = 50;
+
+async function prewarm<T>(ids: string[], classify: (id: string) => Promise<T>): Promise<void> {
+  const unique = Array.from(new Set(ids));
+  for (let i = 0; i < unique.length; i += CLASSIFY_CHUNK) {
+    await Promise.all(unique.slice(i, i + CLASSIFY_CHUNK).map((id) => classify(id)));
+  }
+}
 
 // ── Raw binding collected during sync traversal (pass 1) ──
 // Exported (D-07) so the unified runQualityCheck() pass can declare these accumulators and
@@ -303,6 +333,7 @@ async function classifyAndCacheVariable(varId: string): Promise<CachedVariable |
         isForeign: true,
         resolvedType: "UNKNOWN",
         key: "",
+        defaultColor: null,
       };
       variableCache.set(varId, entry);
       return entry;
@@ -317,25 +348,29 @@ async function classifyAndCacheVariable(varId: string): Promise<CachedVariable |
         isForeign: false,
         resolvedType: variable.resolvedType,
         key: variable.key,
+        defaultColor: null,
       };
       variableCache.set(varId, entry);
       return entry;
     }
 
-    // Remote variable — check if collection is from approved DS library
-    let collectionName = "";
-    try {
-      const collection = await figma.variables.getVariableCollectionByIdAsync(
-        variable.variableCollectionId
-      );
-      collectionName = collection ? collection.name : "";
-    } catch {
-      // Collection inaccessible
-      collectionName = "";
-    }
+    // Remote variable — check if collection is from approved DS library.
+    // One collection round-trip per DISTINCT collection per scan (getCollectionCached).
+    const collection = await getCollectionCached(variable.variableCollectionId);
+    const collectionName = collection ? collection.name : "";
 
     // Foreign = NOT from an approved DS collection
     const isForeign = !collectionName || !isApprovedCollection(collectionName);
+
+    // Capture the default-mode color now (same variable + collection objects already in
+    // hand) so the preview step is a pure cache read.
+    let defaultColor: RGB | null = null;
+    if (isForeign && variable.resolvedType === "COLOR" && collection) {
+      const value = variable.valuesByMode[collection.defaultModeId];
+      if (value && typeof value === "object" && "r" in value) {
+        defaultColor = value as RGB;
+      }
+    }
 
     const entry: CachedVariable = {
       name: variable.name,
@@ -344,6 +379,7 @@ async function classifyAndCacheVariable(varId: string): Promise<CachedVariable |
       isForeign,
       resolvedType: variable.resolvedType,
       key: variable.key,
+      defaultColor,
     };
     variableCache.set(varId, entry);
     return entry;
@@ -356,6 +392,7 @@ async function classifyAndCacheVariable(varId: string): Promise<CachedVariable |
       isForeign: true,
       resolvedType: "UNKNOWN",
       key: "",
+      defaultColor: null,
     };
     variableCache.set(varId, entry);
     return entry;
@@ -384,6 +421,8 @@ async function classifyStyle(styleId: string): Promise<CachedStyle | null> {
         libraryName: "",
         styleName: style.name,
         styleType: style.type as "PAINT" | "TEXT" | "EFFECT",
+        preview: { type: "unknown" },
+        suggestion: null,
       };
       styleCache.set(styleId, entry);
       return entry;
@@ -398,11 +437,31 @@ async function classifyStyle(styleId: string): Promise<CachedStyle | null> {
       stylePath.includes("[DS] FOUNDATION") ||
       stylePath.includes("DO NOT USE");
 
+    // Preview + DS suggestion from the style object already in hand — computed once per
+    // style, not once per node binding (the former per-binding getStyleByIdAsync refetch).
+    let preview: StylePreview = { type: "unknown" };
+    let suggestion: DSSuggestion | null = null;
+    if (isForeign) {
+      try {
+        preview = extractStylePreview(style as PaintStyle | TextStyle | EffectStyle);
+        if (style.type === "PAINT") {
+          const paint = (style as PaintStyle).paints[0];
+          if (paint && paint.type === "SOLID") {
+            suggestion = suggestDSColorReplacement(paint.color);
+          }
+        }
+      } catch {
+        // Keep unknown preview
+      }
+    }
+
     const entry: CachedStyle = {
       isForeign,
       libraryName: style.description || "Remote library",
       styleName: style.name,
       styleType: style.type as "PAINT" | "TEXT" | "EFFECT",
+      preview,
+      suggestion,
     };
     styleCache.set(styleId, entry);
     return entry;
@@ -462,34 +521,16 @@ function suggestDSColorReplacement(color: RGB): DSSuggestion | null {
 
 // ── Foreign detection: Resolve variable color for preview/suggestion ──
 
-async function resolveVariableColorPreview(
-  varId: string,
+function resolveVariableColorPreview(
   cached: CachedVariable
-): Promise<{ preview: StylePreview; suggestion: DSSuggestion | null }> {
-  if (cached.resolvedType === "COLOR") {
-    try {
-      const variable = await figma.variables.getVariableByIdAsync(varId);
-      if (variable) {
-        // Get value from default mode
-        const collection = await figma.variables.getVariableCollectionByIdAsync(
-          variable.variableCollectionId
-        );
-        if (collection) {
-          const defaultModeId = collection.defaultModeId;
-          const value = variable.valuesByMode[defaultModeId];
-          if (value && typeof value === "object" && "r" in value) {
-            const rgb = value as RGB;
-            const hex = rgbToHex(rgb.r, rgb.g, rgb.b);
-            return {
-              preview: { type: "color", hex, resolvedType: "COLOR" },
-              suggestion: suggestDSColorReplacement(rgb),
-            };
-          }
-        }
-      }
-    } catch {
-      // Fall through to default preview
-    }
+): { preview: StylePreview; suggestion: DSSuggestion | null } {
+  // No API calls: the default-mode color was captured during classification.
+  if (cached.resolvedType === "COLOR" && cached.defaultColor) {
+    const rgb = cached.defaultColor;
+    return {
+      preview: { type: "color", hex: rgbToHex(rgb.r, rgb.g, rgb.b), resolvedType: "COLOR" },
+      suggestion: suggestDSColorReplacement(rgb),
+    };
   }
 
   return {
@@ -508,11 +549,15 @@ async function processForeignVariableBindings(
   rawBindings: RawVarBinding[],
   foreignItems: ForeignItemInfo[]
 ): Promise<void> {
+  // Classify each DISTINCT variable once, concurrently in chunks; the ordered loop below
+  // then only reads caches, so output order stays identical to the former sequential loop.
+  await prewarm(rawBindings.map((b) => b.varId), classifyAndCacheVariable);
+
   for (const binding of rawBindings) {
     const cached = await classifyAndCacheVariable(binding.varId);
     if (!cached || !cached.isForeign) continue;
 
-    const { preview, suggestion } = await resolveVariableColorPreview(binding.varId, cached);
+    const { preview, suggestion } = resolveVariableColorPreview(cached);
 
     const source: ForeignItemSource = {
       libraryName: cached.collectionName || "Unknown library",
@@ -542,30 +587,15 @@ async function processForeignStyleBindings(
   rawBindings: RawStyleBinding[],
   foreignItems: ForeignItemInfo[]
 ): Promise<void> {
+  // Same shape as the variable half: classify each DISTINCT style once, concurrently.
+  await prewarm(rawBindings.map((b) => b.styleId), classifyStyle);
+
   for (const binding of rawBindings) {
     const cached = await classifyStyle(binding.styleId);
     if (!cached || !cached.isForeign) continue;
 
-    // Build preview from the style itself
-    let preview: StylePreview = { type: "unknown" };
-    let suggestion: DSSuggestion | null = null;
-
-    try {
-      const style = await figma.getStyleByIdAsync(binding.styleId);
-      if (style) {
-        preview = extractStylePreview(style as PaintStyle | TextStyle | EffectStyle);
-        // If it's a paint style with color, suggest DS replacement
-        if (style.type === "PAINT") {
-          const ps = style as PaintStyle;
-          const paint = ps.paints[0];
-          if (paint && paint.type === "SOLID") {
-            suggestion = suggestDSColorReplacement(paint.color);
-          }
-        }
-      }
-    } catch {
-      // Style inaccessible — keep unknown preview
-    }
+    const preview = cached.preview;
+    const suggestion = cached.suggestion;
 
     const source: ForeignItemSource = {
       libraryName: cached.libraryName,
@@ -612,6 +642,7 @@ export async function scanStyleCleaner(
   // Clear caches at start of each scan
   variableCache = new Map();
   styleCache = new Map();
+  collectionCache = new Map();
 
   // Phase 0: Build DS variable key map for replace-with-variable support
   await buildDSVariableKeyMap();
@@ -813,6 +844,7 @@ export async function finalizeDeadStyles(
   // color suggestions resolve identically to the standalone Style Cleaner scan.
   variableCache = new Map();
   styleCache = new Map();
+  collectionCache = new Map();
   await buildDSVariableKeyMap();
 
   const deadStyles: DeadStyleInfo[] = [];
