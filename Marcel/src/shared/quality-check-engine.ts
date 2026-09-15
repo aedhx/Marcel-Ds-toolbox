@@ -13,10 +13,11 @@
 
 import { traverseNodes, type TraversalScope, type ScanAbortToken } from './node-traversal';
 import { calculatePenaltyScore, formatScoreLabel, getScoreColor } from './scoring';
-// A11Y_ABSENT_PENALTY intentionally NOT imported — the a11y gate penalty is suppressed
-// (WR-08, NOT-EVALUATED in lot 1). The constant remains defined in scoring-config for the
+// A11Y_ABSENT_PENALTY intentionally NOT imported — the FRAME-detection gate penalty stays
+// suppressed (WR-08, NOT-EVALUATED). The constant remains defined in scoring-config for the
 // future starter-kit builder that will generate the A11Y_FRAME_NAME frame.
-import { A11Y_FRAME_NAME } from './scoring-config';
+// A11Y_UNATTESTED_PENALTY (lot 2) IS imported — the designer ATTESTATION gate is live.
+import { A11Y_FRAME_NAME, A11Y_UNATTESTED_PENALTY } from './scoring-config';
 import { type Violation } from './violation-types';
 import { getNodeFills, getNodeStrokes } from './figma-helpers';
 import type { QualityCheckResult } from './quality-check-types';
@@ -38,6 +39,7 @@ import {
 } from '../features/dead-styles/dead-styles-engine';
 import { styleCleanerToViolations } from '../features/dead-styles/dead-styles-adapter';
 import { evaluateDeliveryChecklist } from '../features/delivery/delivery-checklist';
+import { loadCoverConfig } from '../features/cover-updater/cover-config';
 
 // ── Scoring model (Phase 5.2) ──
 // The headline is now the penalty model (calculatePenaltyScore, spec §1.1–§1.5):
@@ -318,19 +320,23 @@ export async function runQualityCheck(
   // the a11y gate (spec §1.6: the DS score is separate from the gated global).
   const conformityScore = scoreResult.overall;
 
-  // ── A11y presence gate (SCORE-04 — spec §1.8, lot 1) ──
-  // Absent standard a11y frame → fixed penalty off the GLOBAL score (floor 0), and flag
-  // the absence so the gate UI (Plan 05) can warn + force-launch the a11y plugin. Present
-  // frame → no penalty, global === DS conformity. Penalty is the named scoring-config
-  // constant (never a literal), satisfying T-052-06.
-  // WR-08: a11y is NOT-EVALUATED in lot 1. No starter-kit builder generates a node
-  // named A11Y_FRAME_NAME, and the gate is scope-dependent (a correctly-named frame
-  // on another page is invisible to a page-scope scan, and page nodes are never visited
-  // by the frame traversal), so the −A11Y_ABSENT_PENALTY would fire unconditionally on
-  // every file. Suppress it (force 0) until the generator exists. The A11Y_FRAME_NAME /
-  // A11Y_ABSENT_PENALTY constants stay defined in scoring-config for that future builder;
-  // the name-detection pass above stays in place, just no longer wired to a penalty.
-  const a11yGatePenalty = 0;
+  // ── A11y gate (SCORE-04 — spec §1.8) — two distinct gates, one penalty slot ──
+  //
+  // FRAME gate (lot 1) — STILL SUPPRESSED per WR-08. No starter-kit builder generates a
+  // node named A11Y_FRAME_NAME, and the detection is scope-dependent (a correctly-named
+  // frame on another page is invisible to a page-scope scan), so −A11Y_ABSENT_PENALTY
+  // would fire unconditionally on every file. A11Y_FRAME_NAME / A11Y_ABSENT_PENALTY stay
+  // defined in scoring-config for that future builder; the name-detection pass above stays
+  // in place, just not wired to a penalty, and a11yFramePresent stays `undefined` below.
+  //
+  // ATTESTATION gate (lot 2) — NOW LIVE. The designer ticks the a11y checkbox in "Je livre";
+  // it is persisted on the Cover config and read here at scan time. Unattested → the GLOBAL
+  // score pays −A11Y_UNATTESTED_PENALTY (floor 0). Fail-closed: a missing/corrupt stored
+  // value reads false and the penalty applies. conformityScore (pure DS) is NEVER touched.
+  // Penalty is the named scoring-config constant, never a literal (T-052-06).
+  const a11yCoverCfg = await loadCoverConfig();
+  const a11yAttested = a11yCoverCfg.a11yAttested === true;
+  const a11yGatePenalty = a11yAttested ? 0 : A11Y_UNATTESTED_PENALTY;
 
   // ── HS delivery checklist (HS-01 — spec §1.6/§4) ──
   // Page-structure hygiene evaluated AFTER the pass (page-name + cover-node reads, no BFS).
@@ -364,7 +370,8 @@ export async function runQualityCheck(
     // Downstream fields defaulted so the contract is fully shaped before Plan 04 lands.
     legacyDebtPercent,      // Plan 02 (SCORE-03) — derived from foreign-library bindings
     a11yFramePresent: undefined, // WR-08 — a11y NOT-EVALUATED in lot 1 (penalty suppressed)
-    a11yGatePenalty,        // Plan 03 (SCORE-04) — fixed penalty when the frame is absent
+    a11yAttested,           // lot 2 — designer attestation read from the Cover config
+    a11yGatePenalty,        // lot 2 — A11Y_UNATTESTED_PENALTY while the attestation is absent
     hsPenalty,               // Plan 04 (HS-01) — clamped soft penalty, folded into overall
     coverUpToDate,           // Plan 04 (HS-01) — cover hard-gate flag (enforced at Je livre)
     hsChecklist: hsResult.items, // Plan 04 (HS-01) — per-item pass/penalty breakdown

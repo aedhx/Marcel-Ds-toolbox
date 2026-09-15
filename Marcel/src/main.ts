@@ -259,6 +259,7 @@ type UiMsg = {
   placement?: "new-page" | "same-page";
   url?: string;
   profileId?: string;
+  attested?: boolean; // set-a11y-attested (a11y delivery gate) — untrusted, coerced at use
   selections?: { generateCover: boolean; replaceLegacyCover: boolean; addMissingPages: string[] };
   data?: DeliveryStampData;
 };
@@ -847,6 +848,21 @@ const handlers: Record<string, Handler> = {
       });
     } catch (error: any) {
       console.error("Set project profile error:", error);
+    }
+  },
+
+  // Persist the designer's accessibility attestation on the cover config (a11y
+  // delivery gate, lot 2). `msg.attested` is untrusted UI input (threat T-QA-01):
+  // boolean-coerce it and read no other field. Load-mutate-save so projectStatus /
+  // projectProfile cannot be clobbered. No reply is posted — the UI updates
+  // optimistically and re-reads on the next `load-cover-config`.
+  "set-a11y-attested": async (msg) => {
+    try {
+      const coverCfg = await loadCoverConfig();
+      coverCfg.a11yAttested = msg.attested === true;
+      await saveCoverConfig(coverCfg);
+    } catch (error: any) {
+      console.error("Set a11y attested error:", error);
     }
   },
 

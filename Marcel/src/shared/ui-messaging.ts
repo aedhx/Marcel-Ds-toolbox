@@ -50,6 +50,9 @@ export type UIMessage =
   | { type: "load-cover-config" }
   // Governed project profile (spec §1.7 — PROFILE-01): persist the chosen delivery profile
   | { type: "set-project-profile"; profileId: string }
+  // A11y delivery gate (lot 2): persisted on the Cover config, fire-and-forget, no reply
+  // (the UI already learns the value back from `cover-config-loaded.config`).
+  | { type: "set-a11y-attested"; attested: boolean }
   | { type: "load-delivery-profile-config" }
   // Export delivery stamp (spec §2 — EXPORT-01): generate the in-file badge + flip
   // Cover to Design Done. `data` is aggregate-only (no design content — privacy).

@@ -47,6 +47,10 @@ export interface QualityCheckResult extends ScoreResult {
   // `a11yFramePresent` = the standard a11y frame was found by name;
   // `a11yGatePenalty` = points subtracted from the global score when absent.
   a11yFramePresent?: boolean;
+  // Designer attestation read from the Cover config at scan time (lot 2). This is what
+  // now drives `a11yGatePenalty` (A11Y_UNATTESTED_PENALTY when false). Distinct from
+  // `a11yFramePresent`, which stays NOT-EVALUATED (undefined) per WR-08.
+  a11yAttested?: boolean;
   a11yGatePenalty?: number;
 
   // HS delivery checklist (HS-01). Populated by Plan 04.

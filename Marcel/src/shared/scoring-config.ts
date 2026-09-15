@@ -146,6 +146,15 @@ export function penaltyFor(category: PenaltyCategory, severity: PenaltySeverity)
 export const A11Y_FRAME_NAME = "♿ Accessibilité"; // [À CALER] confirm exact starter-generated name
 export const A11Y_ABSENT_PENALTY = 30; // [À CALER] spec §1.8 / §5.2 — confirm absolute −30 vs ×0.7
 
+// ── Accessibility ATTESTATION gate — lot 2 (delivery hard requirement) ──
+// Distinct from A11Y_ABSENT_PENALTY above: that one is the FRAME-DETECTION gate and
+// stays suppressed by WR-08 (no builder emits A11Y_FRAME_NAME). THIS one is the
+// designer ATTESTATION gate — the a11y checkbox in "Je livre", persisted on the Cover
+// config (CoverConfig.a11yAttested) and read by the engine at scan time. While the
+// attestation is absent the GLOBAL score pays this penalty (conformityScore is never
+// touched) and "Marquer comme Design Done" is hard-blocked.
+export const A11Y_UNATTESTED_PENALTY = 15; // [À CALER] delivery gate — designer attestation absent
+
 // ── Governed project profiles + delivery thresholds (spec §1.7, Plan 04) ──
 //
 // [À CALER — Design Ops maintains this closed list]

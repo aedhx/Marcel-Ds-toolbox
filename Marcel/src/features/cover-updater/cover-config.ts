@@ -11,9 +11,14 @@ export async function loadCoverConfig(): Promise<CoverConfig> {
   if (stored && typeof stored === "object" && "projectStatus" in stored) {
     // Backward compat: an old stored config without projectProfile falls back
     // to the governed default (DEFAULT_PROFILE_ID from DEFAULT_COVER_CONFIG).
+    // NOTE: this is a WHITELIST rebuild — any field not listed here is silently
+    // dropped on every read. Add new persisted fields to this literal.
     return {
       projectStatus: (stored as CoverConfig).projectStatus,
       projectProfile: (stored as CoverConfig).projectProfile ?? DEFAULT_COVER_CONFIG.projectProfile,
+      // T-QA-02: strict boolean coercion — a corrupted/absent stored value
+      // degrades to false (fail-closed: unattested, penalty applied).
+      a11yAttested: (stored as CoverConfig).a11yAttested === true,
     };
   }
   return { ...DEFAULT_COVER_CONFIG };

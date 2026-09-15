@@ -8,6 +8,11 @@ export interface CoverConfig {
   // Governed project profile id (spec §1.7) — drives the "Je livre" delivery
   // threshold and is carried into the export stamp. One of PROJECT_PROFILES ids.
   projectProfile?: string;
+  // External a11y plugin run attested by the designer (delivery gate, lot 2).
+  // Gates "Marquer comme Design Done" and costs A11Y_UNATTESTED_PENALTY on the
+  // QC global score while absent. Distinct from the frame-detection gate
+  // (A11Y_ABSENT_PENALTY), which stays suppressed per WR-08.
+  a11yAttested?: boolean;
 }
 
 export const PROJECT_STATUSES = [
@@ -26,6 +31,7 @@ export const STATUS_TO_KEY: Record<string, string> = {
 export const DEFAULT_COVER_CONFIG: CoverConfig = {
   projectStatus: "In Progress",
   projectProfile: DEFAULT_PROFILE_ID,
+  a11yAttested: false,
 };
 
 /**
