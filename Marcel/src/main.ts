@@ -617,12 +617,16 @@ const handlers: Record<string, Handler> = {
         });
       }
     } catch (error: any) {
-      console.error("QC fix node error:", error);
+      // An exception (e.g. Figma refusing a rename/bind on this node) was the
+      // last silent failure path: log every field and NOTIFY, never just re-arm.
+      var qcErrMsg = String(error?.message || error || "unknown error");
+      console.error("QC fix node error:", qcErrMsg, error?.code || "", error?.stack || error);
       figma.ui.postMessage({
         type: "fix-qc-violation-result",
-        result: { success: false },
+        result: { success: false, detail: qcErrMsg },
         violationId: msg.violationId || "",
       });
+      figma.notify(nt("hc.fix.fail", { detail: qcErrMsg }), { timeout: 5000, error: true });
     }
   },
 
