@@ -1394,6 +1394,56 @@
         line-height: 1.4;
         margin-top: 2px;
       }
+      /* Check-designs card (CD-01): numbered steps + footer row. */
+      .hub-card-icon.cd {
+        background: var(--brand);
+      }
+      .cd-steps {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: var(--spacing-xs);
+      }
+      .cd-step {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-s);
+        font-size: 12px;
+        line-height: 1.4;
+        color: var(--content-default);
+      }
+      .cd-step-num {
+        flex: 0 0 auto;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--brand);
+        background: var(--bg-default);
+        border: 1px solid var(--border-default);
+      }
+      .cd-foot {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--spacing-s);
+        margin-top: var(--spacing-xs);
+        padding-top: var(--spacing-s);
+        border-top: 1px solid var(--border-default);
+      }
+      .btn-tertiary--neutral {
+        color: var(--content-subtler);
+        font-weight: 600;
+      }
+      .btn-tertiary--neutral:hover {
+        color: var(--content-default);
+      }
       /* Full-width horizontal link-card modifier on .hub-card (harmonizes the
          QT-3 Linter / Dead-Styles link-cards into the moment card grammar). */
       .hub-card--full {
@@ -3012,17 +3062,28 @@
                results are on screen. Collapsed state persists per file (CD-03). -->
           <div class="moment-card" id="build-checkdesigns-card" style="margin-bottom: var(--spacing-l);">
             <div class="moment-card-head">
+              <div class="hub-card-icon cd" aria-hidden="true">
+                <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
+                  <path d="M10 2.5l1.9 4.6 4.9.4-3.7 3.2 1.1 4.8L10 13l-4.2 2.5 1.1-4.8L3.2 7.5l4.9-.4L10 2.5z" fill="currentColor" />
+                </svg>
+              </div>
               <div>
                 <div class="moment-card-title" data-i18n="build.checkdesigns.title">Nettoyez d'abord avec Figma</div>
-                <div class="moment-card-desc" data-i18n="build.checkdesigns.body"></div>
+                <div class="moment-card-desc" data-i18n="build.checkdesigns.subtitle">Avant le scan Marcel</div>
               </div>
             </div>
-            <div style="display: flex; flex-wrap: wrap; gap: var(--spacing-xs);">
-              <!-- Reference doc for Check designs = the Carrefour delivery procedure (the former
-                   Figma help-center link was dropped: one source of truth, Carrefour's). -->
+            <!-- The former paragraph, as three numbered steps the designer can follow in Figma. -->
+            <ol class="cd-steps">
+              <li class="cd-step"><span class="cd-step-num">1</span><span data-i18n="build.checkdesigns.step1">Sélectionnez vos écrans</span></li>
+              <li class="cd-step"><span class="cd-step-num">2</span><span data-i18n="build.checkdesigns.step2">Clic droit → Check designs</span></li>
+              <li class="cd-step"><span class="cd-step-num">3</span><span data-i18n="build.checkdesigns.step3">Appliquez les suggestions Figma</span></li>
+            </ol>
+            <!-- Footer: reference doc (Carrefour delivery procedure — the single source of truth)
+                 on the left, dismissal demoted to a neutral tertiary on the right. -->
+            <div class="cd-foot">
               <button class="btn-tertiary" id="build-checkdesigns-carrefour-link" data-i18n="build.checkdesigns.link.carrefour" style="padding-left: 0;">Procédure de livraison Carrefour ↗</button>
+              <button class="btn-tertiary btn-tertiary--neutral" id="build-checkdesigns-ack-btn" data-i18n="build.checkdesigns.ack" style="padding-right: 0;">J'ai compris</button>
             </div>
-            <button class="moment-secondary-btn" id="build-checkdesigns-ack-btn" data-i18n="build.checkdesigns.ack">J'ai compris</button>
           </div>
           <div class="moment-meta hidden" id="build-checkdesigns-collapsed" style="margin-bottom: var(--spacing-l);">
             <button class="btn-tertiary" id="build-checkdesigns-collapsed-link" data-i18n="build.checkdesigns.collapsed" style="padding-left: 0;">Check designs Figma recommandé avant le scan ↗</button>
@@ -5053,7 +5114,10 @@
           "build.a11y.notice": "Accessibility not attested: −{penalty} pts",
           "build.a11y.notice.cta": "Attest in Je livre",
           "build.checkdesigns.title": "Clean up with Figma first",
-          "build.checkdesigns.body": "Run Check designs (right-click your selection, or the Actions menu) and apply its suggestions: colors, spacing, typography and detached components get fixed upfront. Marcel's Quality Check then takes over for naming, coverage and the score.",
+          "build.checkdesigns.subtitle": "Before the Marcel scan",
+          "build.checkdesigns.step1": "Select your screens",
+          "build.checkdesigns.step2": "Right-click → Check designs",
+          "build.checkdesigns.step3": "Apply Figma's suggestions",
           "build.checkdesigns.link.carrefour": "Carrefour delivery procedure ↗",
           "build.checkdesigns.ack": "Got it",
           "build.checkdesigns.collapsed": "Figma Check designs recommended before the scan ↗",
@@ -5252,7 +5316,10 @@
           "build.a11y.notice": "Accessibilité non attestée : −{penalty} pts",
           "build.a11y.notice.cta": "Attester dans Je livre",
           "build.checkdesigns.title": "Nettoyez d'abord avec Figma",
-          "build.checkdesigns.body": "Lancez Check designs (clic droit sur votre sélection, ou menu Actions) et appliquez ses suggestions : couleurs, espacements, typographie et composants détachés sont corrigés en amont. Le Quality Check Marcel prend ensuite le relais pour le nommage, la couverture et le score.",
+          "build.checkdesigns.subtitle": "Avant le scan Marcel",
+          "build.checkdesigns.step1": "Sélectionnez vos écrans",
+          "build.checkdesigns.step2": "Clic droit → Check designs",
+          "build.checkdesigns.step3": "Appliquez les suggestions Figma",
           "build.checkdesigns.link.carrefour": "Procédure de livraison Carrefour ↗",
           "build.checkdesigns.ack": "J'ai compris",
           "build.checkdesigns.collapsed": "Check designs Figma recommandé avant le scan ↗",
@@ -5539,7 +5606,10 @@
           "build.a11y.notice": "Acessibilidade não atestada: −{penalty} pts",
           "build.a11y.notice.cta": "Atestar em Je livre",
           "build.checkdesigns.title": "Limpe primeiro com o Figma",
-          "build.checkdesigns.body": "Execute o Check designs (clique com o botão direito na sua seleção, ou menu Actions) e aplique as sugestões: cores, espaçamentos, tipografia e componentes desanexados são corrigidos antes. O Quality Check do Marcel assume depois para a nomenclatura, a cobertura e a pontuação.",
+          "build.checkdesigns.subtitle": "Antes do scan Marcel",
+          "build.checkdesigns.step1": "Selecione suas telas",
+          "build.checkdesigns.step2": "Clique direito → Check designs",
+          "build.checkdesigns.step3": "Aplique as sugestões do Figma",
           "build.checkdesigns.link.carrefour": "Procedimento de entrega Carrefour ↗",
           "build.checkdesigns.ack": "Entendi",
           "build.checkdesigns.collapsed": "Check designs do Figma recomendado antes do scan ↗",
