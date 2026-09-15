@@ -210,6 +210,38 @@ export function collectRawStyleBindings(node: SceneNode, bindings: RawStyleBindi
   }
 }
 
+// ── Helper: Collect the style IDs a node consumes (sync — for pass 1) ──
+//
+// Replaces one `style.getStyleConsumersAsync()` per local style (each a file-wide search,
+// awaited sequentially) with a single read per node during the traversal the dead-variable
+// detection already performs. A local style is dead iff its id never appears in this set.
+// Text nodes can carry per-range fill/text styles (`figma.mixed`); those are expanded via
+// getStyledTextSegments so a style used only on a sub-range still counts as consumed.
+const USED_STYLE_FIELDS = ["fillStyleId", "strokeStyleId", "effectStyleId", "gridStyleId", "textStyleId"] as const;
+const RANGE_STYLE_FIELDS = ["fillStyleId", "textStyleId"] as const;
+
+export function collectUsedStyleIds(node: SceneNode, usedStyleIds: Set<string>): void {
+  for (const field of USED_STYLE_FIELDS) {
+    if (!(field in node)) continue;
+    const styleId = (node as any)[field];
+    if (typeof styleId === "string") {
+      if (styleId) usedStyleIds.add(styleId);
+      continue;
+    }
+    if (styleId === figma.mixed && node.type === "TEXT" && (RANGE_STYLE_FIELDS as readonly string[]).includes(field)) {
+      try {
+        const segments = (node as TextNode).getStyledTextSegments([field as "fillStyleId" | "textStyleId"]);
+        for (const seg of segments) {
+          const segId = (seg as any)[field];
+          if (typeof segId === "string" && segId) usedStyleIds.add(segId);
+        }
+      } catch {
+        // Segment read failed — leave the range unaccounted rather than abort the scan
+      }
+    }
+  }
+}
+
 // ── Helper: Extract preview data from a style ──
 
 function extractStylePreview(style: PaintStyle | TextStyle | EffectStyle): StylePreview {
@@ -596,35 +628,10 @@ export async function scanStyleCleaner(
     return emptyResult(totalLocalStyles, 0, startTime);
   }
 
-  // Phase 2: Check style consumers (dead local styles)
+  // Phase 2: dead local styles are derived from the style ids consumed file-wide, collected
+  // during the single traversal below (no per-style getStyleConsumersAsync round-trips).
   const deadStyles: DeadStyleInfo[] = [];
-
-  for (let i = 0; i < allStyles.length; i++) {
-    if (abortToken.cancelled) {
-      return emptyResult(totalLocalStyles, 0, startTime);
-    }
-
-    const style = allStyles[i];
-    const consumers = await style.getStyleConsumersAsync();
-
-    if (consumers.length === 0) {
-      const itemType = style.type as "PAINT" | "TEXT" | "EFFECT";
-      deadStyles.push({
-        id: style.id,
-        name: style.name,
-        itemType,
-        preview: extractStylePreview(style),
-      });
-    }
-
-    if (onProgress) {
-      onProgress("styles", i + 1, totalLocalStyles);
-    }
-  }
-
-  if (abortToken.cancelled) {
-    return emptyResult(totalLocalStyles, 0, startTime);
-  }
+  const usedStyleIds = new Set<string>();
 
   // Phase 3: Fetch local variables and find unused ones
   const localVars = await figma.variables.getLocalVariablesAsync();
@@ -648,6 +655,7 @@ export async function scanStyleCleaner(
         collectVariableIds(node.boundVariables as Record<string, any>, usedVarIds);
       }
       collectPaintVariableIds(node, usedVarIds);
+      collectUsedStyleIds(node, usedStyleIds);
 
       // Collect raw bindings for foreign detection (sync — no await)
       collectRawVarBindings(node, rawVarBindings, varSeenKeys);
@@ -668,6 +676,9 @@ export async function scanStyleCleaner(
   if (abortToken.cancelled) {
     return emptyResult(totalLocalStyles, totalLocalVariables, startTime);
   }
+
+  collectDeadStyles(allStyles, usedStyleIds, deadStyles);
+  if (onProgress) onProgress("styles", totalLocalStyles, totalLocalStyles);
 
   // Phase 3b: Check local styles themselves for variable bindings
   for (const ps of paintStyles) {
@@ -836,23 +847,10 @@ export async function finalizeDeadStyles(
   const allStyles = [...paintStyles, ...textStyles, ...effectStyles];
   const totalLocalStyles = allStyles.length;
 
-  // Phase 2 verbatim: dead local styles = styles with zero consumers.
-  for (let i = 0; i < allStyles.length; i++) {
-    if (abortToken.cancelled) {
-      return { result: emptyResult(totalLocalStyles, 0, startTime), unusedScope: "file" };
-    }
-    const style = allStyles[i];
-    const consumers = await style.getStyleConsumersAsync();
-    if (consumers.length === 0) {
-      const itemType = style.type as "PAINT" | "TEXT" | "EFFECT";
-      deadStyles.push({ id: style.id, name: style.name, itemType, preview: extractStylePreview(style) });
-    }
-    if (onProgress) onProgress("styles", i + 1, totalLocalStyles);
-  }
-
-  if (abortToken.cancelled) {
-    return { result: emptyResult(totalLocalStyles, 0, startTime), unusedScope: "file" };
-  }
+  // Phase 2: dead local styles = local styles whose id is consumed nowhere file-wide. The
+  // consumed set is collected on the same traversal as usedVarIds (below) — one pass instead
+  // of one sequential getStyleConsumersAsync (a file-wide search each) per local style.
+  const usedStyleIds = new Set<string>();
 
   // Phase 3 verbatim: dead variables = local vars whose IDs are not used anywhere file-wide.
   // usedVarIds MUST be file-wide (not the unified scan's scope) to avoid false positives.
@@ -866,6 +864,7 @@ export async function finalizeDeadStyles(
         collectVariableIds(node.boundVariables as Record<string, any>, usedVarIds);
       }
       collectPaintVariableIds(node, usedVarIds);
+      collectUsedStyleIds(node, usedStyleIds);
     },
     {
       scope: "file",
@@ -880,6 +879,9 @@ export async function finalizeDeadStyles(
   if (abortToken.cancelled) {
     return { result: emptyResult(totalLocalStyles, totalLocalVariables, startTime), unusedScope: "file" };
   }
+
+  collectDeadStyles(allStyles, usedStyleIds, deadStyles);
+  if (onProgress) onProgress("styles", totalLocalStyles, totalLocalStyles);
 
   // Phase 3b verbatim: local styles' own variable bindings count as usage.
   for (const ps of paintStyles) {
@@ -966,6 +968,19 @@ async function processForeignHalf(
     totalForeignVariables: foreignItems.filter((f) => f.id.startsWith("foreign-var-")).length,
     totalForeignStyles: foreignItems.filter((f) => f.id.startsWith("foreign-style-")).length,
   };
+}
+
+// ── Helper: local styles never consumed anywhere in the file → dead ──
+function collectDeadStyles(
+  allStyles: Array<PaintStyle | TextStyle | EffectStyle>,
+  usedStyleIds: Set<string>,
+  deadStyles: DeadStyleInfo[]
+): void {
+  for (const style of allStyles) {
+    if (usedStyleIds.has(style.id)) continue;
+    const itemType = style.type as "PAINT" | "TEXT" | "EFFECT";
+    deadStyles.push({ id: style.id, name: style.name, itemType, preview: extractStylePreview(style) });
+  }
 }
 
 // ── Helper: Empty result for abort cases ──

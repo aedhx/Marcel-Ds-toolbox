@@ -19,6 +19,13 @@ export async function removeDeadStyle(
     if (!style) {
       return { success: false, error: "Style introuvable" };
     }
+    // Safety net: the scan derives "dead" from a traversal snapshot. Re-check with Figma's
+    // own consumer index right before deleting so a style that gained a consumer since the
+    // scan (or one the traversal could not see) is never removed.
+    const consumers = await style.getStyleConsumersAsync();
+    if (consumers.length > 0) {
+      return { success: false, error: "Style encore utilisé (" + consumers.length + ")" };
+    }
     style.remove();
     return { success: true };
   } catch (error: any) {
