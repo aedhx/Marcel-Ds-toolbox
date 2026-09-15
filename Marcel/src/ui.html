@@ -3018,8 +3018,9 @@
               </div>
             </div>
             <div style="display: flex; flex-wrap: wrap; gap: var(--spacing-xs);">
-              <button class="btn-tertiary" id="build-checkdesigns-figma-link" data-i18n="build.checkdesigns.link.figma" style="padding-left: 0;">Guide Figma ↗</button>
-              <button class="btn-tertiary" id="build-checkdesigns-carrefour-link" data-i18n="build.checkdesigns.link.carrefour">Procédure de livraison Carrefour ↗</button>
+              <!-- Reference doc for Check designs = the Carrefour delivery procedure (the former
+                   Figma help-center link was dropped: one source of truth, Carrefour's). -->
+              <button class="btn-tertiary" id="build-checkdesigns-carrefour-link" data-i18n="build.checkdesigns.link.carrefour" style="padding-left: 0;">Procédure de livraison Carrefour ↗</button>
             </div>
             <button class="moment-secondary-btn" id="build-checkdesigns-ack-btn" data-i18n="build.checkdesigns.ack">J'ai compris</button>
           </div>
@@ -5053,7 +5054,6 @@
           "build.a11y.notice.cta": "Attest in Je livre",
           "build.checkdesigns.title": "Clean up with Figma first",
           "build.checkdesigns.body": "Run Check designs (right-click your selection, or the Actions menu) and apply its suggestions: colors, spacing, typography and detached components get fixed upfront. Marcel's Quality Check then takes over for naming, coverage and the score.",
-          "build.checkdesigns.link.figma": "Figma guide ↗",
           "build.checkdesigns.link.carrefour": "Carrefour delivery procedure ↗",
           "build.checkdesigns.ack": "Got it",
           "build.checkdesigns.collapsed": "Figma Check designs recommended before the scan ↗",
@@ -5253,7 +5253,6 @@
           "build.a11y.notice.cta": "Attester dans Je livre",
           "build.checkdesigns.title": "Nettoyez d'abord avec Figma",
           "build.checkdesigns.body": "Lancez Check designs (clic droit sur votre sélection, ou menu Actions) et appliquez ses suggestions : couleurs, espacements, typographie et composants détachés sont corrigés en amont. Le Quality Check Marcel prend ensuite le relais pour le nommage, la couverture et le score.",
-          "build.checkdesigns.link.figma": "Guide Figma ↗",
           "build.checkdesigns.link.carrefour": "Procédure de livraison Carrefour ↗",
           "build.checkdesigns.ack": "J'ai compris",
           "build.checkdesigns.collapsed": "Check designs Figma recommandé avant le scan ↗",
@@ -5541,7 +5540,6 @@
           "build.a11y.notice.cta": "Atestar em Je livre",
           "build.checkdesigns.title": "Limpe primeiro com o Figma",
           "build.checkdesigns.body": "Execute o Check designs (clique com o botão direito na sua seleção, ou menu Actions) e aplique as sugestões: cores, espaçamentos, tipografia e componentes desanexados são corrigidos antes. O Quality Check do Marcel assume depois para a nomenclatura, a cobertura e a pontuação.",
-          "build.checkdesigns.link.figma": "Guia Figma ↗",
           "build.checkdesigns.link.carrefour": "Procedimento de entrega Carrefour ↗",
           "build.checkdesigns.ack": "Entendi",
           "build.checkdesigns.collapsed": "Check designs do Figma recomendado antes do scan ↗",
@@ -6253,11 +6251,8 @@
       // allowlists, or the handler's strict equality check rejects the open.
       var A11Y_PLUGIN_URL =
         "https://www.figma.com/community/plugin/1625532706318215948";
-      // CD-02: these two MUST stay byte-identical to FIGMA_CHECK_DESIGNS_URL /
-      // CARREFOUR_DELIVERY_URL in main.ts, or the open-external handler's
-      // strict-equality membership check rejects them.
-      var FIGMA_CHECK_DESIGNS_URL =
-        "https://help.figma.com/hc/en-us/articles/39592284074263-Check-designs-in-Figma";
+      // CD-02: MUST stay byte-identical to CARREFOUR_DELIVERY_URL in main.ts, or the
+      // open-external handler's strict-equality membership check rejects it.
       var CARREFOUR_DELIVERY_URL =
         "https://carrefour.design/328eff0d7/p/38d38a-how-to-deliver-a-project";
       function openExternalUrl(url) {
@@ -6272,17 +6267,12 @@
       var deliverA11yOpenBtn = document.getElementById("deliver-a11y-open-btn");
       if (deliverA11yOpenBtn) deliverA11yOpenBtn.addEventListener("click", openA11yPlugin);
       // CD-02/CD-03/CD-04 — Check-designs card + Je livre reminder wiring.
-      var cdFigmaLink = document.getElementById("build-checkdesigns-figma-link");
-      if (cdFigmaLink)
-        cdFigmaLink.addEventListener("click", function () {
-          openExternalUrl(FIGMA_CHECK_DESIGNS_URL);
-        });
       var cdCollapsedLink = document.getElementById(
         "build-checkdesigns-collapsed-link",
       );
       if (cdCollapsedLink)
         cdCollapsedLink.addEventListener("click", function () {
-          openExternalUrl(FIGMA_CHECK_DESIGNS_URL);
+          openExternalUrl(CARREFOUR_DELIVERY_URL);
         });
       var cdCarrefourLink = document.getElementById(
         "build-checkdesigns-carrefour-link",

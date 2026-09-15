@@ -264,9 +264,8 @@ async function getLinterConfig(): Promise<LinterConfig> {
 // would let a compromised UI open any Figma help page, and a prefix match on a
 // carrefour.design subdomain would let it open any Carrefour page.
 const A11Y_PLUGIN_URL = "https://www.figma.com/community/plugin/1625532706318215948";
-const FIGMA_CHECK_DESIGNS_URL = "https://help.figma.com/hc/en-us/articles/39592284074263-Check-designs-in-Figma";
 const CARREFOUR_DELIVERY_URL = "https://carrefour.design/328eff0d7/p/38d38a-how-to-deliver-a-project";
-const EXTERNAL_URL_ALLOWLIST: readonly string[] = [A11Y_PLUGIN_URL, FIGMA_CHECK_DESIGNS_URL, CARREFOUR_DELIVERY_URL];
+const EXTERNAL_URL_ALLOWLIST: readonly string[] = [A11Y_PLUGIN_URL, CARREFOUR_DELIVERY_URL];
 
 type UiMsg = {
   type: string;
