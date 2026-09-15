@@ -3,6 +3,7 @@
 
 import { hexToRgb, rgbToHex, fonts, DS_TOKENS } from "../../shared/tokens";
 import { loadFont } from "../../shared/figma-helpers";
+import { DS_TEXT_STYLE_KEYS } from "../../shared/ds-text-styles";
 import type { Violation } from "../../shared/violation-types";
 
 // ── Style mapping for typography fix ──
@@ -342,18 +343,51 @@ async function resolveTextStyle(textNode: TextNode): Promise<TextStyle | null> {
   if (nodeFontSize === figma.mixed) return null;
 
   var nodeWeight = (fontName as FontName).style;
-  var bestMatch: TextStyle | null = null;
+  var nodeDecoration = textNode.textDecoration === figma.mixed ? "NONE" : String(textNode.textDecoration || "NONE");
 
-  for (var i = 0; i < _textStylesCache.length; i++) {
-    var style = _textStylesCache[i];
+  // Candidates: local + harvested (cache) PLUS the Marcel Semantic styles of this size,
+  // imported by published key — the piece that was missing in project files where the
+  // matching DS style is not used anywhere yet (the font changed, no style got bound).
+  var candidates: TextStyle[] = _textStylesCache.slice();
+  var seenIds: Record<string, true> = {};
+  for (var c0 = 0; c0 < candidates.length; c0++) seenIds[candidates[c0].id] = true;
+  var dsEntries = DS_TEXT_STYLE_KEYS.filter(function (e) { return e.fontSize === nodeFontSize; });
+  var imported = await Promise.all(dsEntries.map(function (e) { return importTextStyleByKey(e.key); }));
+  for (var im = 0; im < imported.length; im++) {
+    var iv = imported[im];
+    if (iv && !seenIds[iv.id]) { seenIds[iv.id] = true; candidates.push(iv); }
+  }
+
+  // Score: same size is mandatory; then weight match, then decoration match
+  // (Body/*/Underline and /Strikethrough only win when the node really is decorated).
+  var best: TextStyle | null = null;
+  var bestScore = -1;
+  for (var i = 0; i < candidates.length; i++) {
+    var style = candidates[i];
     if (style.fontName.family !== fonts.family) continue;
     if (style.fontSize !== nodeFontSize) continue;
-    // Exact weight match preferred
-    if (style.fontName.style === nodeWeight) return style;
-    // Otherwise keep first size match as fallback
-    if (!bestMatch) bestMatch = style;
+    var score = 0;
+    if (style.fontName.style === nodeWeight) score += 2;
+    var styleDecoration = /\/Underline$/i.test(style.name) ? "UNDERLINE"
+      : /\/Strikethrough$/i.test(style.name) ? "STRIKETHROUGH" : "NONE";
+    if (styleDecoration === nodeDecoration) score += 1;
+    if (score > bestScore) { bestScore = score; best = style; }
   }
-  return bestMatch;
+  return best;
+}
+
+var _importedTextStyles: Record<string, TextStyle | null> = {};
+
+/** Import a Marcel text style by published key (cached per session; null if the key is stale). */
+async function importTextStyleByKey(key: string): Promise<TextStyle | null> {
+  if (key in _importedTextStyles) return _importedTextStyles[key];
+  var style: TextStyle | null = null;
+  try {
+    var imported = await figma.importStyleByKeyAsync(key);
+    if (imported && imported.type === "TEXT") style = imported as TextStyle;
+  } catch (_e) { style = null; }
+  _importedTextStyles[key] = style;
+  return style;
 }
 
 // ── Single-node fix ──
