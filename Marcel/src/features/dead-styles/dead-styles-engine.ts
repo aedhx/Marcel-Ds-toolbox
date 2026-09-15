@@ -383,8 +383,15 @@ async function classifyStyle(styleId: string): Promise<CachedStyle | null> {
 // ── DS variable key lookup (built at scan start from team library) ──
 
 let dsVariableKeyMap = new Map<string, string>(); // tokenName → variableKey
+// The map is a teamLibrary round-trip (every Marcel collection, then every variable in
+// each) — network-bound and identical from one scan to the next within a session. Reuse
+// it for DS_KEY_MAP_TTL_MS instead of refetching on every Quality Check.
+const DS_KEY_MAP_TTL_MS = 10 * 60 * 1000;
+let dsVariableKeyMapBuiltAt = 0;
 
 async function buildDSVariableKeyMap(): Promise<void> {
+  const fresh = dsVariableKeyMap.size > 0 && Date.now() - dsVariableKeyMapBuiltAt < DS_KEY_MAP_TTL_MS;
+  if (fresh) return;
   dsVariableKeyMap = new Map();
   try {
     const libCollections =
@@ -400,8 +407,9 @@ async function buildDSVariableKeyMap(): Promise<void> {
         }
       }
     }
+    dsVariableKeyMapBuiltAt = Date.now();
   } catch {
-    // teamLibrary may not be available — continue without variable keys
+    // teamLibrary may not be available — continue without variable keys (and retry next scan)
   }
 }
 
