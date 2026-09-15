@@ -50,6 +50,7 @@ const NOTIF: Record<string, Record<string, string>> = {
     "hc.fix.detail.mixed": "valeurs mixtes sur ce calque",
     "hc.fix.detail.font": "police Marcel introuvable",
     "hc.fix.detail.generic": "aucune correction automatique pour cette regle",
+    "hc.fix.detail.noSpacingVar": "aucune variable d'espacement Marcel n'est accessible dans ce fichier",
     "hc.error": "Erreur lors de l'audit Health Check.",
     "cover.updated": "Cover mise à jour ✅",
     "cover.error": "Erreur lors de la mise à jour de la cover.",
@@ -90,6 +91,7 @@ const NOTIF: Record<string, Record<string, string>> = {
     "hc.fix.detail.mixed": "mixed values on this layer",
     "hc.fix.detail.font": "Marcel font unavailable",
     "hc.fix.detail.generic": "no automatic fix for this rule",
+    "hc.fix.detail.noSpacingVar": "no Marcel spacing variable is reachable in this file",
     "hc.error": "Error during Health Check audit.",
     "cover.updated": "Cover updated ✅",
     "cover.error": "Error updating the cover.",
@@ -130,6 +132,7 @@ const NOTIF: Record<string, Record<string, string>> = {
     "hc.fix.detail.mixed": "valores mistos nesta camada",
     "hc.fix.detail.font": "fonte Marcel indisponível",
     "hc.fix.detail.generic": "nenhuma correção automática para esta regra",
+    "hc.fix.detail.noSpacingVar": "nenhuma variável de espaçamento Marcel está acessível neste arquivo",
     "hc.error": "Erro durante a auditoria Health Check.",
     "cover.updated": "Cover atualizada ✅",
     "cover.error": "Erro ao atualizar a cover.",
@@ -152,6 +155,7 @@ const NOTIF: Record<string, Record<string, string>> = {
 function hcFixDetailKey(detail: string): string {
   var d = (detail || "").toLowerCase();
   if (d.indexOf("text style") !== -1) return "hc.fix.detail.noTextStyle";
+  if (d.indexOf("spacing variable") !== -1) return "hc.fix.detail.noSpacingVar";
   if (d.indexOf("not a text") !== -1) return "hc.fix.detail.notText";
   if (d.indexOf("mixed") !== -1) return "hc.fix.detail.mixed";
   if (d.indexOf("font") !== -1) return "hc.fix.detail.font";

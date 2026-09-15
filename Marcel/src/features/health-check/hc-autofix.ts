@@ -60,6 +60,34 @@ async function resolveSpacingVariable(value: number): Promise<Variable | null> {
       // teamLibrary may not be available — continue with local only
     }
 
+    // Also harvest the spacing variables ALREADY BOUND on this page's auto-layout
+    // frames (padding/itemSpacing): in a project file the DS variables are remote,
+    // and this is the only listing that works regardless of library naming.
+    var seenVarIds: Record<string, true> = {};
+    for (var sv = 0; sv < allVars.length; sv++) seenVarIds[allVars[sv].id] = true;
+    try {
+      var layoutNodes = figma.currentPage.findAllWithCriteria({
+        types: ["FRAME", "COMPONENT", "INSTANCE"],
+      });
+      var spacingFields = ["paddingTop", "paddingBottom", "paddingLeft", "paddingRight", "itemSpacing"];
+      for (var ln = 0; ln < layoutNodes.length; ln++) {
+        var bvMap = (layoutNodes[ln] as any).boundVariables as Record<string, any> | undefined;
+        if (!bvMap) continue;
+        for (var sf = 0; sf < spacingFields.length; sf++) {
+          var alias = bvMap[spacingFields[sf]];
+          var aliasId = alias && typeof alias === "object" ? alias.id : null;
+          if (!aliasId || seenVarIds[aliasId]) continue;
+          seenVarIds[aliasId] = true;
+          try {
+            var boundVar = await figma.variables.getVariableByIdAsync(aliasId);
+            if (boundVar && boundVar.resolvedType === "FLOAT") allVars.push(boundVar);
+          } catch (_e3) { /* stale id — skip */ }
+        }
+      }
+    } catch (_e4) {
+      // page not loaded / API unavailable — continue with what we have
+    }
+
     _spacingVarsCache = allVars;
   }
 
@@ -277,17 +305,26 @@ async function fixSpacing(
 
   var property = String(meta.property);
   var nearestValue = Number(meta.nearestValue);
+  var currentValue = Number(meta.currentValue);
 
   var variable = await resolveSpacingVariable(nearestValue);
   if (variable) {
     try {
       (node as FrameNode).setBoundVariable(property as VariableBindableNodeField, variable);
+      return { success: true, detail: variable.name };
     } catch (_e) {
-      (node as any)[property] = nearestValue;
+      // fall through to the raw-value path below
     }
-  } else {
-    (node as any)[property] = nearestValue;
   }
+
+  // No DS variable reachable. For `missing-spacing-var` the value is ALREADY on
+  // the scale (nearest === current): re-writing the same number changes nothing
+  // and the violation would survive the re-scan — report an honest failure
+  // instead of a fake success.
+  if (nearestValue === currentValue) {
+    return { success: false, detail: "No DS spacing variable found" };
+  }
+  (node as any)[property] = nearestValue;
   return { success: true, detail: String(nearestValue) };
 }
 
